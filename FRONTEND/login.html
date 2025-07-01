@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/FRONTEND/CSS/login.css">
+    <script defer src="/FRONTEND/Scripts/login.js"></script>
+    <title>Iniciar sesión - SOMOCHE S.A</title>
+</head>
+<body>
+    <div class="rectangle-9">
+        <div class="title-header">SOMOCHE S.A</div>
+        <div class="title" style="height: auto;">Iniciar sesión</div>
+        <div class="subtext">
+            Inicia sesión introduciendo tu <br> email y contraseña
+        </div>
+        <form id="formLogin">
+            <div class="form-group">
+                <label for="cuil-input" class="cuil">CUIL / CUIT</label>
+                <div class="icon-wrapper">
+                    <i class="bi bi-person"></i>
+                </div>
+                <input type="text" id="cuil-input" class="text-input-2" placeholder="20-12345678-1">
+                <span class="invalid-input" style="display: none;" id="error-text-cuil"> CUIL / CUIT no válido</span>
+            </div>
+
+            <div class="form-group">
+                <label for="password-input" class="cuil">Contraseña</label>
+                <div class="icon-wrapper">
+                    <i class="bi bi-lock"></i>
+                </div>
+                <input type="password" id="password-input" class="text-input-2" placeholder="••••••••••">
+                <div class="eye-icon-1">
+                    <i class="bi bi-eye-slash toggle"></i>
+                </div>
+            </div>
+
+            <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
+
+            <button class="button-14" id="buttonSubmit" type="submit">
+                Iniciar sesión
+            </button>
+        </form>
+        <div class="register-text">
+            ¿No tienes una cuenta? <a href="#" style="color: #7A7A7A; text-decoration: underline; margin-left: 5px;">Regístrate aquí</a>
+        </div>
+    </div>
+</body>
+</html>
