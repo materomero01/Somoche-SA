@@ -12,9 +12,12 @@ async function loadHeader() {
     }
 }
 
-// Función para configurar el contenido dinámico del header (fecha, nombre, etc.)
 function setupHeaderDynamicContent() {
     const dateElement = document.getElementById('currentDate');
+    const userNameElement = document.getElementById('userName');
+    const userRoleElement = document.getElementById('userRole');
+
+    // Fecha actual
     if (dateElement) {
         const today = new Date();
         const day = today.getDate();
@@ -22,5 +25,17 @@ function setupHeaderDynamicContent() {
         const year = today.getFullYear();
         const formattedDate = `${day}/${month}/${year}`;
         dateElement.textContent = formattedDate;
+    }
+
+    // Datos del usuario (simulados por ahora desde localStorage)
+    const storedName = localStorage.getItem('userName') || 'Alejandro Moran';
+    const storedRole = localStorage.getItem('userRole') || 'Admin';
+
+    if (userNameElement) {
+        userNameElement.textContent = storedName;
+    }
+
+    if (userRoleElement) {
+        userRoleElement.textContent = storedRole;
     }
 }
