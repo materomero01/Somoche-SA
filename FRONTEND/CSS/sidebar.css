@@ -1,0 +1,123 @@
+/* Sidebar Container */
+.sidebar {
+    background-color: #EBEBEB;
+    width: 60px;
+    height: calc(100vh - 50px);
+    position: fixed;
+    top: 50px;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: width 0.3s ease;
+    z-index: 10;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+.sidebar.expanded {
+    width: 200px;
+    align-items: flex-start;
+}
+
+/* Sidebar Item */
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 60px;
+    padding: 0;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    position: relative;
+    justify-content: center;
+}
+
+.sidebar.expanded .sidebar-item {
+    height: 50px;
+    justify-content: flex-start;
+    padding-left: 20px;
+    padding-right: 15px;
+}
+
+/* Hover */
+.sidebar-item:hover:not(.active) {
+    background-color: #DCDCDC;
+    transform: translateX(3px);
+}
+
+/* Icon wrapper */
+.icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    box-sizing: border-box;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.sidebar.expanded .icon-wrapper {
+    width: auto;
+    height: auto;
+    margin-right: 15px;
+    overflow: visible;
+}
+
+/* ICONOS Bootstrap */
+.icon-wrapper i {
+    font-size: 2rem;
+    color: #495057;
+    display: block;
+    line-height: 1;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+/* FIX: Cuando el sidebar está colapsado, ajustar tamaño de iconos para que no se corten */
+.sidebar:not(.expanded) .icon-wrapper i {
+    font-size: 1.6rem;
+}
+
+/* Imágenes personalizadas (como el ícono de Catac) */
+.icon-wrapper img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Por defecto, el texto está oculto y no ocupa espacio */
+.sidebar-text {
+    opacity: 0;
+    visibility: hidden;
+    width: 0;
+    overflow: hidden;
+    transition: opacity 0.3s ease, width 0.3s ease;
+}
+
+/* Cuando el sidebar está expandido, el texto aparece */
+.sidebar.expanded .sidebar-text {
+    opacity: 1;
+    visibility: visible;
+    width: auto;
+}
+
+
+/* Activo */
+.sidebar-item.active {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transform: translateX(0);
+}
+
+.sidebar-item.active .icon-wrapper i,
+.sidebar-item.active .icon-wrapper img,
+.sidebar-item.active .sidebar-text {
+    color: #007bff;
+}

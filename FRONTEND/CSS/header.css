@@ -1,0 +1,110 @@
+/* HEADER GENERAL */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    height: 50px;
+    box-sizing: border-box;
+    position: fixed; /* Header fijo en la parte superior */
+    top: 0;
+    left: 0;
+    right: 0; /* Se extiende a todo el ancho */
+    z-index: 20; /* Para que esté por encima del sidebar y contenido */
+    padding-left: 60px; /* Espacio inicial para el menú hamburguesa/sidebar colapsado */
+    transition: padding-left 0.3s ease; /* Transición suave del padding */
+}
+
+/* Cuando el sidebar está expandido, el header necesita más padding */
+.header.expanded-sidebar {
+    padding-left: 200px; /* Espacio para el sidebar expandido */
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+}
+
+/* Estilos para el botón de menú hamburguesa en el header */
+.menu-toggle {
+    position: absolute; /* Posicionado absolutamente dentro del header */
+    left: 0; /* Al borde izquierdo del header */
+    top: 0; /* Al borde superior del header */
+    background-color: #444444; /* Color de fondo del recuadro */
+    color: #ffffff; /* Color del icono para que se vea en fondo oscuro */
+    width: 60px; /* Ancho igual al sidebar colapsado */
+    height: 50px; /* Altura igual al header */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.8rem; /* Tamaño del icono */
+    z-index: 21; /* Ligeramente superior al header para asegurar clicabilidad */
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.menu-toggle:hover {
+    background-color: #555555; /* Un tono un poco más claro al pasar el ratón */
+    color: #cccccc;
+}
+
+.header-logo {
+    color: #444444;
+    font-family: "Montserrat", sans-serif;
+    font-weight: bold;
+    font-size: 22px;
+    line-height: 1.28;
+    text-align: left;
+    margin-left: 10px; /* Pequeño margen para el logo después del menú-toggle */
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.header-date {
+    color: #232323;
+    font-family: "Helvetica", Arial, sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    text-align: left;
+    margin-right: 20px;
+}
+
+.header-user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.3;
+    margin-right: 10px;
+}
+
+.header-user-name {
+    color: #232323;
+    font-family: "Source Sans Pro", sans-serif;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 1.3;
+}
+
+.header-user-role {
+    color: #AAAAAA;
+    font-family: "Source Sans Pro", sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+.header-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    color: #666;
+    margin-left: 5px;
+}
