@@ -1,0 +1,74 @@
+/* Contenedor principal del selector de pestañas */
+.tab-selector {
+    display: flex; /* Para que las pestañas se muestren una al lado de la otra */
+    border: 1px solid #ccc; /* Borde general del contenedor */
+    border-radius: 8px; /* Bordes redondeados */
+    overflow: hidden; /* Asegura que los bordes redondeados se apliquen correctamente a los items */
+    background-color: #f0f0f0; /* Color de fondo del selector */
+    width: fit-content; /* El ancho se ajusta al contenido */
+    margin-bottom: 20px; /* Espacio debajo del selector */
+}
+
+/* Estilos para cada pestaña individual */
+.tab-item {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #f0f0f0; /* Fondo por defecto (no activo) */
+    color: #666; /* Color de texto por defecto */
+    font-weight: 500;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    text-align: center;
+    white-space: nowrap; /* Evita que el texto salte de línea */
+}
+
+/* Estilos de la pestaña activa */
+.tab-item.active {
+    background-color: #ffffff; /* Fondo blanco para la pestaña activa */
+    color: #333; /* Color de texto más oscuro para la activa */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Sombra para la pestaña activa */
+    /* Para el borde entre pestañas, el truco es usar z-index o border-left/right */
+    position: relative; /* Necesario para z-index */
+    z-index: 1; /* Para que la pestaña activa esté "por encima" del borde del contenedor */
+}
+
+/* Ajustes de bordes para que parezca una sola unidad */
+.tab-item:first-child {
+    border-right: 1px solid #ccc; /* Borde entre la primera y segunda pestaña */
+    border-top-left-radius: 7px; /* Redondea las esquinas superiores izquierdas */
+    border-bottom-left-radius: 7px; /* Redondea las esquinas inferiores izquierdas */
+}
+
+.tab-item:last-child {
+    border-top-right-radius: 7px; /* Redondea las esquinas superiores derechas */
+    border-bottom-right-radius: 7px; /* Redondea las esquinas inferiores derechas */
+}
+
+/* Quita el borde derecho de la primera pestaña si es la activa */
+.tab-item.active:first-child {
+    border-right-color: transparent;
+}
+
+/* Quita el borde izquierdo de la segunda pestaña si es la activa */
+.tab-item.active:last-child {
+    border-left-color: transparent;
+}
+
+/* Estilos de hover para las pestañas no activas */
+.tab-item:not(.active):hover {
+    background-color: #e0e0e0; /* Un gris más oscuro al pasar el ratón */
+    color: #444;
+}
+
+/* Estilos para los contenedores de contenido */
+.tab-content {
+    background-color: #ffffff;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-top: 10px; /* Espacio entre el selector y el contenido */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.tab-content.hidden {
+    display: none; /* Oculta el contenido */
+}

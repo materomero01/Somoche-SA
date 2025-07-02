@@ -1,0 +1,78 @@
+/* Contenedor principal de la barra de búsqueda */
+.search-bar {
+    display: flex; /* Para alinear el icono y el input en línea */
+    align-items: center; /* Centra verticalmente el icono y el input */
+    border: 1px solid #ccc; /* Borde suave */
+    border-radius: 20px; /* Bordes redondeados */
+    padding: 8px 15px; /* Espacio interno */
+    background-color: #fff; /* Fondo blanco */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Sombra sutil */
+    width: 300px; /* Ancho predeterminado */
+    max-width: 100%; /* Asegura que no se desborde en pantallas pequeñas */
+    box-sizing: border-box; /* Modelo de caja consistente */
+    transition: all 0.2s ease; /* Transición suave para focus */
+}
+
+.search-bar:focus-within {
+    border-color: #007bff; /* Borde azul al enfocar */
+    box-shadow: 0 1px 5px rgba(0, 123, 255, 0.2); /* Sombra azul al enfocar */
+}
+
+/* Estilos para el icono de búsqueda */
+.search-icon {
+    color: #888; /* Color gris del icono */
+    font-size: 1.1rem; /* Tamaño del icono */
+    margin-right: 10px; /* Espacio entre el icono y el input */
+    flex-shrink: 0; /* Evita que el icono se encoja */
+    cursor: pointer;
+}
+
+/* Estilos para el campo de input */
+.search-input {
+    border: none; /* Sin borde propio, el contenedor lo maneja */
+    outline: none; /* Elimina el contorno al enfocar */
+    flex-grow: 1; /* El input toma el espacio restante */
+    font-size: 1rem; /* Tamaño de fuente predeterminado */
+    color: #333; /* Color del texto */
+    background-color: transparent; /* Fondo transparente */
+}
+
+.search-input::placeholder {
+    color: #aaa; /* Color del texto del placeholder */
+}
+
+/* ==================================== */
+/* Tamaños de la Barra de Búsqueda      */
+/* ==================================== */
+
+/* Tamaño Pequeño (sm) */
+.search-bar-sm {
+    padding: 5px 12px;
+    width: 200px; /* Ancho más pequeño */
+    border-radius: 15px; /* Bordes un poco menos redondeados */
+}
+
+.search-bar-sm .search-icon {
+    font-size: 0.9rem;
+    margin-right: 8px;
+}
+
+.search-bar-sm .search-input {
+    font-size: 0.9rem;
+}
+
+/* Tamaño Grande (lg) */
+.search-bar-lg {
+    padding: 10px 20px;
+    width: 400px; /* Ancho más grande */
+    border-radius: 25px; /* Bordes más redondeados */
+}
+
+.search-bar-lg .search-icon {
+    font-size: 1.3rem;
+    margin-right: 12px;
+}
+
+.search-bar-lg .search-input {
+    font-size: 1.1rem;
+}

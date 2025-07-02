@@ -39,3 +39,23 @@ function setupHeaderDynamicContent() {
         userRoleElement.textContent = storedRole;
     }
 }
+
+function setupHeaderInteractions() {
+    const logoutIcon = document.querySelector('.header-icon'); // Selecciona el icono de logout
+
+    if (logoutIcon) {
+        logoutIcon.addEventListener('click', function() {
+            // Lógica para el botón de logout
+            alert('¡Logout!'); // Muestra una alerta simple
+            console.log('Se ha hecho clic en el icono de logout.');
+
+            // En una aplicación real, aquí iría la lógica de cierre de sesión:
+            // 1. Eliminar tokens de autenticación (ej. de localStorage, sessionStorage)
+            // localStorage.removeItem('authToken');
+            // localStorage.removeItem('userRole'); // O cualquier otra información de sesión
+            
+            // 2. Redirigir al usuario a la página de inicio de sesión
+            // window.location.href = 'login.html'; // Por ejemplo
+        });
+    }
+}

@@ -107,4 +107,9 @@
     font-size: 24px;
     color: #666;
     margin-left: 5px;
+    cursor: pointer;
+}
+
+.header-icon:hover {
+    color: #333; /* Opcional: Oscurece un poco el icono al pasar el ratón */
 }

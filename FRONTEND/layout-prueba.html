@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Aplicación</title>
+    
+    <!-- Incluye CSS de Bootstrap Icons (¡MUY IMPORTANTE PARA LOS ICONOS!) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Tu CSS del Header -->
+    <link rel="stylesheet" href="/FRONTEND/css/header.css"> 
+    
+    <!-- Tu CSS del Sidebar -->
+    <link rel="stylesheet" href="/FRONTEND/css/sidebar.css">
+    <link rel="stylesheet" href="/FRONTEND/css/button.css">
+    <link rel="stylesheet" href="/FRONTEND/css/searchbar.css">
+    <link rel="stylesheet" href="/FRONTEND/css/tab-selector.css">
+
+    <!-- Estilos generales y para el contenido principal -->
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+        }
+        /* Ajuste del margen para el contenido principal */
+        .content {
+            margin-left: 60px; /* Margen inicial para sidebar colapsado */
+            padding-top: 70px; /* Espacio para el header fijo (header.height + padding) */
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-bottom: 20px;
+            transition: margin-left 0.3s ease;
+        }
+        .content.expanded {
+            margin-left: 200px; /* Margen para sidebar expandido */
+        }
+    </style>
+</head>
+<body>
+    <!-- Contenedor donde se inyectará el header dinámicamente -->
+    <div id="header-container"></div>
+
+    <!-- Contenedor donde se inyectará el sidebar dinámicamente -->
+    <div id="sidebar-container"></div>
+
+    <!-- Tu contenido principal de la página -->
+    <main class="content">
+        <h1>Bienvenido a la Sección Principal</h1>
+        <p>Aquí irá el contenido específico de esta página.</p>
+        <button class="btn btn-success btn-lg">Cargar chofer</button>
+        <h1>Lista de Choferes</h1> <p>Aquí puedes gestionar y buscar a tus choferes.</p>
+
+        <div class="search-bar " id="choferesSearchBar">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="search-input" placeholder="Buscar">
+        </div>
+
+        <br><br>
+
+        <div class="tab-selector" id="proximosPagosSelector">
+            <div class="tab-item active" data-tab="proximos">Próximos</div>
+                <div class="tab-item" data-tab="pagos">Pagos</div>
+            </div>
+
+            <div id="content-proximos" class="tab-content active">
+                <h2>Contenido de Próximos Eventos/Tareas</h2>
+                <p>Aquí va la información detallada de los próximos elementos.</p>
+            </div>
+            <div id="content-pagos" class="tab-content hidden">
+                <h2>Contenido de Pagos Realizados</h2>
+                <p>Aquí va la información detallada de los pagos.</p>
+            </div>
+
+            <br><br>
+
+            <div class="tab-selector" id="choferesClientesSelector">
+                <div class="tab-item active" data-tab="choferes">Choferes</div>
+                <div class="tab-item" data-tab="clientes">Clientes</div>
+            </div>
+
+            <div id="content-choferes" class="tab-content active">
+                <h2>Lista de Choferes</h2>
+                <p>Aquí se mostrará la tabla de choferes.</p>
+            </div>
+            <div id="content-clientes" class="tab-content hidden">
+                <h2>Lista de Clientes</h2>
+                <p>Aquí se mostrará la tabla de clientes.</p>
+            </div>
+
+            <br><br>
+
+            <div class="tab-selector" id="viajesPagosSelector">
+                <div class="tab-item active" data-tab="viajes">Viajes</div> <div class="tab-item" data-tab="pagos-viajes">Pagos</div> </div>
+
+            <div id="content-viajes" class="tab-content active">
+                <h2>Listado de Viajes</h2>
+                <p>Aquí irá la información de los viajes.</p>
+            </div>
+            <div id="content-pagos-viajes" class="tab-content hidden">
+                <h2>Pagos Relacionados con Viajes</h2>
+                <p>Aquí irá la información de pagos específicos de viajes.</p>
+            </div>
+    </main>
+
+    <!-- Scripts JavaScript -->
+    <!-- Carga los scripts de los componentes primero (solo funciones) -->
+    <script src="/FRONTEND/scripts/header.js"></script>
+    <script src="/FRONTEND/scripts/sidebar.js"></script>
+    
+    <!-- Carga el script de la aplicación que orquesta todo, al final -->
+    <script src="/FRONTEND/scripts/prueba.js"></script>
+
+</body>
+</html>
