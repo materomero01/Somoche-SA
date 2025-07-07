@@ -15,7 +15,6 @@
     overflow-x: hidden;
     box-sizing: border-box;
 }
-
 .sidebar.expanded {
     width: 200px;
     align-items: flex-start;
@@ -53,8 +52,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 60px;
-    height: 60px;
+    width: 60px; /* Manteniendo el tamaño original de 60px */
+    height: 60px; /* Manteniendo el tamaño original de 60px */
     box-sizing: border-box;
     overflow: hidden;
     flex-shrink: 0;
@@ -69,26 +68,30 @@
 
 /* ICONOS Bootstrap */
 .icon-wrapper i {
-    font-size: 2rem;
+    font-size: 2rem; 
     color: #495057;
-    display: block;
-    line-height: 1;
-    text-align: center;
+    /* `display: block` con `line-height: 1` y `text-align: center`
+       ya ayuda al centrado, pero flexbox en el padre es mejor.
+       Aseguraremos que el icono en sí no tenga márgenes/paddings extra
+       que lo desplacen del centro de su wrapper. */
+    display: flex; /* Cambiado a flex para mejor centrado vertical/horizontal */
+    align-items: center; /* Centrado vertical */
+    justify-content: center; /* Centrado horizontal */
+    width: 100%; /* Ocupa todo el ancho del wrapper */
+    height: 100%; /* Ocupa todo el alto del wrapper */
     margin: 0;
     padding: 0;
 }
 
-/* FIX: Cuando el sidebar está colapsado, ajustar tamaño de iconos para que no se corten */
-.sidebar:not(.expanded) .icon-wrapper i {
-    font-size: 1.6rem;
-}
-
 /* Imágenes personalizadas (como el ícono de Catac) */
 .icon-wrapper img {
-    width: 24px;
-    height: 24px;
+    width: 40px; /* Corregido: añadido 'px' */
+    height: 40px;
     object-fit: contain;
-    display: block;
+    display: block; /* Mantenemos display block */
+    /* El centrado ahora lo manejará el padre .icon-wrapper gracias a display: flex */
+    margin: 0; /* Asegurar que no tenga márgenes que lo desplacen */
+    padding: 0; /* Asegurar que no tenga paddings que lo desplacen */
 }
 
 /* Por defecto, el texto está oculto y no ocupa espacio */
@@ -98,6 +101,7 @@
     width: 0;
     overflow: hidden;
     transition: opacity 0.3s ease, width 0.3s ease;
+    white-space: nowrap; /* Añadido para evitar saltos de línea al aparecer */
 }
 
 /* Cuando el sidebar está expandido, el texto aparece */
@@ -105,19 +109,21 @@
     opacity: 1;
     visibility: visible;
     width: auto;
+    flex-grow: 1; /* Permite que el texto ocupe el espacio restante */
 }
-
 
 /* Activo */
 .sidebar-item.active {
     background-color: #ffffff;
-    border-radius: 8px;
+    border-radius: 8px; /* Reactivado */
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     transform: translateX(0);
+    padding: 0 0px;
+    width: calc(100% - 8px);
 }
 
 .sidebar-item.active .icon-wrapper i,
 .sidebar-item.active .icon-wrapper img,
 .sidebar-item.active .sidebar-text {
-    color: #007bff;
+    color: #007bff; /* Color para el estado activo */
 }

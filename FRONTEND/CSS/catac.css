@@ -1,0 +1,224 @@
+/* catac.css */
+
+html {
+    box-sizing: border-box;
+}
+*, *:before, *:after {
+    box-sizing: inherit;
+}
+
+html, body {
+    height: 100%; /* Ocupa el 100% de la altura del viewport */
+    width: 100%; /* Asegura que no haya desbordamiento horizontal */
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f0f2f5;
+    overflow: hidden; /* Esto es crítico: NO debe haber scroll global en html/body */
+}
+
+/* El header y sidebar deben ser position: fixed para estar fuera del flujo */
+/* Asumo que header.css maneja el header con height: 50px, y sidebar.css el sidebar con top: 50px y height: calc(100vh - 50px) */
+
+/* Contenedor principal del contenido */
+.content {
+    margin-left: 60px; /* Margen para sidebar colapsado */
+    transition: margin-left 0.3s ease;
+    margin-top: 50px; /* Desplaza el contenido debajo del header de 50px */
+    height: calc(100vh - 50px); /* 100vh - Altura del Header (50px) */
+    
+    /* Padding para el contenido DENTRO del .content */
+    padding-top: 5px; /* ESPACIO para que el contenido no quede pegado al header */
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-bottom: 20px; /* Espacio al final del contenido dentro del scrollable area */
+    
+    overflow-y: auto; /* El scroll DEBE aparecer solo aquí si el contenido es muy largo */
+}
+
+.content.expanded {
+    margin-left: 200px; /* Margen para sidebar expandido */
+}
+
+/* CATAC Section Specific Styles */
+.catac-section {
+    margin-top: 0; 
+    padding: 0; 
+    box-sizing: border-box;
+}
+
+.catac-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    width: 100%;
+    flex-wrap: wrap; /* Permite que los elementos salten de línea en pantallas pequeñas */
+}
+
+.catac-left-col {
+    flex-shrink: 0; /* No se encoge si hay poco espacio */
+    flex-grow: 0;  /* No crece para ocupar espacio extra */
+}
+
+.catac-image {
+    height: 80px;
+    object-fit: contain;
+}
+
+.catac-texts-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    flex-grow: 1; /* Permite que este elemento crezca para ocupar el espacio restante */
+    flex-shrink: 1; /* Permite que se encoja si es necesario */
+    min-width: 0; /* Crucial para permitir que el elemento se encoja más allá de su contenido intrínseco */
+    padding-left: 20px;
+    /* Considerar text-align para responsividad si el texto es muy largo */
+}
+
+.catac-title {
+    font-size: 18px;
+    margin: 0;
+    color: #333;
+    font-weight: bold;
+    white-space: nowrap; /* Evita que el título se divida en varias líneas, si esto es un problema en móvil, quitar */
+}
+
+.catac-subtitle {
+    font-size: 12px;
+    margin: 4px 0 0 0;
+    color: #666;
+    line-height: 1.4;
+}
+
+.catac-controls-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Alinea los ítems (span, input, button) a la derecha dentro de esta columna */
+    flex-shrink: 0; /* Preferimos que esta columna no se encoja para mantener el layout */
+    flex-grow: 0; /* Preferimos que esta columna no crezca */
+    gap: 5px;
+    /* Si necesitas que salte de línea debajo del texto en pantallas muy pequeñas y se alinee a la izquierda, puedes añadir: */
+    /* width: 100%; */
+    /* align-items: flex-start; */
+}
+
+.catac-busqueda-label {
+    font-size: 13px;
+    color: #555;
+    white-space: nowrap;
+}
+
+.catac-input {
+    padding: 5px 10px;
+    font-size: 13px;
+    width: 100px; 
+    max-width: 100%; /* Asegura que no desborde en pantallas pequeñas */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: right;
+    box-sizing: border-box;
+}
+
+.btn-success {
+    padding: 5px 10px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
+.btn-success i {
+    font-size: 14px;
+}
+
+.tabla-dinamica {
+    margin-top: 5px;
+}
+
+#catacTable {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+#catacTable td {
+    padding: 10px 15px;
+    border: 1px solid #eee;
+    text-align: center;
+    font-size: 14px;
+    color: #333;
+}
+
+.table-id-cell {
+    background-color: #ff9900;
+    color: #fff;
+    font-weight: bold;
+    min-width: 40px;
+}
+
+.catac-value-cell {
+    background-color: #fff;
+    color: #333;
+    font-weight: normal;
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+    gap: 5px;
+    padding-bottom: 0; /* Se mantiene en 0, el padding-bottom final lo da .content */
+}
+
+.pagination-button {
+    background-color: #f0f0f0;
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    min-width: 35px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.pagination-button:hover:not([disabled]):not(.active) {
+    background-color: #e0e0e0;
+}
+
+.pagination-button.active {
+    background-color: #333;
+    color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.pagination-button[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    font-size: 16px;
+    color: #666;
+    padding: 0 5px;
+}

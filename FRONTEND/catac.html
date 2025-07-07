@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Aplicación</title>
+    
+    <!-- Incluye CSS de Bootstrap Icons (¡MUY IMPORTANTE PARA LOS ICONOS!) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Tu CSS del Header -->
+    <link rel="stylesheet" href="/FRONTEND/css/header.css"> 
+    
+    <!-- Tu CSS del Sidebar -->
+    <link rel="stylesheet" href="/FRONTEND/css/sidebar.css">
+    <link rel="stylesheet" href="/FRONTEND/css/button.css">
+    <link rel="stylesheet" href="/FRONTEND/css/catac.css">
+
+</head>
+<body>
+    <!-- Contenedor donde se inyectará el header dinámicamente -->
+    <div id="header-container"></div>
+
+    <!-- Contenedor donde se inyectará el sidebar dinámicamente -->
+    <div id="sidebar-container"></div>
+
+    <!-- Tu contenido principal de la página -->
+    <main class="content">
+        <section class="catac-section">
+            <div class="catac-header">
+                <div class="catac-left-col">
+                    <img src="/FRONTEND/assets/catac.png" alt="Logo CATAC" class="catac-image" />
+                </div>
+                
+                <div class="catac-texts-col">
+                    <h2 class="catac-title">TARIFA DE REFERENCIA NACIONAL</h2>
+                    <p class="catac-subtitle">PARA EL TRANSPORTE DE CEREALES, OLEAGINOSAS<br>SUBPRODUCTOS Y FERTILIZANTES</p>
+                </div>
+
+                <div class="catac-controls-col">
+                    <span class="catac-busqueda-label">Variación en %</span>
+                    <input type="number" step="0.01" id="catac-update" class="catac-input" />
+                    <button class="btn btn-success btn-sm" id="catac-update-btn">
+                        <i class="bi bi-arrow-repeat"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+
+            <div id="tabla-catac" class="tabla-dinamica"></div>
+        </section>
+    </main>
+
+    <!-- Scripts JavaScript -->
+    <!-- Carga los scripts de los componentes primero (solo funciones) -->
+    <script src="/FRONTEND/scripts/header.js"></script>
+    <script src="/FRONTEND/scripts/sidebar.js"></script>
+    
+    <!-- Carga el script de la aplicación que orquesta todo, al final -->
+    <script type="module" src="/FRONTEND/scripts/catac.js"></script>
+
+</body>
+</html>

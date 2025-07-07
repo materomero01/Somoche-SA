@@ -1,0 +1,92 @@
+/* ======================================= */
+/* Layout general del contenido principal */
+/* ======================================= */
+.content {
+ padding-top: 50px;    
+ padding-left: 20px;
+ padding-right: 20px;
+ box-sizing: border-box;
+ overflow: hidden;
+}
+
+/* ============================== */
+/* Sección principal del módulo */
+/* ============================== */
+.add-viajes-section {
+ max-width: 1000px;
+ margin: 0 auto;
+}
+
+/* ===================== */
+/* Grilla del formulario */
+/* ===================== */
+.form-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+ gap: 10px;
+}
+
+/* ===================== */
+/* Grupos de campos   */
+/* ===================== */
+.form-group {
+ display: flex;
+ flex-direction: column;
+ margin-bottom: 15px;
+}
+
+.form-group label {
+ margin-bottom: 6px;
+ font-weight: 500;
+ color: #333;
+}
+
+.form-group input,
+.form-group select { /* Añadido 'select' para que tenga los mismos estilos básicos que los inputs */
+ padding: 8px 12px;
+ border: 1px solid #ccc;
+ border-radius: 5px;
+ font-size: 15px;
+ outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus { 
+ border-color: #007bff;
+ box-shadow: 0 0 3px rgba(0, 123, 255, 0.3);
+}
+
+/* ===================== */
+/* Acciones (botones y barra) */
+/* ===================== */
+.form-actions {
+ display: flex;
+ align-items: center;
+ gap: 20px;
+ flex-wrap: wrap;
+ justify-content: center;
+}
+
+/* ===================== */
+/* Clases de utilidad */
+/* ===================== */
+.hidden {
+    display: none !important;
+}
+
+
+/* Ajuste responsive */
+@media (max-width: 600px) {
+ .form-grid {
+  grid-template-columns: 1fr;
+ }
+
+ .form-actions {
+  flex-direction: column;
+  align-items: center;
+ }
+}
+
+.tab-content {
+  padding: 0;
+}

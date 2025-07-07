@@ -15,6 +15,7 @@
     z-index: 20; /* Para que esté por encima del sidebar y contenido */
     padding-left: 60px; /* Espacio inicial para el menú hamburguesa/sidebar colapsado */
     transition: padding-left 0.3s ease; /* Transición suave del padding */
+    overflow: hidden;
 }
 
 /* Cuando el sidebar está expandido, el header necesita más padding */
