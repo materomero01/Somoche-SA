@@ -5,32 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/FRONTEND/CSS/login.css">
-    <script defer src="/FRONTEND/Scripts/login.js"></script>
+    <link rel="stylesheet" href="/FRONTEND/CSS/input.css">
     <title>Iniciar sesión - SOMOCHE S.A</title>
 </head>
 <body>
     <div class="rectangle-9">
         <div class="title-header">SOMOCHE S.A</div>
-        <div class="title" style="height: auto;">Iniciar sesión</div>
+        <div class="title" id="login">Iniciar sesión</div>
         <div class="subtext">
             Inicia sesión introduciendo tu <br> email y contraseña
         </div>
-        <form id="formLogin">
-            <div class="form-group">
+        <form id="formSesion">
+            <div class="form-group" style="margin-bottom: 20px;">
                 <label for="cuil-input" class="cuil">CUIL / CUIT</label>
                 <div class="icon-wrapper">
                     <i class="bi bi-person"></i>
                 </div>
-                <input type="text" id="cuil-input" class="text-input-2" placeholder="20-12345678-1">
-                <span class="invalid-input" style="display: none;" id="error-text-cuil"> CUIL / CUIT no válido</span>
+                <input type="text" id="cuil-input" name="cuil" class="text-input target-input" placeholder="20-12345678-1" required>
+                <span class="invalid-input" style="display: none;" id="cuil-input-error"> CUIL / CUIT no válido</span>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 20px;">
                 <label for="password-input" class="cuil">Contraseña</label>
                 <div class="icon-wrapper">
                     <i class="bi bi-lock"></i>
                 </div>
-                <input type="password" id="password-input" class="text-input-2" placeholder="••••••••••">
+                <input type="password" id="password-input" name="password" class="text-input" placeholder="••••••••••" required>
                 <div class="eye-icon-1">
                     <i class="bi bi-eye-slash toggle"></i>
                 </div>
@@ -43,8 +43,9 @@
             </button>
         </form>
         <div class="register-text">
-            ¿No tienes una cuenta? <a href="#" style="color: #7A7A7A; text-decoration: underline; margin-left: 5px;">Regístrate aquí</a>
+            ¿No tienes una cuenta? <a href="signup.html" style="color: #7A7A7A; text-decoration: underline; margin-left: 5px;">Regístrate aquí</a>
         </div>
     </div>
+    <script defer src="/FRONTEND/Scripts/login-register.js"></script>
 </body>
 </html>
