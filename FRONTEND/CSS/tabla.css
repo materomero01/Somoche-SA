@@ -1,0 +1,312 @@
+/* ============================= */
+/* ESTILOS PARA MODO EDICIÓN DE TABLA */
+/* ============================= */
+
+/* Contenedor de tabla con scroll horizontal controlado */
+.tabla-dinamica {
+    width: 100%;
+    overflow-x: auto;
+    position: relative;
+}
+
+/* Tabla principal - mantener ancho fijo */
+.tabla-dinamica table {
+    width: 100%;
+    min-width: 800px; /* Ancho mínimo para evitar que se comprima demasiado */
+    max-width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* Importante: hace que las columnas respeten los anchos definidos */
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Definir anchos específicos para columnas */
+.tabla-dinamica th:nth-child(1),
+.tabla-dinamica td:nth-child(1) {
+    width: 18%; /* Nombre */
+}
+
+.tabla-dinamica th:nth-child(2),
+.tabla-dinamica td:nth-child(2) {
+    width: 15%; /* CUIL/CUIT */
+}
+
+.tabla-dinamica th:nth-child(3),
+.tabla-dinamica td:nth-child(3) {
+    width: 12%; /* Trabajador */
+}
+
+.tabla-dinamica th:nth-child(4),
+.tabla-dinamica td:nth-child(4) {
+    width: 10%; /* Chasis */
+}
+
+.tabla-dinamica th:nth-child(5),
+.tabla-dinamica td:nth-child(5) {
+    width: 10%; /* Acoplado */
+}
+
+.tabla-dinamica th:nth-child(6),
+.tabla-dinamica td:nth-child(6) {
+    width: 12%; /* Teléfono */
+}
+
+.tabla-dinamica th:nth-child(7),
+.tabla-dinamica td:nth-child(7) {
+    width: 15%; /* Email */
+}
+
+.tabla-dinamica th:nth-child(8),
+.tabla-dinamica td:nth-child(8) {
+    width: 8%; /* Acciones */
+}
+
+/* Estilos para celdas */
+.tabla-dinamica th,
+.tabla-dinamica td {
+    padding: 8px 10px; /* Reducir padding para ahorrar espacio */
+    border: 1px solid #ddd;
+    text-align: left;
+    font-size: 0.9rem; /* Reducir ligeramente el tamaño de fuente */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tabla-dinamica th {
+    background-color: #f9f9f9;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.tabla-dinamica tbody tr:nth-child(even) {
+    background-color: #f6f6f6;
+}
+
+/* ============================= */
+/* ESTILOS ESPECÍFICOS PARA MODO EDICIÓN */
+/* ============================= */
+
+/* Fila en modo edición */
+.tabla-dinamica .editing-row {
+    background-color: #fff8dc !important; /* Color de fondo ligeramente amarillento */
+    border: 2px solid #ffd700; /* Borde dorado para destacar */
+}
+
+.tabla-dinamica .editing-row td {
+    padding: 6px 8px; /* Reducir padding aún más en modo edición */
+}
+
+/* Inputs editables */
+.editable-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    background-color: #fff;
+    transition: border-color 0.2s ease;
+}
+
+.editable-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+/* Select editables */
+.editable-select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    background-color: #fff;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.editable-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+/* ============================= */
+/* BOTONES DE ACCIÓN */
+/* ============================= */
+
+.action-icons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.1rem;
+}
+
+.action-icons i {
+    cursor: pointer;
+    color: #555;
+    transition: color 0.2s ease;
+}
+
+.action-icons i:hover {
+    color: #007bff;
+}
+
+/* Botones de acción en modo edición */
+.btn-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    margin: 0 3px;
+    padding: 4px;
+    border-radius: 50%;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.btn-action.save-btn {
+    color: #28a745;
+}
+
+.btn-action.save-btn:hover {
+    background-color: #e6f7e6;
+}
+
+.btn-action.cancel-btn {
+    color: #dc3545;
+}
+
+.btn-action.cancel-btn:hover {
+    background-color: #fde6e8;
+}
+
+/* Estilos para botones de acción normales */
+.btn-action.edit-btn {
+    color: #007bff;
+}
+
+.btn-action.edit-btn:hover {
+    background-color: #e6f2ff;
+}
+
+.btn-action.delete-btn {
+    color: #dc3545;
+}
+
+.btn-action.delete-btn:hover {
+    background-color: #fde6e8;
+}
+
+.btn-action.navigate-btn {
+    color: #28a745;
+}
+
+.btn-action.navigate-btn:hover {
+    background-color: #e6fae8;
+}
+
+/* ============================= */
+/* RESPONSIVIDAD */
+/* ============================= */
+
+/* Para pantallas pequeñas */
+@media (max-width: 1200px) {
+    .tabla-dinamica table {
+        min-width: 900px; /* Aumentar un poco el ancho mínimo */
+    }
+    
+    .tabla-dinamica th,
+    .tabla-dinamica td {
+        padding: 6px 8px;
+        font-size: 0.85rem;
+    }
+    
+    .editable-input,
+    .editable-select {
+        font-size: 0.8rem;
+        padding: 3px 5px;
+    }
+}
+
+@media (max-width: 768px) {
+    .tabla-dinamica table {
+        min-width: 700px;
+    }
+    
+    .tabla-dinamica th,
+    .tabla-dinamica td {
+        padding: 4px 6px;
+        font-size: 0.8rem;
+    }
+    
+    .editable-input,
+    .editable-select {
+        font-size: 0.75rem;
+        padding: 2px 4px;
+    }
+    
+    .btn-action {
+        width: 24px;
+        height: 24px;
+        font-size: 0.9rem;
+    }
+}
+
+/* ============================= */
+/* ESTILOS ESPECÍFICOS PARA TABLA DE CLIENTES */
+/* ============================= */
+
+/* Para tabla de clientes que tiene menos columnas */
+.tabla-dinamica.tabla-clientes th:nth-child(1),
+.tabla-dinamica.tabla-clientes td:nth-child(1) {
+    width: 40%; /* Nombre/Razón Social */
+}
+
+.tabla-dinamica.tabla-clientes th:nth-child(2),
+.tabla-dinamica.tabla-clientes td:nth-child(2) {
+    width: 35%; /* CUIL/CUIT */
+}
+
+.tabla-dinamica.tabla-clientes th:nth-child(3),
+.tabla-dinamica.tabla-clientes td:nth-child(3) {
+    width: 25%; /* Acciones */
+}
+
+/* ============================= */
+/* SCROLL HORIZONTAL MEJORADO */
+/* ============================= */
+
+.tabla-dinamica::-webkit-scrollbar {
+    height: 8px;
+}
+
+.tabla-dinamica::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.tabla-dinamica::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+.tabla-dinamica::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

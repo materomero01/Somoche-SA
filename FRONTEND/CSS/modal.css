@@ -1,0 +1,95 @@
+/* Modal de Confirmación */
+.modal {
+    display: none; /* Oculto por defecto */
+    position: fixed; /* Permanece en la misma posición incluso al hacer scroll */
+    z-index: 1000; /* Alto z-index para estar por encima de todo */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* Habilitar scroll si el contenido es muy grande */
+    background-color: rgba(0, 0, 0, 0.4); /* Fondo semi-transparente */
+    justify-content: center; /* Centrar horizontalmente el modal-content */
+    align-items: center; /* Centrar verticalmente el modal-content */
+}
+
+.modal.active {
+    display: flex; /* Mostrar cuando está activo */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto; /* Asegura el centrado si display no es flex */
+    padding: 25px;
+    border: 1px solid #888;
+    width: 90%; /* Ancho responsivo */
+    max-width: 400px; /* Ancho máximo */
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    position: relative; /* Para el botón de cerrar */
+    text-align: center;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+.modal-content p {
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.modal-buttons .btn {
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.modal-buttons .btn-danger {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+}
+
+.modal-buttons .btn-danger:hover {
+    background-color: #c82333;
+}
+
+.modal-buttons .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+}
+
+.modal-buttons .btn-secondary:hover {
+    background-color: #5a6268;
+}

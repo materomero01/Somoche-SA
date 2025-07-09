@@ -1,0 +1,132 @@
+/* ============================= */
+/* SECCIÓN GENERAL DE GESTIÓN */
+/* ============================= */
+
+.content {
+ padding-top: 60px;    
+ padding-left: 60px;
+ padding-right: 20px;
+ box-sizing: border-box;
+ overflow: hidden;
+}
+
+
+/* ============================= */
+/* BARRA SUPERIOR: BOTÓN + BUSCADOR */
+/* ============================= */
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+
+/* ============================= */
+/* TABLA DE CHOFERES / CLIENTES */
+/* ============================= */
+
+.tabla-dinamica {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.tabla-dinamica table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.tabla-dinamica th,
+.tabla-dinamica td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+.tabla-dinamica th {
+    background-color: #f9f9f9;
+    font-weight: 600;
+}
+
+.tabla-dinamica tbody tr:nth-child(even) {
+    background-color: #f6f6f6;
+}
+
+
+/* ============================= */
+/* ICONOS DE ACCIÓN EN CADA FILA */
+/* ============================= */
+
+.action-icons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.2rem;
+}
+
+.action-icons i {
+    cursor: pointer;
+    color: #555;
+    transition: color 0.2s ease;
+}
+
+.action-icons i:hover {
+    color: #007bff;
+}
+
+
+
+/* ============================= */
+/* PAGINACIÓN */
+/* ============================= */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+    gap: 5px;
+    padding-bottom: 0;
+}
+
+.pagination-button {
+    background-color: #f0f0f0;
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    min-width: 35px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.pagination-button:hover:not([disabled]):not(.active) {
+    background-color: #e0e0e0;
+}
+
+.pagination-button.active {
+    background-color: #333;
+    color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.pagination-button[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    font-size: 16px;
+    color: #666;
+    padding: 0 5px;
+}
