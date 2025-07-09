@@ -65,7 +65,7 @@ exports.insertUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
     const { cuil, password } = req.body;
     try {
-        const userResult = await pool.query('SELECT cuil, password AS hashedPassword, role FROM usuario WHERE cuil = $1', [cuil]);
+        const userResult = await pool.query('SELECT cuil, nombre_apellido, password AS hashedPassword, role FROM usuario WHERE cuil = $1', [cuil]);
         if (userResult.rows.length === 0) {
             return res.status(401).json({ message: 'El CUIL proporcionado no se encuentra registrado' });
         }
@@ -76,11 +76,12 @@ exports.loginUser = async (req, res) => {
             // Si las credenciales son correctas, genera el token
             const payload = {
                 cuil: user.cuil,
+                nombre_apellido: user.nombre_apellido,
                 role: user.role
             };
             const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }); // Token expira en 1 hora
 
-            res.status(200).json({ message: 'Inicio de sesión exitoso.', token: token });
+            res.status(200).json({ message: 'Inicio de sesión exitoso.', token: token, nombre_apellido: user.nombre_apellido, role: user.role });
         } else {
             res.status(401).json({ message: 'La contraseña no es correcta' });
         }

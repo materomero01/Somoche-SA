@@ -9,91 +9,93 @@
     <title>Registrarse - SOMOCHE S.A</title>
 </head>
 <body>
-    <div class="rectangle-9">
-        <div class="title-header" style="bottom: 80px;">SOMOCHE S.A</div>
-        <div class="title" style="margin-top: 10px;" id="register">Crea tu cuenta</div>
-        <form id="formSesion">
-            <div class="form-group">
-                <label for="nombre-input" class="cuil">Nombre y Apellido *</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-person-vcard"></i>
+    <main>
+        <div class="rectangle-9">
+            <div class="title-header" style="bottom: 80px;">SOMOCHE S.A</div>
+            <div class="title" style="margin-top: 10px;" id="register">Crea tu cuenta</div>
+            <form id="formSesion">
+                <div class="form-group">
+                    <label for="nombre-input" class="cuil">Nombre y Apellido *</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-person-vcard"></i>
+                    </div>
+                    <input type="text" id="nombre-input" name="nombre" class="text-input" placeholder="Juan Pedro" required>
                 </div>
-                <input type="text" id="nombre-input" name="nombre" class="text-input" placeholder="Juan Pedro" required>
-            </div>
 
-            <div class="form-group">
-                <label for="cuil-input" class="cuil">CUIL / CUIT *</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-person"></i>
+                <div class="form-group">
+                    <label for="cuil-input" class="cuil">CUIL / CUIT *</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <input type="text" id="cuil-input" name="cuil" class="text-input target-input" placeholder="20-12345678-1" maxlength="13" required>
+                    <span class="invalid-input" style="display: none;" id="cuil-input-error"> CUIL / CUIT no válido</span>
                 </div>
-                <input type="text" id="cuil-input" name="cuil" class="text-input target-input" placeholder="20-12345678-1" maxlength="13" required>
-                <span class="invalid-input" style="display: none;" id="cuil-input-error"> CUIL / CUIT no válido</span>
-            </div>
 
-            <div class="form-group">
-                <label for="password-input" class="cuil">Contraseña *</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-lock"></i>
+                <div class="form-group">
+                    <label for="password-input" class="cuil">Contraseña *</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-lock"></i>
+                    </div>
+                    <input type="password" id="password-input" name="password" class="text-input" placeholder="••••••••••" required>
+                    <div class="eye-icon-1">
+                        <i class="bi bi-eye-slash toggle"></i>
+                    </div>
                 </div>
-                <input type="password" id="password-input" name="password" class="text-input" placeholder="••••••••••" required>
-                <div class="eye-icon-1">
-                    <i class="bi bi-eye-slash toggle"></i>
+
+                <div class="form-group">
+                    <label for="trabajador-select" class="cuil">Trabajador *</label>
+                    <select class="text-input" id="trabajador-select" name="trabajador_seleccionado">
+                        <option value="" disabled selected hidden>-- Por favor, elige una opción --</option>
+                        <option value="Monotributista">Monotributista</option>
+                        <option value="Responsable Inscripto">Responsable Inscripto</option>
+                    </select>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="trabajador-select" class="cuil">Trabajador *</label>
-                <select class="text-input" id="trabajador-select" name="trabajador_seleccionado">
-                    <option value="" disabled selected hidden>-- Por favor, elige una opción --</option>
-                    <option value="Monotributista">Monotributista</option>
-                    <option value="Responsable Inscripto">Responsable Inscripto</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="chasis-input" class="cuil">Patente chasis *</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-truck"></i>
+                <div class="form-group">
+                    <label for="chasis-input" class="cuil">Patente chasis *</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                    <input type="text" id="chasis-input" name="chasis" class="text-input target-input" placeholder="ABC 123" maxlength="9" style="text-transform: uppercase;" required>
+                    <span class="invalid-input" style="display: none;" id="chasis-input-error"> La patente ingresada no es valida </span>
                 </div>
-                <input type="text" id="chasis-input" name="chasis" class="text-input target-input" placeholder="ABC 123" maxlength="9" style="text-transform: uppercase;" required>
-                <span class="invalid-input" style="display: none;" id="chasis-input-error"> La patente ingresada no es valida </span>
-            </div>
 
-            <div class="form-group">
-                <label for="acoplado-input" class="cuil">Patente acoplado</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-truck"></i>
+                <div class="form-group">
+                    <label for="acoplado-input" class="cuil">Patente acoplado</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                    <input type="text" id="acoplado-input" name="acoplado" class="text-input target-input" placeholder="ABC 123"  maxlength="9" style="text-transform: uppercase;">
+                    <span class="invalid-input" style="display: none;" id="acoplado-input-error"> La patente ingresada no es valida </span>
                 </div>
-                <input type="text" id="acoplado-input" name="acoplado" class="text-input target-input" placeholder="ABC 123"  maxlength="9" style="text-transform: uppercase;">
-                <span class="invalid-input" style="display: none;" id="acoplado-input-error"> La patente ingresada no es valida </span>
-            </div>
 
-            <div class="form-group">
-                <label for="telefono-input" class="cuil">Teléfono (sin espacios)</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-telephone"></i>
+                <div class="form-group">
+                    <label for="telefono-input" class="cuil">Teléfono (sin espacios)</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-telephone"></i>
+                    </div>
+                    <input type="number" id="telefono-input" name="telefono" class="text-input target-input" placeholder="2262 123456" maxlength="11">
+                    <span class="invalid-input" style="display: none;" id="telefono-input-error"> El teléfono ingresado no es válido </span>
                 </div>
-                <input type="number" id="telefono-input" name="telefono" class="text-input target-input" placeholder="2262 123456" maxlength="11">
-                <span class="invalid-input" style="display: none;" id="telefono-input-error"> El teléfono ingresado no es válido </span>
-            </div>
 
-            <div class="form-group">
-                <label for="email-input" class="cuil">Email</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-envelope"></i>
+                <div class="form-group">
+                    <label for="email-input" class="cuil">Email</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-envelope"></i>
+                    </div>
+                    <input type="email" id="email-input" name="email" class="text-input target-input" placeholder="example@address.com">
+                    <span class="invalid-input" style="display: none;" id="email-input-error"> La dirección de email ingresada no es válida </span>
                 </div>
-                <input type="email" id="email-input" name="email" class="text-input target-input" placeholder="example@address.com">
-                <span class="invalid-input" style="display: none;" id="email-input-error"> La dirección de email ingresada no es válida </span>
-            </div>
 
-            <button class="button-14" id="buttonSubmitRegister" type="submit">
-                Registrarse
-            </button>
-        </form>
-        <div class="register-text">
-            ¿Ya tienes una cuenta? <a href="login.html" style="color: #7A7A7A; text-decoration: underline; margin-left: 5px;">Iniciar sesión</a>
+                <button class="button-14" id="buttonSubmitRegister" type="submit">
+                    Registrarse
+                </button>
+            </form>
+            <div class="register-text">
+                ¿Ya tienes una cuenta? <a href="login.html" style="color: #7A7A7A; text-decoration: underline; margin-left: 5px;">Iniciar sesión</a>
+            </div>
         </div>
-    </div>
+    </main>
     <script defer src="/FRONTEND/Scripts/login-register.js"></script>
 </body>
 </html>

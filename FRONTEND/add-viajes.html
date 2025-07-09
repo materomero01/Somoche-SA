@@ -22,7 +22,7 @@
  <main class="content">
   <section class="add-viajes-section">
 
-      <div class="tab-selector" id="viajesPagosSelector">
+      <div class="tab-selector" id="viajesPagosSelector" style="margin-top:20px;">
     <div class="tab-item active" data-tab="viajes">Viajes</div>
     <div class="tab-item" data-tab="pagos">Pagos</div>
        </div>
@@ -30,12 +30,13 @@
       <div id="tabContent" class="tab-content-container">
 
         <div id="viajes" class="tab-content">
-     <h2>Datos del viaje</h2>
+     <h2 style="padding-left: 15px;">Datos del viaje</h2>
 
      <div class="form-grid">
-      <div class="form-group">
+      <div class="form-group full-width autocomplete-container">
        <label for="chofer">Chofer</label>
        <input type="text" id="chofer" placeholder="Nombre y Apellido" />
+       <div id="suggestions" class="suggestions-list"></div> 
       </div>
       <div class="form-group">
        <label for="kilometro">Kilómetros</label>
@@ -78,7 +79,7 @@
      <div class="form-actions">
       <button class="btn btn-success btn-lg" id="addViajeBtn">Añadir</button>
 
-            <div id="viajesSearchBar" class="search-bar">
+            <div id="viajesSearchBar" class="search-bar" style="margin-bottom: 15px; border-radius: 5px; height: 45px;">
        <input type="text" class="search-input" placeholder="Buscar viaje..." />
        <div class="search-icon">
         <i class="bi bi-search"></i>
@@ -88,9 +89,9 @@
     </div>
 
     <div id="pagos" class="tab-content hidden"> 
-        <h2>Datos del Pago</h2>
+        <h2 style="padding-left: 15px;">Datos del Pago</h2>
 
-        <div class="form-group">
+        <div class="form-group" style="padding: 15px; padding-bottom: 0; height: 54px; width: 40%;">
             <label for="tipoPago">Tipo de Pago</label>
             <select id="tipoPago">
                 <option value="cheque">Cheque</option>

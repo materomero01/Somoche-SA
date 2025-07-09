@@ -77,12 +77,11 @@ if (formSesion){
                 
                 if (!isRegisterForm && data.token) {
                     localStorage.setItem('jwtToken', data.token);
-                    localStorage.setItem('userCuil', payload.cuil);
+                    localStorage.setItem('userName', data.nombre_apellido);
+                    localStorage.setItem('userRole', data.role);
                 }
                 alert(data.message);
-                setTimeout(() => {
-                            window.location.href = redirectURL;
-                        }, 500); // Redirecciona después de 2 segundos (2000 milisegundos)
+                window.location.href = redirectURL;
             } else {
                 alert(`Error: "${data.message}"`);
                 console.error('Error del backend:', data);

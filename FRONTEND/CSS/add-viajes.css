@@ -24,6 +24,13 @@
  display: grid;
  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
  gap: 10px;
+ padding: 15px;
+}
+
+/* Regla para que el chofer ocupe todo el ancho */
+.full-width {
+    grid-column: 1 / -1; /* Esto lo hace abarcar desde la primera línea de columna hasta la última */
+    width: 40%;
 }
 
 /* ===================== */
@@ -48,6 +55,16 @@
  border-radius: 5px;
  font-size: 15px;
  outline: none;
+}
+
+.form-group input[type="date"] {
+  padding: 6.5px 12px;
+}
+
+.form-group input[type="number"]::-webkit-outer-spin-button,
+.form-group input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .form-group input:focus,
@@ -89,4 +106,39 @@
 
 .tab-content {
   padding: 0;
+}
+
+.autocomplete-container {
+    position: relative; /* Importante para posicionar las sugerencias */
+    width: auto;
+    margin-bottom: 20px;
+}
+
+.suggestions-list {
+    position: absolute;
+    top: 100%; /* Justo debajo del input */
+    left: 0;
+    right: 0;
+    border: 1px solid #ddd;
+    border-top: none;
+    background-color: white;
+    z-index: 1000; /* Asegura que esté sobre otros elementos */
+    max-height: 200px; /* Para que sea scrollable si hay muchas sugerencias */
+    overflow-y: auto;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border-radius: 0 0 4px 4px;
+}
+
+.suggestion-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover, .suggestion-item.active {
+    background-color: #f0f0f0;
 }
