@@ -50,6 +50,9 @@ let mockClientes = [
     { id: 20, nombre: 'Florería La Rosa', cuit: '20-99887766-5' }
 ];
 
+let currentChoferesPage = 1;
+let currentClientesPage = 1;
+
 // --- Definición de columnas para las tablas ---
 const choferesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido' },
@@ -116,8 +119,8 @@ let originalEditingData = {};
 let stagedEditingData = {};
 
 // --- Funciones de renderizado de tablas ---
-// Función actualizada para renderizar tabla de choferes
-function renderChoferesTable(data) {
+function renderChoferesTable(data, currentPage = 1) {
+    currentChoferesPage = currentPage;
     renderTabla({
         containerId: 'tabla-choferes',
         paginacionContainerId: 'paginacion-choferes',
@@ -127,12 +130,14 @@ function renderChoferesTable(data) {
         actions: choferesActions,
         editingRowId: editingRowId,
         onEdit: (id, field, value) => handleEdit(id, field, value, 'choferes'),
-        tableType: 'choferes' // Nuevo parámetro
+        tableType: 'choferes',
+        currentPage: currentPage, // Pasar la página actual
+        onPageChange: (page) => { currentChoferesPage = page; } // Callback para actualizar la página
     });
 }
 
-// Función actualizada para renderizar tabla de clientes
-function renderClientesTable(data) {
+function renderClientesTable(data, currentPage = 1) {
+    currentClientesPage = currentPage;
     renderTabla({
         containerId: 'tabla-clientes',
         paginacionContainerId: 'paginacion-clientes',
@@ -142,7 +147,9 @@ function renderClientesTable(data) {
         actions: clientesActions,
         editingRowId: editingRowId,
         onEdit: (id, field, value) => handleEdit(id, field, value, 'clientes'),
-        tableType: 'clientes' // Nuevo parámetro
+        tableType: 'clientes',
+        currentPage: currentPage, // Pasar la página actual
+        onPageChange: (page) => { currentClientesPage = page; } // Callback para actualizar la página
     });
 }
 
@@ -182,16 +189,17 @@ function handleTabContentDisplay(selectedTab) {
     if (selectedTab === 'choferes') {
         choferesContent.classList.remove('hidden');
         clientesContent.classList.add('hidden');
-        renderChoferesTable(mockChoferes);
+        renderChoferesTable(mockChoferes, currentChoferesPage);
         currentEditingTableType = 'choferes';
     } else if (selectedTab === 'clientes') {
         choferesContent.classList.add('hidden');
         clientesContent.classList.remove('hidden');
-        renderClientesTable(mockClientes);
+        renderClientesTable(mockClientes, currentClientesPage);
         currentEditingTableType = 'clientes';
     }
     resetEditingState();
 }
+
 
 // --- Lógica de la barra de búsqueda ---
 function setupSearchBar(searchBarId, tableType) {
@@ -202,6 +210,7 @@ function setupSearchBar(searchBarId, tableType) {
         const performSearch = () => {
             const searchTerm = searchInput.value.toLowerCase();
             let filteredData = [];
+            
             if (tableType === 'choferes') {
                 filteredData = mockChoferes.filter(chofer =>
                     chofer.nombre.toLowerCase().includes(searchTerm) ||
@@ -209,13 +218,17 @@ function setupSearchBar(searchBarId, tableType) {
                     chofer.chasis.toLowerCase().includes(searchTerm) ||
                     chofer.acoplado.toLowerCase().includes(searchTerm)
                 );
-                renderChoferesTable(filteredData);
+                // Resetear a página 1 solo cuando se busca (esto es normal)
+                currentChoferesPage = 1;
+                renderChoferesTable(filteredData, 1);
             } else if (tableType === 'clientes') {
                 filteredData = mockClientes.filter(cliente =>
                     cliente.nombre.toLowerCase().includes(searchTerm) ||
                     cliente.cuit.toLowerCase().includes(searchTerm)
                 );
-                renderClientesTable(filteredData);
+                // Resetear a página 1 solo cuando se busca (esto es normal)
+                currentClientesPage = 1;
+                renderClientesTable(filteredData, 1);
             }
         };
 
@@ -237,9 +250,38 @@ function setupAddButtons() {
         });
     }
 
+    const formCard = document.getElementById('addClienteCard');
+    const btnGuardar = document.getElementById('btnGuardarNuevoCliente');
+
     if (btnAddCliente) {
         btnAddCliente.addEventListener('click', () => {
-            alert('Funcionalidad para añadir nuevo cliente.');
+            formCard.classList.toggle('hidden');
+        });
+    }
+
+    if (btnGuardar) {
+        btnGuardar.addEventListener('click', () => {
+            const nombre = document.getElementById('nuevoClienteNombre').value.trim();
+            const cuit = document.getElementById('nuevoClienteCuit').value.trim();
+
+            if (!nombre || !cuit) {
+                alert('Por favor completá los campos obligatorios.');
+                return;
+            }
+
+            const nuevoCliente = {
+                id: Date.now(),
+                nombre,
+                cuit
+            };
+
+            mockClientes.push(nuevoCliente);
+            renderClientesTable(mockClientes);
+
+            document.getElementById('nuevoClienteNombre').value = '';
+            document.getElementById('nuevoClienteCuit').value = '';
+            formCard.classList.add('hidden');
+            alert('Nuevo cliente añadido exitosamente.'); // ADDED ALERT
         });
     }
 }
@@ -312,14 +354,16 @@ function handleSaveEdit() {
         if (index !== -1) {
             mockChoferes[index] = { ...mockChoferes[index], ...stagedEditingData };
         }
+        alert('Cambios guardados para el chofer.'); // ADDED ALERT
     } else if (currentEditingTableType === 'clientes') {
         const index = mockClientes.findIndex(c => c.id === editingRowId);
         if (index !== -1) {
             mockClientes[index] = { ...mockClientes[index], ...stagedEditingData };
         }
+        alert('Cambios guardados para el cliente.'); // ADDED ALERT
     }
     
-    // Salir del modo edición y re-renderizar
+    // Salir del modo edición y re-renderizar manteniendo la página actual
     exitEditMode();
     hideConfirmModal();
 }
@@ -330,6 +374,7 @@ function handleCancelEdit() {
     // Salir del modo edición y re-renderizar
     exitEditMode();
     hideConfirmModal();
+    alert('Edición cancelada.'); // ADDED ALERT
 }
 
 function exitEditMode() {
@@ -339,9 +384,9 @@ function exitEditMode() {
 
 function renderCurrentTable() {
     if (currentEditingTableType === 'choferes') {
-        renderChoferesTable(mockChoferes);
+        renderChoferesTable(mockChoferes, currentChoferesPage);
     } else if (currentEditingTableType === 'clientes') {
-        renderClientesTable(mockClientes);
+        renderClientesTable(mockClientes, currentClientesPage);
     }
 }
 
@@ -356,15 +401,42 @@ function handleDelete(id, tableType) {
     console.log(`Eliminando ID: ${id} de la tabla ${tableType}`);
     
     if (tableType === 'choferes') {
+        const totalItemsBefore = mockChoferes.length;
         mockChoferes = mockChoferes.filter(chofer => chofer.id !== id);
-        renderChoferesTable(mockChoferes);
+        
+        // Verificar si después de eliminar necesitamos ajustar la página
+        const totalItemsAfter = mockChoferes.length;
+        const itemsPerPage = 10;
+        const maxPage = Math.ceil(totalItemsAfter / itemsPerPage) || 1;
+        
+        // Si estamos en una página que ya no existe, ir a la última página válida
+        if (currentChoferesPage > maxPage) {
+            currentChoferesPage = maxPage;
+        }
+        
+        renderChoferesTable(mockChoferes, currentChoferesPage);
+        alert('Chofer eliminado exitosamente.'); // ADDED ALERT
     } else if (tableType === 'clientes') {
+        const totalItemsBefore = mockClientes.length;
         mockClientes = mockClientes.filter(cliente => cliente.id !== id);
-        renderClientesTable(mockClientes);
+        
+        // Verificar si después de eliminar necesitamos ajustar la página
+        const totalItemsAfter = mockClientes.length;
+        const itemsPerPage = 10;
+        const maxPage = Math.ceil(totalItemsAfter / itemsPerPage) || 1;
+        
+        // Si estamos en una página que ya no existe, ir a la última página válida
+        if (currentClientesPage > maxPage) {
+            currentClientesPage = maxPage;
+        }
+        
+        renderClientesTable(mockClientes, currentClientesPage);
+        alert('Cliente eliminado exitosamente.'); // ADDED ALERT
     }
     
     resetEditingState();
     hideConfirmModal();
+    
 }
 
 // --- Lógica del Modal de Confirmación ---
@@ -482,40 +554,61 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // Manejador de clics fuera de la fila de edición
     document.addEventListener('click', function (event) {
+        const confirmModalElement = document.getElementById('confirmModal');
+        const modalContent = confirmModalElement ? confirmModalElement.querySelector('.modal-content') : null;
+        const headerContainer = document.getElementById('header-container');
+        const sidebarContainer = document.getElementById('sidebar-container');
+        const addClienteWrapper = document.querySelector('.add-cliente-wrapper');
+        const addClienteCard = document.getElementById('addClienteCard');
+
+        const isClickInsideModal = modalContent && modalContent.contains(event.target);
+        const isClickInsideHeader = headerContainer && headerContainer.contains(event.target);
+        const isClickInsideSidebar = sidebarContainer && sidebarContainer.contains(event.target);
+        const isClickInsideAddCliente = addClienteWrapper && addClienteWrapper.contains(event.target);
+
+        // 👉 Si se hizo clic fuera del formulario de cliente, cerrarlo
+        if (addClienteCard && !isClickInsideAddCliente) {
+            addClienteCard.classList.add('hidden');
+        }
+
+        // 👉 Si no se está en modo edición, no seguir
         if (editingRowId === null) {
             return;
         }
 
         const editingRowElement = document.querySelector(`.data-table tr[data-id="${editingRowId}"]`);
-        const confirmModalElement = document.getElementById('confirmModal');
-        const modalContent = confirmModalElement ? confirmModalElement.querySelector('.modal-content') : null;
-
         const isClickInsideEditingRow = editingRowElement && editingRowElement.contains(event.target);
-        const isClickInsideModal = modalContent && modalContent.contains(event.target);
         const isActionButton = event.target.closest('.action-icons i');
         const isInputInTable = event.target.matches('.editable-input');
         const isTableHeader = event.target.closest('th');
         const isPaginationControl = event.target.closest('.pagination-controls');
-        const isClickInsideHeader = headerContainer && headerContainer.contains(event.target);
-        const isClickInsideSidebar = sidebarContainer && sidebarContainer.contains(event.target);
 
-        if (isClickInsideEditingRow || isClickInsideModal || isActionButton || isInputInTable || 
-            isTableHeader || isPaginationControl || isClickInsideHeader || isClickInsideSidebar) {
+        if (
+            isClickInsideEditingRow ||
+            isClickInsideModal ||
+            isActionButton ||
+            isInputInTable ||
+            isTableHeader ||
+            isPaginationControl ||
+            isClickInsideHeader ||
+            isClickInsideSidebar ||
+            isClickInsideAddCliente
+        ) {
             return;
         }
 
-        // Si hay cambios sin guardar, mostrar confirmación
+        // 👉 Si hay cambios sin guardar
         if (hasChanges(originalEditingData, stagedEditingData)) {
             showConfirmModal(
-                "Hay cambios sin guardar. ¿Deseas guardar los cambios?", 
-                handleSaveEdit, 
+                "Hay cambios sin guardar. ¿Deseas guardar los cambios?",
+                handleSaveEdit,
                 handleCancelEdit
             );
         } else {
-            // Si no hay cambios, salir del modo edición
             exitEditMode();
         }
     });
+
 
     console.log("Choferes y Clientes - Script principal cargado con edición inline.");
 });

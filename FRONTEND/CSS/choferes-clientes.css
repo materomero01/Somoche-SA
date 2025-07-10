@@ -130,3 +130,37 @@
     color: #666;
     padding: 0 5px;
 }
+
+.nuevo-cliente-form {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.add-cliente-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Formulario flotante */
+.add-cliente-card {
+    position: absolute;
+    top: 45px; /* Más distancia para evitar que tape el botón */
+    right: 0;
+    z-index: 100;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.add-cliente-card.hidden {
+    display: none;
+}

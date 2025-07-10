@@ -7,10 +7,12 @@ export function renderTabla({
     columnas, 
     itemsPorPagina = 10, 
     paginaActual = 1, 
+    currentPage = 1, // Nuevo parámetro para la página actual
     actions = [], 
     editingRowId = null, 
     onEdit = null,
-    tableType = 'default' // Nuevo parámetro para distinguir tipos de tabla
+    tableType = 'default', // Nuevo parámetro para distinguir tipos de tabla
+    onPageChange = null // Callback para notificar cambios de página
 }) {
     const container = document.getElementById(containerId);
     const paginacionContainer = document.getElementById(paginacionContainerId);
@@ -24,10 +26,13 @@ export function renderTabla({
         return;
     }
 
+    // Usar currentPage si se proporciona, sino usar paginaActual
+    const pageToUse = currentPage || paginaActual;
+
     // Agregar clase específica para el tipo de tabla
     container.className = `tabla-dinamica ${tableType === 'clientes' ? 'tabla-clientes' : ''}`;
     
-    container.dataset.currentPage = paginaActual;
+    container.dataset.currentPage = pageToUse;
     container.innerHTML = "";
     paginacionContainer.innerHTML = "";
 
@@ -355,11 +360,16 @@ export function renderTabla({
         container.dataset.currentPage = nuevaPagina;
         renderBody(nuevaPagina);
         renderPaginacion(nuevaPagina);
+        
+        // Notificar el cambio de página al componente padre
+        if (onPageChange) {
+            onPageChange(nuevaPagina);
+        }
     }
 
     // Inicializa el cuerpo y la paginación con la página actual
-    renderBody(paginaActual);
-    renderPaginacion(paginaActual);
+    renderBody(pageToUse);
+    renderPaginacion(pageToUse);
 
     // Adjuntar la tabla completa al contenedor
     container.appendChild(tabla);

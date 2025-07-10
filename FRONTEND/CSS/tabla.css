@@ -64,14 +64,16 @@
 /* Estilos para celdas */
 .tabla-dinamica th,
 .tabla-dinamica td {
-    padding: 8px 10px; /* Reducir padding para ahorrar espacio */
+    padding: 8px 10px;
     border: 1px solid #ddd;
     text-align: left;
-    font-size: 0.9rem; /* Reducir ligeramente el tamaño de fuente */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: 0.9rem;
+    word-wrap: break-word;       /* Asegura que palabras largas no se desborden */
+    word-break: break-word;      /* Rompe palabras si es necesario */
+    white-space: normal;         /* Permite múltiples líneas */
+    overflow-wrap: anywhere;     /* Moderno: evita desborde en cualquier punto */
 }
+
 
 .tabla-dinamica th {
     background-color: #f9f9f9;
@@ -309,4 +311,35 @@
 
 .tabla-dinamica::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+
+/* Estilo específico para la columna de acciones (última columna) */
+.tabla-dinamica th:last-child,
+.tabla-dinamica td:last-child {
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Asegura que los íconos no se deformen */
+.tabla-dinamica .action-icons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.tabla-dinamica .action-icons i {
+    font-size: 18px;
+    color: #444;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.tabla-dinamica .action-icons i:hover {
+    color: #007bff;
 }

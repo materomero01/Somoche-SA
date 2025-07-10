@@ -13,7 +13,8 @@
     <link rel="stylesheet" href="/FRONTEND/css/tab-selector.css" />
     <link rel="stylesheet" href="/FRONTEND/css/searchbar.css" />
     <link rel="stylesheet" href="/FRONTEND/css/tabla.css" />
-    <link rel="stylesheet" href="/FRONTEND/css/modal.css" /> </head>
+    <link rel="stylesheet" href="/FRONTEND/css/modal.css" /> 
+</head>
 <body>
 
     <div id="header-container"></div>
@@ -50,11 +51,26 @@
                         <input type="text" class="search-input" placeholder="Buscar cliente..." />
                         <div class="search-icon"><i class="bi bi-search"></i></div>
                     </div>
-                    <button class="btn btn-success btn-sm" id="btnAddCliente">
-                        <i class="bi bi-plus-circle"></i> Añadir Cliente
-                    </button>
-                </div>
+                    <div class="add-cliente-wrapper">
+                        <button id="btnAddCliente" class="btn btn-success btn-sm">
+                            <i class="bi bi-plus-circle"></i> Añadir cliente
+                        </button>
 
+                        <div id="addClienteCard" class="add-cliente-card hidden">
+                            <div class="form-group">
+                                <label for="nuevoClienteNombre">Nombre y apellido / Razon social *</label>
+                                <input type="text" id="nuevoClienteNombre" placeholder="Escribe aqui" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="nuevoClienteCuit">CUIL / CUIT *</label>
+                                <input type="text" id="nuevoClienteCuit" placeholder="20-12345678-1" required>
+                            </div>
+                            <button class="btn btn-success btn-sm" id="btnGuardarNuevoCliente">
+                                Cargar cliente
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div id="tabla-clientes" class="tabla-dinamica"></div>
                 <div id="paginacion-clientes" class="pagination-controls"></div>
             </div>
