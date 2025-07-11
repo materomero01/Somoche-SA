@@ -281,6 +281,7 @@
     width: 40%; /* Nombre/Razón Social */
 }
 
+
 .tabla-dinamica.tabla-clientes th:nth-child(2),
 .tabla-dinamica.tabla-clientes td:nth-child(2) {
     width: 35%; /* CUIL/CUIT */
