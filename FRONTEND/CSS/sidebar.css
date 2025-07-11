@@ -117,9 +117,9 @@
     background-color: #ffffff;
     border-radius: 8px; /* Reactivado */
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    transform: translateX(0);
     padding: 0 0px;
     width: calc(100% - 8px);
+    margin: 0 auto;
 }
 
 .sidebar-item.active .icon-wrapper i,

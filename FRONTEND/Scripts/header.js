@@ -28,15 +28,15 @@ function setupHeaderDynamicContent() {
         const formattedDate = `${day}/${month}/${year}`;
         dateElement.textContent = formattedDate;
     }
-
-    const storedName = localStorage.getItem('userName') || 'Alejandro Moran';
-    const storedRole = localStorage.getItem('userRole') || 'Admin';
-
+    const storedName = localStorage.getItem('userName');
+    const storedRole = localStorage.getItem('userRole');
+    if (storedName === null || storedRole === null)
+        logout();
     if (userNameElement) {
         userNameElement.textContent = storedName;
     }
     if (userRoleElement) {
-        userRoleElement.textContent = storedRole;
+        userRoleElement.textContent = storedRole.toUpperCase();
     }
 }
 
@@ -44,8 +44,15 @@ function setupHeaderInteractions() {
     const logoutIcon = document.querySelector('.header-icon');
     if (logoutIcon) {
         logoutIcon.addEventListener('click', function() {
-            alert('¡Logout!');
+            localStorage.clear();
+            alert('Su sesion ha sido finalizada');
+            window.location.href = "login.html";
             console.log('Se ha hecho clic en el icono de logout.');
         });
     }
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "login.html";
 }

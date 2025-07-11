@@ -6,7 +6,7 @@
     overflow: hidden; /* Asegura que los bordes redondeados se apliquen correctamente a los items */
     background-color: #f0f0f0; /* Color de fondo del selector */
     width: fit-content; /* El ancho se ajusta al contenido */
-    margin-bottom: 20px; /* Espacio debajo del selector */
+    margin-bottom: 10px; /* Espacio debajo del selector */
 }
 
 /* Estilos para cada pestaña individual */

@@ -1,5 +1,4 @@
 const { Pool } = require('pg');
-require('dotenv').config();
 
 // Crea un nuevo Pool de conexiones usando las variables de entorno
 const pool = new Pool({

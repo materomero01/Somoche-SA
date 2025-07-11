@@ -3,14 +3,17 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+require('dotenv').config(); 
 var cors = require('cors');
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
-var navigationRouter = require('./routes/navigation');
+var choferesRouter = require('./routes/choferes');
+var viajesRouter = require('./routes/viajes');
+var pagosRouter = require('./routes/pagos');
+var catacRouter = require('./routes/catac');
 var app = express();
 
 // view engine setup
@@ -35,7 +38,6 @@ const authenticateToken = (req, res, next) => {
     if (token == null) {
         return res.status(401).json({ message: 'Token no proporcionado.' });
     }
-
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
             console.error('Error al verificar token:', err);
@@ -48,7 +50,12 @@ const authenticateToken = (req, res, next) => {
 
 // app.use('/api/', indexRouter);
 app.use('/api/users', usersRouter);
-app.use('/api/home', authenticateToken, navigationRouter);
+//Rutas Protegidas por JSWT
+app.use(authenticateToken);
+app.use('/api/choferes', choferesRouter);
+app.use('/api/viajes', viajesRouter);
+app.use('/api/pagos', pagosRouter);
+app.use('/api/catac', catacRouter)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

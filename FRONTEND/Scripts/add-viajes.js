@@ -1,306 +1,513 @@
-// /FRONTEND/scripts/add-viajes.js
+import { fetchAllChoferes, fetchTarifas, addViaje, logout, addPagos } from './api.js';
 
-// --- Lógica de Pestañas (SIN tab-indicator) ---
+// Global variables
+let allChoferes = [];
+let tarifasCatac = [];
+let token;
 
-// Función para inicializar los selectores de pestañas
-function setupTabSelectors() {
-    const tabSelector = document.getElementById('viajesPagosSelector'); 
+// Regex for input validation
+const regexInputs = {
+    'comprobante': /^(\d{4}-\d{8}|\d{11})$/
+};
 
+// Set today's date in date inputs
+const setTodayDate = () => {
+    const today = new Date().toLocaleDateString('es-AR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).split('/').reverse().join('-');
+
+    ['fecha', 'fechaPago'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.value = today;
+    });
+
+    const chequeDate = new Date();
+    const fechaCheque = document.getElementById('fechaCheque');
+    if (fechaCheque) {
+        chequeDate.setDate(chequeDate.getDate() +40);
+        fechaCheque.value = chequeDate.toLocaleDateString('es-AR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).split('/').reverse().join('-');
+    }
+};
+
+// Check session validity
+const checkSession = () => {
+    token = localStorage.getItem('jwtToken');
+    if (!token) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+        logout();
+        return false;
+    }
+    return true;
+};
+
+// Validate form inputs
+const validateInputs = (payload, fields) => {
+    for (const [key, label] of Object.entries(fields)) {
+        if (!payload[key] || (typeof payload[key] === 'string' && !payload[key].trim())) {
+            alert(`El valor para ${label} no ha sido ingresado.`, 'error');
+            return false;
+        }
+    }
+    return true;
+};
+
+// Tab content display
+const handleTabContentDisplay = (selectedTab) => {
+    const content = { viajes: document.getElementById('viajes'), pagos: document.getElementById('pagos') };
+    Object.values(content).forEach(div => div?.classList.add('hidden'));
+    content[selectedTab]?.classList.remove('hidden');
+
+    if (selectedTab === 'pagos') {
+        setupPaymentTypeSelector();
+        setupChoferAutocomplete('choferPago');
+    } else if (selectedTab === 'viajes') {
+        setupChoferAutocomplete('chofer');
+        setupTarifaAutocomplete();
+        setupCargaDescargaAutocomplete();
+    }
+};
+
+// Setup tab selectors
+const setupTabSelectors = () => {
+    const tabSelector = document.getElementById('viajesPagosSelector');
     if (!tabSelector) {
-        console.warn("Elemento #viajesPagosSelector no encontrado. La funcionalidad de pestañas no se inicializará.");
+        console.warn("Elemento #viajesPagosSelector no encontrado.");
         return;
     }
 
     const tabItems = tabSelector.querySelectorAll('.tab-item');
-    
     tabItems.forEach(item => {
-        item.addEventListener('click', function () {
+        item.addEventListener('click', () => {
             tabItems.forEach(tab => tab.classList.remove('active'));
-            this.classList.add('active');
-
-            const selectedTab = this.dataset.tab;
-            
-            handleTabContentDisplay(selectedTab);
-            
-            // Si la pestaña de Pagos se activa, inicializa el selector de tipo de pago
-            // Esto asegura que la lógica de pagos se inicialice solo cuando su pestaña esté activa
-            if (selectedTab === 'pagos') {
-                setupPaymentTypeSelector();
-            }
+            item.classList.add('active');
+            handleTabContentDisplay(item.dataset.tab);
         });
     });
 
     const initialActive = tabSelector.querySelector('.tab-item.active');
-    if (initialActive) {
-        handleTabContentDisplay(initialActive.dataset.tab);
-        // Si la pestaña de Pagos es la activa por defecto al cargar, también inicializamos
-        if (initialActive.dataset.tab === 'pagos') {
-            setupPaymentTypeSelector();
-        }
-    }
-}
+    if (initialActive) handleTabContentDisplay(initialActive.dataset.tab);
+};
 
-// Esta función muestra u oculta los bloques de contenido para viajes/pagos
-function handleTabContentDisplay(selectedTab) {
-    const contentViajes = document.getElementById('viajes'); 
-    const contentPagos = document.getElementById('pagos');   
-
-    if (contentViajes) contentViajes.classList.add('hidden');
-    if (contentPagos) contentPagos.classList.add('hidden');
-
-    if (selectedTab === 'viajes') contentViajes?.classList.remove('hidden');
-    if (selectedTab === 'pagos') contentPagos?.classList.remove('hidden');
-}
-
-// --- Lógica del Botón Añadir Viaje ---
-function setupAddViajeBtn() {
+// Setup add viaje button
+const setupAddViajeBtn = () => {
+    const form = document.getElementById('formViaje');
     const btn = document.getElementById('addViajeBtn');
-    btn?.addEventListener('click', function() {
-        const chofer = document.getElementById('chofer')?.value;
-        const fecha = document.getElementById('fecha')?.value;
-        const comprobante = document.getElementById('comprobante')?.value;
-        const campo = document.getElementById('campo')?.value;
-        const kilometro = document.getElementById('kilometro')?.value;
-        const tarifa = document.getElementById('tarifa')?.value;
-        const variacion = document.getElementById('variacion')?.value;
-        const toneladas = document.getElementById('toneladas')?.value;
-        const cargado = document.getElementById('cargado')?.value;
-        const descargado = document.getElementById('descargado')?.value;
+    btn?.addEventListener('click', async () => {
+        const choferInput = document.getElementById('chofer');
+        const fechaInput = document.getElementById('fecha');
+        const payload = {
+            cuil: choferInput?.dataset.selectedChoferCuil,
+            nombre: choferInput?.dataset.selectedChoferNombre
+        };
 
-        console.log('[Añadir viaje]', { 
-            chofer, fecha, comprobante, campo, kilometro, 
-            tarifa, variacion, toneladas, cargado, descargado 
+        if (!payload.cuil) {
+            alert('Por favor, selecciona un chofer de la lista de sugerencias.');
+            return;
+        }
+
+        const formData = Object.fromEntries(new FormData(form).entries());
+
+        const fechaISO = fechaInput?.value ? `${fechaInput.value}T00:00:00-03:00` : new Date().toISOString().split('T')[0] + 'T00:00:00-03:00';
+        Object.assign(payload, {
+            fecha: fechaISO,
+            comprobante: formData.comprobante?.trim(),
+            campo: formData.campo?.trim(),
+            kilometro: parseFloat(formData.kilometro),
+            tarifa: formData.tarifa,
+            variacion: parseFloat(formData.variacion) || 0.1,
+            toneladas: parseFloat(formData.toneladas),
+            cargado: parseFloat(formData.cargado) || parseFloat(formData.toneladas),
+            descargado: parseFloat(formData.descargado) || parseFloat(formData.toneladas),
+            pagado: false
         });
-        alert('Viaje añadido (simulado)!');
-    });
-}
 
-// --- Lógica de la Barra de Búsqueda de Viajes ---
-function setupViajesSearchBar() {
+        // Validate required fields
+        if (!validateInputs(payload, {
+            comprobante: 'Comprobante',
+            campo: 'Campo',
+            kilometro: 'Kilómetro',
+            tarifa: 'Tarifa',
+            toneladas: 'Toneladas',
+            cargado: 'Cargado',
+            descargado: 'Descargado'
+        })) return;
+
+        // Validate comprobante format
+        if (!regexInputs.comprobante.test(payload.comprobante)) {
+            alert('El comprobante debe tener el formato "XXXX-XXXXXXXX" o ser un número de 11 dígitos.');
+            return;
+        }
+
+        // Validate numeric fields
+        const numericFields = {
+            kilometro: 'Kilómetro',
+            toneladas: 'Toneladas',
+            cargado: 'Cargado',
+            descargado: 'Descargado'
+        };
+        for (const [key, label] of Object.entries(numericFields)) {
+            if (isNaN(payload[key]) || payload[key] <= 0) {
+                alert(`${label} debe ser un número mayor a 0.`, 'error');
+                return;
+            }
+        }
+
+        try {
+            const data = await addViaje(payload);
+            form.reset();
+            choferInput.value = payload.nombre;
+            choferInput.dataset.selectedChoferCuil = payload.cuil;
+            choferInput.dataset.selectedChoferNombre = payload.nombre;
+            setTodayDate();
+            alert(data.message);
+        } catch (error) {
+            alert(`Error al añadir viaje: ${error.message}`);
+            console.error('Error en addViaje:', error.message);
+        }
+    });
+};
+
+// Setup search bar
+const setupViajesSearchBar = () => {
     const input = document.querySelector('#viajesSearchBar .search-input');
     const icon = document.querySelector('#viajesSearchBar .search-icon');
-
     if (!input || !icon) {
-        console.warn("Elementos de la barra de búsqueda de viajes no encontrados.");
+        console.warn("Elementos de la barra de búsqueda no encontrados.");
         return;
     }
 
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const term = input.value.trim();
-            if (term) {
-                alert(`Buscar viaje con: "${term}"`);
-            } else {
-                alert('Por favor, ingresa un término de búsqueda.');
-            }
-        }
-    });
-
-    icon.addEventListener('click', () => {
+    const handleSearch = () => {
         const term = input.value.trim();
-        if (term) {
-            alert(`Buscar viaje con: "${term}"`);
-        } else {
-            alert('Por favor, ingresa un término de búsqueda.');
-        }
-    });
-}
+        alert(term ? `Buscar viaje con: "${term}"` : 'Por favor, ingresa un término de búsqueda.', term ? 'info' : 'error');
+    };
 
-// --- Funcionalidad para establecer la fecha actual en el input de fecha ---
-function setTodayDate() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    input.addEventListener('keydown', e => e.key === 'Enter' && handleSearch());
+    icon.addEventListener('click', handleSearch);
+};
 
-    const formattedDate = `${year}-${month}-${day}`;
-
-    // Campo de fecha para Viajes
-    const dateInputViaje = document.getElementById('fecha');
-    if (dateInputViaje) {
-        dateInputViaje.value = formattedDate;
-    }
-    
-    // Campos de fecha para Pagos (específicos por tipo de pago)
-    const dateInputPagoCheque = document.getElementById('fechaPagoCheque');
-    if (dateInputPagoCheque) {
-        dateInputPagoCheque.value = formattedDate;
-    }
-    const dateInputFechaCheque = document.getElementById('fechaCheque'); // Fecha del cheque
-    if (dateInputFechaCheque) {
-        dateInputFechaCheque.value = formattedDate;
-    }
-
-    const dateInputPagoGasoil = document.getElementById('fechaPagoGasoil');
-    if (dateInputPagoGasoil) {
-        dateInputPagoGasoil.value = formattedDate;
-    }
-
-    const dateInputPagoOtro = document.getElementById('fechaPagoOtro');
-    if (dateInputPagoOtro) {
-        dateInputPagoOtro.value = formattedDate;
-    }
-}
-
-// --- Lógica del selector de tipo de pago ---
-function setupPaymentTypeSelector() {
+// Setup payment type selector
+const setupPaymentTypeSelector = () => {
     const tipoPagoSelect = document.getElementById('tipoPago');
-    const chequeFields = document.getElementById('chequeFields');
-    const gasoilFields = document.getElementById('gasoilFields');
-    const otroFields = document.getElementById('otroFields');
+    const fields = {
+        cheque: document.getElementById('chequeFields'),
+        gasoil: document.getElementById('gasoilFields'),
+        otro: document.getElementById('otroFields')
+    };
 
-    // Función auxiliar para mostrar solo los campos relevantes
-    function showPaymentFields(selectedType) {
-        // Ocultar todos los contenedores de campos de pago
-        [chequeFields, gasoilFields, otroFields].forEach(fieldDiv => {
-            if (fieldDiv) fieldDiv.classList.add('hidden');
-        });
+    const showPaymentFields = type => {
+        Object.values(fields).forEach(field => field?.classList.add('hidden'));
+        fields[type]?.classList.remove('hidden');
+        setTodayDate();
+        if (type === 'gasoil') calculateGasoilImporte();
+    };
 
-        // Mostrar solo el contenedor correspondiente al tipo seleccionado
-        switch (selectedType) {
-            case 'cheque':
-                chequeFields?.classList.remove('hidden');
-                break;
-            case 'gasoil':
-                gasoilFields?.classList.remove('hidden');
-                // Asegurarse de que el cálculo se haga al mostrar los campos de gasoil
-                calculateGasoilImporte(); 
-                break;
-            case 'otro':
-                otroFields?.classList.remove('hidden');
-                break;
-        }
-        // Asegurarse de que las fechas se establezcan para los campos mostrados
-        setTodayDate(); 
-    }
-
-    // Listener para el cambio en el selector de tipo de pago
     if (tipoPagoSelect) {
-        tipoPagoSelect.addEventListener('change', (event) => {
-            showPaymentFields(event.target.value);
-        });
-
-        // Mostrar los campos para el valor seleccionado inicialmente (por defecto "cheque")
+        tipoPagoSelect.addEventListener('change', e => showPaymentFields(e.target.value));
         showPaymentFields(tipoPagoSelect.value);
     }
 
-    // Lógica de autocálculo para Gasoil
-    const precioGasoilInput = document.getElementById('precioGasoil');
-    const litrosGasoilInput = document.getElementById('litrosGasoil');
-    const importeGasoilInput = document.getElementById('importeGasoil');
+    const precioGasoil = document.getElementById('precioGasoil');
+    const litrosGasoil = document.getElementById('litrosGasoil');
+    const importeGasoil = document.getElementById('importeGasoil');
 
-    function calculateGasoilImporte() {
-        const precio = parseFloat(precioGasoilInput?.value) || 0;
-        const litros = parseFloat(litrosGasoilInput?.value) || 0;
-        // Calcular el importe y redondear a 2 decimales
-        const importe = (precio * litros).toFixed(2); 
-        if (importeGasoilInput) {
-            importeGasoilInput.value = importe;
-        }
-    }
+    const calculateGasoilImporte = () => {
+        const precio = parseFloat(precioGasoil?.value) || 0;
+        const litros = parseFloat(litrosGasoil?.value) || 0;
+        if (importeGasoil) importeGasoil.value = (precio * litros).toFixed(2);
+    };
 
-    // Añadir event listeners para el cálculo en tiempo real
-    if (precioGasoilInput) {
-        precioGasoilInput.addEventListener('input', calculateGasoilImporte);
-    }
-    if (litrosGasoilInput) {
-        litrosGasoilInput.addEventListener('input', calculateGasoilImporte);
-    }
-}
+    precioGasoil?.addEventListener('input', calculateGasoilImporte);
+    litrosGasoil?.addEventListener('input', calculateGasoilImporte);
+};
 
-// --- Lógica del Botón Registrar Pago ---
-function setupAddPagoBtn() {
+// Setup add pago button
+const setupAddPagoBtn = () => {
     const btn = document.getElementById('addPagoBtn');
-    btn?.addEventListener('click', () => {
+    btn?.addEventListener('click', async() => {
         const tipoPago = document.getElementById('tipoPago')?.value;
-        let pagoData = { tipo: tipoPago }; // Objeto base con el tipo de pago
+        const fechaPago = document.getElementById('fechaPago')?.value;
+        let choferInput = document.getElementById('choferPago');
+        let payload = {
+            choferCuil: choferInput?.dataset.selectedChoferCuil,
+        };
 
-        // Recopilar datos específicos según el tipo de pago seleccionado
+        if (!payload.choferCuil) {
+            alert('Por favor, selecciona un chofer de la lista de sugerencias.');
+            return;
+        }
+
         switch (tipoPago) {
             case 'cheque':
-                pagoData = {
-                    ...pagoData, // Mantiene el tipo: 'cheque'
-                    chofer: document.getElementById('choferPagoCheque')?.value,
-                    fechaPago: document.getElementById('fechaPagoCheque')?.value,
-                    fechaCheque: document.getElementById('fechaCheque')?.value,
-                    nroCheque: document.getElementById('nroCheque')?.value,
-                    tercero: document.getElementById('terceroCheque')?.value,
-                    destinatario: document.getElementById('destinatarioCheque')?.value,
-                    importe: document.getElementById('importeCheque')?.value
+                payload = {
+                    ...payload,
+                    pagos: {
+                        tipo: tipoPago,
+                        fechaPago: fechaPago,
+                        fechaCheque: document.getElementById('fechaCheque')?.value,
+                        nroCheque: document.getElementById('nroCheque')?.value,
+                        tercero: document.getElementById('terceroCheque')?.value,
+                        destinatario: document.getElementById('destinatarioCheque')?.value,
+                        importe: document.getElementById('importeCheque')?.value
+                    }
                 };
+
+                if (isNaN(payload.pagos.importe || payload.pagos.importe <= 0)){
+                    alert(`El importe ingresado no es valido`);
+                    return;
+                }
                 break;
             case 'gasoil':
-                pagoData = {
-                    ...pagoData, // Mantiene el tipo: 'gasoil'
-                    chofer: document.getElementById('choferPagoGasoil')?.value,
-                    fechaPago: document.getElementById('fechaPagoGasoil')?.value,
-                    precioGasoil: document.getElementById('precioGasoil')?.value,
-                    litros: document.getElementById('litrosGasoil')?.value,
-                    importe: document.getElementById('importeGasoil')?.value // Se obtiene el valor ya calculado
+                payload = {
+                    ...payload,
+                    pagos: {
+                        tipo: tipoPago,
+                        fechaPago: fechaPago,
+                        precioGasoil: document.getElementById('precioGasoil')?.value,
+                        litros: document.getElementById('litrosGasoil')?.value,
+                        importe: document.getElementById('importeGasoil')?.value
+                    }
                 };
+                
+                ['precioGasoil', 'litros', 'importe'].forEach(id => {
+                    if(isNaN(payload.pagos[id] || payload.pagos[id] <= 0)){
+                        alert(`El valor ingresado para ${id} no es valido`);
+                        return;
+                    }
+                });
                 break;
             case 'otro':
-                pagoData = {
-                    ...pagoData, // Mantiene el tipo: 'otro'
-                    chofer: document.getElementById('choferPagoOtro')?.value,
-                    fechaPago: document.getElementById('fechaPagoOtro')?.value,
-                    detalle: document.getElementById('detalleOtro')?.value,
-                    importe: document.getElementById('importeOtro')?.value
+                payload = {
+                    ...payload,
+                    pagos: {
+                        tipo: tipoPago,
+                        fechaPago: fechaPago,
+                        detalle: document.getElementById('detalleOtro')?.value,
+                        importe: document.getElementById('importeOtro')?.value
+                    }
                 };
+
+                if(isNaN(payload.pagos.importe || payload.pagos.importe <= 0)){
+                    alert(`El valor ingresado para el importe no es valido`);
+                    return;
+                }
                 break;
             default:
                 console.warn('Tipo de pago no reconocido:', tipoPago);
-                return; // Salir si el tipo no es válido
+                return;
+        }
+        
+        try {
+            const data = await addPagos(payload);
+            alert(data.message);
+        } catch (error) {
+            alert(`Error al añadir el pago: ${error.message}`);
+            console.error('Error en addPagos:', error.message);
+        }
+        
+        console.log('[Registrar Pago]', payload);
+    });
+};
+
+// Setup autocomplete
+const setupAutocomplete = ({ inputId, suggestionsId = `${inputId}-suggestions`, filterSuggestions, renderSuggestion, onSelect, dependentInputId, onDependentChange }) => {
+    const input = document.getElementById(inputId);
+    let suggestionsDiv = document.getElementById(suggestionsId);
+
+    if (!input) {
+        console.warn(`Input con ID '${inputId}' no encontrado.`);
+        return;
+    }
+
+    if (!suggestionsDiv) {
+        suggestionsDiv = document.createElement('div');
+        suggestionsDiv.id = suggestionsId;
+        suggestionsDiv.classList.add('suggestions-list');
+        input.parentNode.insertBefore(suggestionsDiv, input.nextSibling);
+    }
+
+    let activeSuggestionIndex = -1;
+
+    const displaySuggestions = suggestions => {
+        suggestionsDiv.innerHTML = '';
+        activeSuggestionIndex = -1;
+
+        if (!suggestions?.length) {
+            suggestionsDiv.style.display = 'none';
+            return;
         }
 
-        console.log('[Registrar Pago]', pagoData);
-        alert(`Pago de tipo "${tipoPago}" registrado (simulado)!`);
-        // Aquí iría la lógica para enviar los datos de pago al backend
+        suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.classList.add('suggestion-item');
+            item.textContent = renderSuggestion(suggestion);
+            Object.entries(suggestion).forEach(([key, value]) => item.dataset[key] = value);
+
+            item.addEventListener('click', () => {
+                onSelect(input, suggestion);
+                suggestionsDiv.innerHTML = '';
+                suggestionsDiv.style.display = 'none';
+                input.focus();
+            });
+            suggestionsDiv.appendChild(item);
+        });
+        suggestionsDiv.style.display = 'block';
+    };
+
+    input.addEventListener('input', () => {
+        const query = input.value.trim();
+        Object.keys(input.dataset).forEach(key => delete input.dataset[key]);
+        displaySuggestions(query ? filterSuggestions(query) : []);
     });
-}
 
-// --- Inicialización al cargar el DOM ---
-
-document.addEventListener('DOMContentLoaded', async function() {
-    // Carga y configura el Header
-    if (typeof loadHeader === 'function') { 
-        await loadHeader(); 
-    } else {
-        console.error("loadHeader no está definido. Asegúrate de que /FRONTEND/scripts/header.js se cargue antes.");
+    if (dependentInputId && onDependentChange) {
+        const dependentInput = document.getElementById(dependentInputId);
+        dependentInput?.addEventListener('change', () => onDependentChange(dependentInput, input, suggestionsDiv));
     }
 
-    // Carga y configura el Sidebar
-    if (typeof loadSidebar === 'function') { 
-        const userRole = localStorage.getItem('userRole') || 'admin';
-        await loadSidebar(userRole);
-    } else {
-        console.error("loadSidebar no está definido. Asegúrate de que /FRONTEND/scripts/sidebar.js se cargue antes.");
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+            suggestionsDiv.style.display = 'none';
+            activeSuggestionIndex = -1;
+        }
+    });
+
+    input.addEventListener('keydown', e => {
+        const items = Array.from(suggestionsDiv.children);
+        if (!items.length) return;
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
+                highlightSuggestion(items[activeSuggestionIndex]);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
+                highlightSuggestion(items[activeSuggestionIndex]);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (activeSuggestionIndex > -1) items[activeSuggestionIndex].click();
+                else if (items.length === 1 && input.value === items[0].dataset.nombre) items[0].click();
+                break;
+            case 'Escape':
+                suggestionsDiv.style.display = 'none';
+                activeSuggestionIndex = -1;
+                break;
+        }
+    });
+
+    suggestionsDiv.addEventListener('mousedown', e => e.preventDefault());
+
+    input.addEventListener('focus', () => displaySuggestions(filterSuggestions(input.value.trim())));
+
+    const highlightSuggestion = item => {
+        Array.from(suggestionsDiv.children).forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+};
+
+// Setup chofer autocomplete
+const setupChoferAutocomplete = inputId => setupAutocomplete({
+    inputId,
+    filterSuggestions: query => query.length < 2 ? [] : allChoferes.filter(chofer => chofer.nombre.toLowerCase().includes(query.toLowerCase())),
+    renderSuggestion: chofer => `${chofer.nombre} (${chofer.cuil})`,
+    onSelect: (input, chofer) => {
+        input.value = chofer.nombre;
+        input.dataset.selectedChoferNombre = chofer.nombre;
+        input.dataset.selectedChoferCuil = chofer.cuil;
+    }
+});
+
+// Setup tarifa autocomplete
+const setupTarifaAutocomplete = () => {
+    const tarifaAutodescargableBase = 0;
+    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac') || '[]');
+
+    setupAutocomplete({
+        inputId: 'tarifa',
+        dependentInputId: 'kilometro',
+        filterSuggestions: () => {
+            const currentKm = parseInt(document.getElementById('kilometro')?.value.trim(), 10);
+            const tarifaCatacCalculada = (!isNaN(currentKm) && currentKm > 0 && currentKm <= tarifasCatac.length && tarifasCatac[currentKm - 1]?.valor !== undefined)
+                ? tarifasCatac[currentKm - 1].valor
+                : 0;
+
+            return [
+                { type: 'Tarifa CATAC', value: tarifaCatacCalculada },
+                { type: 'Tarifa Autodescargable', value: tarifaAutodescargableBase }
+            ];
+        },
+        renderSuggestion: suggestion => `${suggestion.type}: ${suggestion.value}`,
+        onSelect: (input, suggestion) => input.value = suggestion.value,
+        onDependentChange: (dependentInput, input, suggestionsDiv) => {
+            const queryKm = parseInt(dependentInput.value.trim(), 10);
+            if (isNaN(queryKm) || queryKm <= 0 || queryKm > tarifasCatac.length) {
+                input.value = '';
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            const tarifa = tarifasCatac[queryKm - 1];
+            input.value = tarifa?.valor ?? '';
+            suggestionsDiv.style.display = 'none';
+            if (!tarifa?.valor) console.warn(`No se encontró tarifa para ${queryKm} km.`);
+        }
+    });
+};
+
+// Setup carga/descarga autocomplete
+const setupCargaDescargaAutocomplete = () => {
+    const [toneladas, cargado, descargado] = ['toneladas', 'cargado', 'descargado'].map(id => document.getElementById(id));
+    if (!toneladas || !cargado || !descargado) {
+        console.error("Inputs de toneladas, cargado o descargado no encontrados.");
+        return;
     }
 
-    // Lógica para resaltar el ítem del sidebar
-    const currentPath = window.location.pathname;
+    toneladas.addEventListener('change', () => {
+        const value = parseFloat(toneladas.value.trim());
+        if (!isNaN(value) && value >= 0) {
+            cargado.value = value;
+            descargado.value = value;
+        } else {
+            cargado.value = '';
+            descargado.value = '';
+        }
+    });
+};
+
+// DOMContentLoaded initialization
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!checkSession()) return;
+
+    allChoferes = await fetchAllChoferes();
+    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac')) || await fetchTarifas();
+
+    if (typeof loadHeader === 'function') await loadHeader();
+    else console.error("loadHeader no está definido. Asegúrate de cargar /FRONTEND/scripts/header.js.");
+
+    if (typeof loadSidebar === 'function') await loadSidebar(localStorage.getItem('userRole') || 'admin');
+    else console.error("loadSidebar no está definido. Asegúrate de cargar /FRONTEND/scripts/sidebar.js.");
+
     const sidebarItems = document.querySelectorAll('.sidebar-item');
-
     sidebarItems.forEach(item => {
-        const targetPage = item.dataset.targetPage; 
-        if (targetPage && currentPath.includes(targetPage)) {
-            sidebarItems.forEach(el => el.classList.remove('active')); 
+        if (item.dataset.targetPage && window.location.pathname.includes(item.dataset.targetPage)) {
+            sidebarItems.forEach(el => el.classList.remove('active'));
             item.classList.add('active');
         }
     });
 
-    // Establece la fecha actual en los inputs de fecha (llama a esta función temprano)
-    setTodayDate(); 
-
-    // Inicializa la funcionalidad de pestañas (esto llamará a setupPaymentTypeSelector si 'Pagos' es la pestaña inicial)
-    setupTabSelectors(); 
-    
-    // Inicializa la lógica del botón "Añadir Viaje"
+    setTodayDate();
+    setupTabSelectors();
     setupAddViajeBtn();
-
-    // Inicializa la lógica de la barra de búsqueda
     setupViajesSearchBar();
-
-    // Inicializa la lógica del botón "Registrar Pago"
     setupAddPagoBtn();
 });

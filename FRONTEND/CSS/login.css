@@ -137,7 +137,13 @@ body {
     justify-content: center;
     align-items: center;
     position: relative;
+    transition: background-color 0.2s ease, transform 0.1s ease;
 }
+
+.button-14:hover {
+    background-color: #313131;
+}
+
 .register-text {
     width: 250px;
     color: #444444;

@@ -1,7 +1,10 @@
 // /FRONTEND/catac.js
+import { stringify } from 'querystring';
+import { fetchTarifas, updateTarifas} from './api.js';
 
 let datosCatac = [];
 let paginaActual = 1;
+
 
 function renderTabla({ containerId, datos, filas = 10, columnas = 5, pageNum = 1 }) {
     const container = document.getElementById(containerId);
@@ -12,7 +15,6 @@ function renderTabla({ containerId, datos, filas = 10, columnas = 5, pageNum = 1
 
     container.dataset.currentPage = pageNum;
     container.innerHTML = '';
-
     const tabla = document.createElement("table");
     tabla.id = "catacTable"; // Corregido para coincidir con el CSS
     const tbody = document.createElement("tbody");
@@ -35,7 +37,7 @@ function renderTabla({ containerId, datos, filas = 10, columnas = 5, pageNum = 1
 
                 const tdValor = document.createElement("td");
                 tdValor.classList.add("catac-value-cell");
-                tdValor.textContent = indice < datos.length ? datos[indice] : ""; // Rellenar con vacío si no hay datos
+                tdValor.textContent = indice < datos.length ? datos[indice]['valor'] : ""; // Rellenar con vacío si no hay datos
 
                 tr.appendChild(tdId);
                 tr.appendChild(tdValor);
@@ -136,7 +138,7 @@ function configurarInteraccionesCatac() {
     const btnActualizar = document.getElementById('catac-update-btn');
 
     if (btnActualizar && inputActualizar) {
-        btnActualizar.addEventListener('click', function() {
+        btnActualizar.addEventListener('click', async function() {
             const textoPorcentaje = inputActualizar.value;
             let porcentaje = parseFloat(textoPorcentaje);
             if (isNaN(porcentaje)) {
@@ -144,19 +146,27 @@ function configurarInteraccionesCatac() {
                 return;
             }
             const factor = porcentaje / 100;
-            const nuevosDatosCatac = datosCatac.map(valorStr => {
-                const valorNumerico = parseFloat(valorStr);
-                if (isNaN(valorNumerico)) return valorStr;
-                const nuevoValor = valorNumerico * (1 + factor);
-                return nuevoValor.toFixed(2);
-            });
-            datosCatac = nuevosDatosCatac;
+            payload = {
+                factor: factor
+            }
+            if (confirm(`Estas seguro de que desea actualizar las tarifas de Catac en un ${textoPorcentaje}%?`)){
+                try {
+                    const data = await updateTarifas(payload);
+                    datosCatac = data.tarifas;
+                    updateInput.value = null;
+                } catch (error) {
+                    console.error('Error en tarifasCatac:', error.message);
+                    return [];
+                }
+            } else 
+                return;
             const container = document.getElementById('tabla-catac');
             if (!container) {
                 console.error('Contenedor tabla-catac no encontrado.');
                 alert('Error: No se pudo actualizar la tabla.');
                 return;
             }
+
             paginaActual = parseInt(container.dataset.currentPage) || 1;
             renderTabla({
                 containerId: 'tabla-catac',
@@ -190,6 +200,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             const sidebar = document.querySelector('.sidebar');
             if (sidebar) sidebar.innerHTML = '<p>Error al cargar la barra lateral.</p>';
         }
+
+        datosCatac = JSON.parse(localStorage.getItem('tarifasCatac'));
+        if (!datosCatac)
+            datosCatac = await fetchTarifas();
 
         const currentPath = window.location.pathname;
         const sidebarItems = document.querySelectorAll('.sidebar-item');

@@ -9,43 +9,45 @@
     <title>Iniciar sesión - SOMOCHE S.A</title>
 </head>
 <body>
-    <div class="rectangle-9">
-        <div class="title-header">SOMOCHE S.A</div>
-        <div class="title" id="login">Iniciar sesión</div>
-        <div class="subtext">
-            Inicia sesión introduciendo tu <br> email y contraseña
-        </div>
-        <form id="formSesion">
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label for="cuil-input" class="cuil">CUIL / CUIT</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-person"></i>
-                </div>
-                <input type="text" id="cuil-input" name="cuil" class="text-input target-input" placeholder="20-12345678-1" required>
-                <span class="invalid-input" style="display: none;" id="cuil-input-error"> CUIL / CUIT no válido</span>
+    <main>
+        <div class="rectangle-9">
+            <div class="title-header">SOMOCHE S.A</div>
+            <div class="title" id="login">Iniciar sesión</div>
+            <div class="subtext">
+                Inicia sesión introduciendo tu <br> email y contraseña
             </div>
+            <form id="formSesion">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="cuil-input" class="cuil">CUIL / CUIT</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <input type="text" id="cuil-input" name="cuil" class="text-input target-input" placeholder="20-12345678-1" maxlength="13" required>
+                    <span class="invalid-input" style="display: none;" id="cuil-input-error"> CUIL / CUIT no válido</span>
+                </div>
 
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label for="password-input" class="cuil">Contraseña</label>
-                <div class="icon-wrapper">
-                    <i class="bi bi-lock"></i>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="password-input" class="cuil">Contraseña</label>
+                    <div class="icon-wrapper">
+                        <i class="bi bi-lock"></i>
+                    </div>
+                    <input type="password" id="password-input" name="password" class="text-input" placeholder="••••••••••" required>
+                    <div class="eye-icon-1">
+                        <i class="bi bi-eye-slash toggle"></i>
+                    </div>
                 </div>
-                <input type="password" id="password-input" name="password" class="text-input" placeholder="••••••••••" required>
-                <div class="eye-icon-1">
-                    <i class="bi bi-eye-slash toggle"></i>
-                </div>
+
+                <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
+
+                <button class="button-14" id="buttonSubmit" type="submit">
+                    Iniciar sesión
+                </button>
+            </form>
+            <div class="register-text">
+                ¿No tienes una cuenta? <a href="signup.html" style="color: #7A7A7A; text-decoration: underline; margin-left: 5px;">Regístrate aquí</a>
             </div>
-
-            <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
-
-            <button class="button-14" id="buttonSubmit" type="submit">
-                Iniciar sesión
-            </button>
-        </form>
-        <div class="register-text">
-            ¿No tienes una cuenta? <a href="signup.html" style="color: #7A7A7A; text-decoration: underline; margin-left: 5px;">Regístrate aquí</a>
         </div>
-    </div>
+    </main>
     <script defer src="/FRONTEND/Scripts/login-register.js"></script>
 </body>
 </html>
