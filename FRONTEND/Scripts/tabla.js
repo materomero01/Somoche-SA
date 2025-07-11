@@ -38,7 +38,7 @@ export function renderTabla({ containerId, datos, filas = 10, columnas = 5, pagi
 
                 const tdValor = document.createElement("td");
                 tdValor.classList.add("catac-value-cell");
-                tdValor.textContent = datos[index];
+                tdValor.textContent = datos[index]['valor'];
 
                 tr.appendChild(tdId);
                 tr.appendChild(tdValor);

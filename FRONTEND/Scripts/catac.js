@@ -1,29 +1,38 @@
 // /FRONTEND/js/catac.js
 
 import { renderTabla } from './tabla.js'; 
+import { fetchTarifas, updateTarifas} from './api.js';
 
-let datosCatac = []; 
+let datosCatac = [];
 
 function setupCatacInteractions() {
     const updateInput = document.getElementById('catac-update');
     const updateButton = document.getElementById('catac-update-btn');
 
     if (updateButton && updateInput) {
-        updateButton.addEventListener('click', function() {
+        updateButton.addEventListener('click', async(event)=> {
             const percentageText = updateInput.value;
             let percentage = parseFloat(percentageText);
+
             if (isNaN(percentage)) {
                 alert('Por favor, ingresa un porcentaje válido (número).');
                 return;
             }
             const factor = percentage / 100;
-            const nuevosDatosCatac = datosCatac.map(valorStr => {
-                const valorNumerico = parseFloat(valorStr);
-                if (isNaN(valorNumerico)) return valorStr;
-                const nuevoValor = valorNumerico * (1 + factor);
-                return nuevoValor.toFixed(2);
-            });
-            datosCatac = nuevosDatosCatac;
+            payload = {
+                factor: factor
+            }
+            if (confirm(`Estas seguro de que desea actualizar las tarifas de Catac en un ${percentageText}%?`)){
+                try {
+                    const data = await updateTarifas(payload);
+                    datosCatac = data.tarifas;
+                    updateInput.value = null;
+                } catch (error) {
+                    console.error('Error en tarifasCatac:', error.message);
+                    return [];
+                }
+            } else 
+                return;
             renderTabla({
                 containerId: 'tabla-catac',
                 datos: datosCatac,
@@ -60,8 +69,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             item.classList.add('active');
         }
     });
-    
-    datosCatac = Array.from({ length: 1500 }, () => (Math.random() * 20000).toFixed(2));
+
+    datosCatac = JSON.parse(localStorage.getItem('tarifasCatac'));
+    if (!datosCatac)
+        datosCatac = await fetchTarifas();
+
+
     renderTabla({
         containerId: 'tabla-catac',
         datos: datosCatac,

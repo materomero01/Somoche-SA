@@ -28,10 +28,10 @@ function setupHeaderDynamicContent() {
         const formattedDate = `${day}/${month}/${year}`;
         dateElement.textContent = formattedDate;
     }
-
     const storedName = localStorage.getItem('userName');
     const storedRole = localStorage.getItem('userRole');
-
+    if (storedName === null || storedRole === null)
+        logout();
     if (userNameElement) {
         userNameElement.textContent = storedName;
     }
@@ -50,4 +50,9 @@ function setupHeaderInteractions() {
             console.log('Se ha hecho clic en el icono de logout.');
         });
     }
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "login.html";
 }

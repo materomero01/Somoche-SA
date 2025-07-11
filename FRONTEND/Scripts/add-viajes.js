@@ -1,508 +1,513 @@
-// /FRONTEND/scripts/add-viajes.js
+import { fetchAllChoferes, fetchTarifas, addViaje, logout, addPagos } from './api.js';
 
-// Variable global para almacenar todos los choferes cargados una sola vez
+// Global variables
 let allChoferes = [];
-let apiURL = 'http://localhost:3000'
-// --- Lógica de Pestañas (SIN tab-indicator) ---
+let tarifasCatac = [];
+let token;
 
-// Función para inicializar los selectores de pestañas
-function setupTabSelectors() {
-    const tabSelector = document.getElementById('viajesPagosSelector'); 
+// Regex for input validation
+const regexInputs = {
+    'comprobante': /^(\d{4}-\d{8}|\d{11})$/
+};
 
+// Set today's date in date inputs
+const setTodayDate = () => {
+    const today = new Date().toLocaleDateString('es-AR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).split('/').reverse().join('-');
+
+    ['fecha', 'fechaPago'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.value = today;
+    });
+
+    const chequeDate = new Date();
+    const fechaCheque = document.getElementById('fechaCheque');
+    if (fechaCheque) {
+        chequeDate.setDate(chequeDate.getDate() +40);
+        fechaCheque.value = chequeDate.toLocaleDateString('es-AR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).split('/').reverse().join('-');
+    }
+};
+
+// Check session validity
+const checkSession = () => {
+    token = localStorage.getItem('jwtToken');
+    if (!token) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+        logout();
+        return false;
+    }
+    return true;
+};
+
+// Validate form inputs
+const validateInputs = (payload, fields) => {
+    for (const [key, label] of Object.entries(fields)) {
+        if (!payload[key] || (typeof payload[key] === 'string' && !payload[key].trim())) {
+            alert(`El valor para ${label} no ha sido ingresado.`, 'error');
+            return false;
+        }
+    }
+    return true;
+};
+
+// Tab content display
+const handleTabContentDisplay = (selectedTab) => {
+    const content = { viajes: document.getElementById('viajes'), pagos: document.getElementById('pagos') };
+    Object.values(content).forEach(div => div?.classList.add('hidden'));
+    content[selectedTab]?.classList.remove('hidden');
+
+    if (selectedTab === 'pagos') {
+        setupPaymentTypeSelector();
+        setupChoferAutocomplete('choferPago');
+    } else if (selectedTab === 'viajes') {
+        setupChoferAutocomplete('chofer');
+        setupTarifaAutocomplete();
+        setupCargaDescargaAutocomplete();
+    }
+};
+
+// Setup tab selectors
+const setupTabSelectors = () => {
+    const tabSelector = document.getElementById('viajesPagosSelector');
     if (!tabSelector) {
-        console.warn("Elemento #viajesPagosSelector no encontrado. La funcionalidad de pestañas no se inicializará.");
+        console.warn("Elemento #viajesPagosSelector no encontrado.");
         return;
     }
 
     const tabItems = tabSelector.querySelectorAll('.tab-item');
-    
     tabItems.forEach(item => {
-        item.addEventListener('click', function () {
+        item.addEventListener('click', () => {
             tabItems.forEach(tab => tab.classList.remove('active'));
-            this.classList.add('active');
-
-            const selectedTab = this.dataset.tab;
-            
-            handleTabContentDisplay(selectedTab);
-            
-            // Si la pestaña de Pagos se activa, inicializa los autocompletados de chofer
-            if (selectedTab === 'pagos') {
-                setupPaymentTypeSelector();
-                // Asegúrate de que los IDs de tus inputs de chofer en la pestaña de Pagos sean correctos
-                setupChoferAutocomplete('choferPagoCheque');
-                setupChoferAutocomplete('choferPagoGasoil');
-                setupChoferAutocomplete('choferPagoOtro');   
-            } else if (selectedTab === 'viajes') {
-                setupChoferAutocomplete('chofer'); // Autocompletado para el input de viajes
-            }
+            item.classList.add('active');
+            handleTabContentDisplay(item.dataset.tab);
         });
     });
 
     const initialActive = tabSelector.querySelector('.tab-item.active');
-    if (initialActive) {
-        handleTabContentDisplay(initialActive.dataset.tab);
-        if (initialActive.dataset.tab === 'pagos') {
-            setupPaymentTypeSelector();
-            setupChoferAutocomplete('choferPagoCheque'); 
-            setupChoferAutocomplete('choferPagoGasoil'); 
-            setupChoferAutocomplete('choferPagoOtro');   
-        } else if (initialActive.dataset.tab === 'viajes') {
-            setupChoferAutocomplete('chofer');
-        }
-    }
-}
+    if (initialActive) handleTabContentDisplay(initialActive.dataset.tab);
+};
 
-// Esta función muestra u oculta los bloques de contenido para viajes/pagos
-function handleTabContentDisplay(selectedTab) {
-    const contentViajes = document.getElementById('viajes'); 
-    const contentPagos = document.getElementById('pagos');   
-
-    if (contentViajes) contentViajes.classList.add('hidden');
-    if (contentPagos) contentPagos.classList.add('hidden');
-
-    if (selectedTab === 'viajes') contentViajes?.classList.remove('hidden');
-    if (selectedTab === 'pagos') contentPagos?.classList.remove('hidden');
-}
-
-// --- Lógica del Botón Añadir Viaje ---
-function setupAddViajeBtn() {
+// Setup add viaje button
+const setupAddViajeBtn = () => {
+    const form = document.getElementById('formViaje');
     const btn = document.getElementById('addViajeBtn');
-    btn?.addEventListener('click', function() {
-        const choferInput = document.getElementById('chofer'); 
-        const choferId = choferInput?.dataset.selectedChoferId; // Obtener el ID del chofer seleccionado
-        const choferNombre = choferInput?.value; // Obtener el nombre que está en el input
+    btn?.addEventListener('click', async () => {
+        const choferInput = document.getElementById('chofer');
+        const fechaInput = document.getElementById('fecha');
+        const payload = {
+            cuil: choferInput?.dataset.selectedChoferCuil,
+            nombre: choferInput?.dataset.selectedChoferNombre
+        };
 
-        const fecha = document.getElementById('fecha')?.value;
-        const comprobante = document.getElementById('comprobante')?.value;
-        const campo = document.getElementById('campo')?.value;
-        const kilometro = document.getElementById('kilometro')?.value;
-        const tarifa = document.getElementById('tarifa')?.value;
-        const variacion = document.getElementById('variacion')?.value;
-        const toneladas = document.getElementById('toneladas')?.value;
-        const cargado = document.getElementById('cargado')?.value;
-        const descargado = document.getElementById('descargado')?.value;
-
-        if (!choferId) {
+        if (!payload.cuil) {
             alert('Por favor, selecciona un chofer de la lista de sugerencias.');
             return;
         }
 
-        console.log('[Añadir viaje]', { 
-            choferId, 
-            choferNombre, 
-            fecha, comprobante, campo, kilometro, 
-            tarifa, variacion, toneladas, cargado, descargado 
-        });
-        alert('Viaje añadido (simulado)!');
-        // Aquí iría tu fetch al backend para registrar el viaje
-    });
-}
+        const formData = Object.fromEntries(new FormData(form).entries());
 
-// --- Lógica de la Barra de Búsqueda de Viajes ---
-function setupViajesSearchBar() {
+        const fechaISO = fechaInput?.value ? `${fechaInput.value}T00:00:00-03:00` : new Date().toISOString().split('T')[0] + 'T00:00:00-03:00';
+        Object.assign(payload, {
+            fecha: fechaISO,
+            comprobante: formData.comprobante?.trim(),
+            campo: formData.campo?.trim(),
+            kilometro: parseFloat(formData.kilometro),
+            tarifa: formData.tarifa,
+            variacion: parseFloat(formData.variacion) || 0.1,
+            toneladas: parseFloat(formData.toneladas),
+            cargado: parseFloat(formData.cargado) || parseFloat(formData.toneladas),
+            descargado: parseFloat(formData.descargado) || parseFloat(formData.toneladas),
+            pagado: false
+        });
+
+        // Validate required fields
+        if (!validateInputs(payload, {
+            comprobante: 'Comprobante',
+            campo: 'Campo',
+            kilometro: 'Kilómetro',
+            tarifa: 'Tarifa',
+            toneladas: 'Toneladas',
+            cargado: 'Cargado',
+            descargado: 'Descargado'
+        })) return;
+
+        // Validate comprobante format
+        if (!regexInputs.comprobante.test(payload.comprobante)) {
+            alert('El comprobante debe tener el formato "XXXX-XXXXXXXX" o ser un número de 11 dígitos.');
+            return;
+        }
+
+        // Validate numeric fields
+        const numericFields = {
+            kilometro: 'Kilómetro',
+            toneladas: 'Toneladas',
+            cargado: 'Cargado',
+            descargado: 'Descargado'
+        };
+        for (const [key, label] of Object.entries(numericFields)) {
+            if (isNaN(payload[key]) || payload[key] <= 0) {
+                alert(`${label} debe ser un número mayor a 0.`, 'error');
+                return;
+            }
+        }
+
+        try {
+            const data = await addViaje(payload);
+            form.reset();
+            choferInput.value = payload.nombre;
+            choferInput.dataset.selectedChoferCuil = payload.cuil;
+            choferInput.dataset.selectedChoferNombre = payload.nombre;
+            setTodayDate();
+            alert(data.message);
+        } catch (error) {
+            alert(`Error al añadir viaje: ${error.message}`);
+            console.error('Error en addViaje:', error.message);
+        }
+    });
+};
+
+// Setup search bar
+const setupViajesSearchBar = () => {
     const input = document.querySelector('#viajesSearchBar .search-input');
     const icon = document.querySelector('#viajesSearchBar .search-icon');
-
     if (!input || !icon) {
-        console.warn("Elementos de la barra de búsqueda de viajes no encontrados.");
+        console.warn("Elementos de la barra de búsqueda no encontrados.");
         return;
     }
 
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const term = input.value.trim();
-            if (term) {
-                alert(`Buscar viaje con: "${term}"`);
-            } else {
-                alert('Por favor, ingresa un término de búsqueda.');
-            }
-        }
-    });
-
-    icon.addEventListener('click', () => {
+    const handleSearch = () => {
         const term = input.value.trim();
-        if (term) {
-            alert(`Buscar viaje con: "${term}"`);
-        } else {
-            alert('Por favor, ingresa un término de búsqueda.');
-        }
-    });
-}
+        alert(term ? `Buscar viaje con: "${term}"` : 'Por favor, ingresa un término de búsqueda.', term ? 'info' : 'error');
+    };
 
-// --- Funcionalidad para establecer la fecha actual en el input de fecha ---
-function setTodayDate() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    input.addEventListener('keydown', e => e.key === 'Enter' && handleSearch());
+    icon.addEventListener('click', handleSearch);
+};
 
-    const formattedDate = `${year}-${month}-${day}`;
-
-    const dateInputViaje = document.getElementById('fecha');
-    if (dateInputViaje) {
-        dateInputViaje.value = formattedDate;
-    }
-    
-    const dateInputPagoCheque = document.getElementById('fechaPagoCheque');
-    if (dateInputPagoCheque) {
-        dateInputPagoCheque.value = formattedDate;
-    }
-    const dateInputFechaCheque = document.getElementById('fechaCheque');
-    if (dateInputFechaCheque) {
-        dateInputFechaCheque.value = formattedDate;
-    }
-
-    const dateInputPagoGasoil = document.getElementById('fechaPagoGasoil');
-    if (dateInputPagoGasoil) {
-        dateInputPagoGasoil.value = formattedDate;
-    }
-
-    const dateInputPagoOtro = document.getElementById('fechaPagoOtro');
-    if (dateInputPagoOtro) {
-        dateInputPagoOtro.value = formattedDate;
-    }
-}
-
-// --- Lógica del selector de tipo de pago ---
-function setupPaymentTypeSelector() {
+// Setup payment type selector
+const setupPaymentTypeSelector = () => {
     const tipoPagoSelect = document.getElementById('tipoPago');
-    const chequeFields = document.getElementById('chequeFields');
-    const gasoilFields = document.getElementById('gasoilFields');
-    const otroFields = document.getElementById('otroFields');
+    const fields = {
+        cheque: document.getElementById('chequeFields'),
+        gasoil: document.getElementById('gasoilFields'),
+        otro: document.getElementById('otroFields')
+    };
 
-    function showPaymentFields(selectedType) {
-        [chequeFields, gasoilFields, otroFields].forEach(fieldDiv => {
-            if (fieldDiv) fieldDiv.classList.add('hidden');
-        });
-
-        switch (selectedType) {
-            case 'cheque':
-                chequeFields?.classList.remove('hidden');
-                break;
-            case 'gasoil':
-                gasoilFields?.classList.remove('hidden');
-                calculateGasoilImporte(); 
-                break;
-            case 'otro':
-                otroFields?.classList.remove('hidden');
-                break;
-        }
-        setTodayDate(); 
-    }
+    const showPaymentFields = type => {
+        Object.values(fields).forEach(field => field?.classList.add('hidden'));
+        fields[type]?.classList.remove('hidden');
+        setTodayDate();
+        if (type === 'gasoil') calculateGasoilImporte();
+    };
 
     if (tipoPagoSelect) {
-        tipoPagoSelect.addEventListener('change', (event) => {
-            showPaymentFields(event.target.value);
-        });
-
+        tipoPagoSelect.addEventListener('change', e => showPaymentFields(e.target.value));
         showPaymentFields(tipoPagoSelect.value);
     }
 
-    const precioGasoilInput = document.getElementById('precioGasoil');
-    const litrosGasoilInput = document.getElementById('litrosGasoil');
-    const importeGasoilInput = document.getElementById('importeGasoil');
+    const precioGasoil = document.getElementById('precioGasoil');
+    const litrosGasoil = document.getElementById('litrosGasoil');
+    const importeGasoil = document.getElementById('importeGasoil');
 
-    function calculateGasoilImporte() {
-        const precio = parseFloat(precioGasoilInput?.value) || 0;
-        const litros = parseFloat(litrosGasoilInput?.value) || 0;
-        const importe = (precio * litros).toFixed(2); 
-        if (importeGasoilInput) {
-            importeGasoilInput.value = importe;
-        }
-    }
+    const calculateGasoilImporte = () => {
+        const precio = parseFloat(precioGasoil?.value) || 0;
+        const litros = parseFloat(litrosGasoil?.value) || 0;
+        if (importeGasoil) importeGasoil.value = (precio * litros).toFixed(2);
+    };
 
-    if (precioGasoilInput) {
-        precioGasoilInput.addEventListener('input', calculateGasoilImporte);
-    }
-    if (litrosGasoilInput) {
-        litrosGasoilInput.addEventListener('input', calculateGasoilImporte);
-    }
-}
+    precioGasoil?.addEventListener('input', calculateGasoilImporte);
+    litrosGasoil?.addEventListener('input', calculateGasoilImporte);
+};
 
-// --- Lógica del Botón Registrar Pago ---
-function setupAddPagoBtn() {
+// Setup add pago button
+const setupAddPagoBtn = () => {
     const btn = document.getElementById('addPagoBtn');
-    btn?.addEventListener('click', () => {
+    btn?.addEventListener('click', async() => {
         const tipoPago = document.getElementById('tipoPago')?.value;
-        let pagoData = { tipo: tipoPago }; 
+        const fechaPago = document.getElementById('fechaPago')?.value;
+        let choferInput = document.getElementById('choferPago');
+        let payload = {
+            choferCuil: choferInput?.dataset.selectedChoferCuil,
+        };
 
-        let choferInput; // Variable para almacenar la referencia al input del chofer de la pestaña actual
+        if (!payload.choferCuil) {
+            alert('Por favor, selecciona un chofer de la lista de sugerencias.');
+            return;
+        }
 
         switch (tipoPago) {
             case 'cheque':
-                choferInput = document.getElementById('choferPagoCheque');
-                pagoData = {
-                    ...pagoData, 
-                    choferId: choferInput?.dataset.selectedChoferId, 
-                    choferNombre: choferInput?.value, 
-                    fechaPago: document.getElementById('fechaPagoCheque')?.value,
-                    fechaCheque: document.getElementById('fechaCheque')?.value,
-                    nroCheque: document.getElementById('nroCheque')?.value,
-                    tercero: document.getElementById('terceroCheque')?.value,
-                    destinatario: document.getElementById('destinatarioCheque')?.value,
-                    importe: document.getElementById('importeCheque')?.value
+                payload = {
+                    ...payload,
+                    pagos: {
+                        tipo: tipoPago,
+                        fechaPago: fechaPago,
+                        fechaCheque: document.getElementById('fechaCheque')?.value,
+                        nroCheque: document.getElementById('nroCheque')?.value,
+                        tercero: document.getElementById('terceroCheque')?.value,
+                        destinatario: document.getElementById('destinatarioCheque')?.value,
+                        importe: document.getElementById('importeCheque')?.value
+                    }
                 };
+
+                if (isNaN(payload.pagos.importe || payload.pagos.importe <= 0)){
+                    alert(`El importe ingresado no es valido`);
+                    return;
+                }
                 break;
             case 'gasoil':
-                choferInput = document.getElementById('choferPagoGasoil');
-                pagoData = {
-                    ...pagoData, 
-                    choferId: choferInput?.dataset.selectedChoferId,
-                    choferNombre: choferInput?.value,
-                    fechaPago: document.getElementById('fechaPagoGasoil')?.value,
-                    precioGasoil: document.getElementById('precioGasoil')?.value,
-                    litros: document.getElementById('litrosGasoil')?.value,
-                    importe: document.getElementById('importeGasoil')?.value
+                payload = {
+                    ...payload,
+                    pagos: {
+                        tipo: tipoPago,
+                        fechaPago: fechaPago,
+                        precioGasoil: document.getElementById('precioGasoil')?.value,
+                        litros: document.getElementById('litrosGasoil')?.value,
+                        importe: document.getElementById('importeGasoil')?.value
+                    }
                 };
+                
+                ['precioGasoil', 'litros', 'importe'].forEach(id => {
+                    if(isNaN(payload.pagos[id] || payload.pagos[id] <= 0)){
+                        alert(`El valor ingresado para ${id} no es valido`);
+                        return;
+                    }
+                });
                 break;
             case 'otro':
-                choferInput = document.getElementById('choferPagoOtro');
-                pagoData = {
-                    ...pagoData, 
-                    choferId: choferInput?.dataset.selectedChoferId,
-                    choferNombre: choferInput?.value,
-                    fechaPago: document.getElementById('fechaPagoOtro')?.value,
-                    detalle: document.getElementById('detalleOtro')?.value,
-                    importe: document.getElementById('importeOtro')?.value
+                payload = {
+                    ...payload,
+                    pagos: {
+                        tipo: tipoPago,
+                        fechaPago: fechaPago,
+                        detalle: document.getElementById('detalleOtro')?.value,
+                        importe: document.getElementById('importeOtro')?.value
+                    }
                 };
+
+                if(isNaN(payload.pagos.importe || payload.pagos.importe <= 0)){
+                    alert(`El valor ingresado para el importe no es valido`);
+                    return;
+                }
                 break;
             default:
                 console.warn('Tipo de pago no reconocido:', tipoPago);
                 return;
         }
-
-        if (!pagoData.choferId) {
-             alert('Por favor, selecciona un chofer de la lista de sugerencias.');
-             return;
+        
+        try {
+            const data = await addPagos(payload);
+            alert(data.message);
+        } catch (error) {
+            alert(`Error al añadir el pago: ${error.message}`);
+            console.error('Error en addPagos:', error.message);
         }
-
-        console.log('[Registrar Pago]', pagoData);
-        alert(`Pago de tipo "${tipoPago}" registrado (simulado)!`);
+        
+        console.log('[Registrar Pago]', payload);
     });
-}
+};
 
-// --- Funcionalidad para cargar todos los choferes del backend una vez ---
-async function fetchAllChoferes() {
-    try {
-        const token = localStorage.getItem('jwtToken');
-        if (!token) {
-            console.error('No se encontró token JWT en localStorage.');
-            // Redirigir al login o mostrar mensaje de error si no hay token
-            return [];
-        }
+// Setup autocomplete
+const setupAutocomplete = ({ inputId, suggestionsId = `${inputId}-suggestions`, filterSuggestions, renderSuggestion, onSelect, dependentInputId, onDependentChange }) => {
+    const input = document.getElementById(inputId);
+    let suggestionsDiv = document.getElementById(suggestionsId);
 
-        // Endpoint para obtener todos los choferes
-        const response = await fetch(apiURL+'/api/choferes/all', { // Asegúrate de que este endpoint exista en tu backend
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                console.error('Autenticación fallida o token inválido/expirado al cargar choferes.');
-                // Aquí podrías forzar el cierre de sesión o redirigir al login
-                alert('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
-                window.location.href = 'login.html'; // Ajusta tu ruta de login
-            }
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Error al cargar la lista de choferes.');
-        }
-
-        const data = await response.json();
-        // Asegúrate de que tu backend devuelve un objeto con una propiedad 'choferes' que es un array
-        if (data.choferes && Array.isArray(data.choferes)) {
-            allChoferes = data.choferes; // Almacena la lista globalmente
-            console.log('Choferes cargados:', allChoferes.length);
-            return allChoferes;
-        } else {
-            console.error('El formato de respuesta de choferes no es el esperado.');
-            return [];
-        }
-    } catch (error) {
-        console.error('Error en fetchAllChoferes:', error.message);
-        return [];
-    }
-}
-
-// --- Funcionalidad: Autocompletado de Choferes (con filtrado local) ---
-
-/**
- * Configura la funcionalidad de autocompletado para un input de chofer.
- * @param {string} inputId - El ID del elemento input HTML.
- */
-function setupChoferAutocomplete(inputId) {
-    const choferInput = document.getElementById(inputId);
-    let suggestionsDiv = document.getElementById(`${inputId}-suggestions`);
-
-    if (!choferInput) {
-        // console.warn(`Input de chofer con ID '${inputId}' no encontrado. No se configurará el autocompletado.`);
-        return; // No warns, ya que esta función se llama para IDs que pueden no estar visibles
+    if (!input) {
+        console.warn(`Input con ID '${inputId}' no encontrado.`);
+        return;
     }
 
     if (!suggestionsDiv) {
         suggestionsDiv = document.createElement('div');
-        suggestionsDiv.id = `${inputId}-suggestions`;
+        suggestionsDiv.id = suggestionsId;
         suggestionsDiv.classList.add('suggestions-list');
-        choferInput.parentNode.insertBefore(suggestionsDiv, choferInput.nextSibling);
-    }
-
-    // Función de filtrado local
-    function filterLocalSuggestions(query) {
-        if (query.length < 2) {
-            return [];
-        }
-        // Filtra la lista completa de choferes (allChoferes)
-        return allChoferes.filter(chofer =>
-            chofer.nombre.toLowerCase().includes(query.toLowerCase())
-        );
-    }
-
-    function displaySuggestions(suggestions) {
-        suggestionsDiv.innerHTML = '';
-        activeSuggestionIndex = -1;
-
-        if (suggestions.length === 0 && choferInput.value.length > 0) {
-            suggestionsDiv.style.display = 'none';
-            return;
-        }
-
-        if (suggestions.length === 0) {
-            suggestionsDiv.style.display = 'none';
-            return;
-        }
-
-        suggestions.forEach(chofer => {
-            const item = document.createElement('div');
-            item.classList.add('suggestion-item');
-            item.textContent = `${chofer.nombre} (${chofer.cuil})`;
-            
-            for (const key in chofer) {
-                item.dataset[key] = chofer[key];
-            }
-
-            item.addEventListener('click', () => {
-                choferInput.value = chofer.nombre;
-                choferInput.dataset.selectedChoferId = chofer.id;
-                choferInput.dataset.selectedChoferNombre = chofer.nombre;
-                choferInput.dataset.selectedChoferCuil = chofer.cuil;
-
-                suggestionsDiv.innerHTML = '';
-                suggestionsDiv.style.display = 'none';
-                choferInput.focus();
-            });
-            suggestionsDiv.appendChild(item);
-        });
-        suggestionsDiv.style.display = 'block';
+        input.parentNode.insertBefore(suggestionsDiv, input.nextSibling);
     }
 
     let activeSuggestionIndex = -1;
 
-    choferInput.addEventListener('input', async () => {
-        const query = choferInput.value.trim();
-        delete choferInput.dataset.selectedChoferId; 
-        delete choferInput.dataset.selectedChoferNombre;
-        delete choferInput.dataset.selectedChoferCuil;
+    const displaySuggestions = suggestions => {
+        suggestionsDiv.innerHTML = '';
+        activeSuggestionIndex = -1;
 
-        if (query.length === 0) {
-            suggestionsDiv.innerHTML = '';
+        if (!suggestions?.length) {
             suggestionsDiv.style.display = 'none';
             return;
         }
 
-        // ¡Ahora llamamos a la función de filtrado local!
-        const suggestions = filterLocalSuggestions(query); 
-        displaySuggestions(suggestions);
+        suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.classList.add('suggestion-item');
+            item.textContent = renderSuggestion(suggestion);
+            Object.entries(suggestion).forEach(([key, value]) => item.dataset[key] = value);
+
+            item.addEventListener('click', () => {
+                onSelect(input, suggestion);
+                suggestionsDiv.innerHTML = '';
+                suggestionsDiv.style.display = 'none';
+                input.focus();
+            });
+            suggestionsDiv.appendChild(item);
+        });
+        suggestionsDiv.style.display = 'block';
+    };
+
+    input.addEventListener('input', () => {
+        const query = input.value.trim();
+        Object.keys(input.dataset).forEach(key => delete input.dataset[key]);
+        displaySuggestions(query ? filterSuggestions(query) : []);
     });
 
-    document.addEventListener('click', (event) => {
-        if (!choferInput.contains(event.target) && !suggestionsDiv.contains(event.target)) {
+    if (dependentInputId && onDependentChange) {
+        const dependentInput = document.getElementById(dependentInputId);
+        dependentInput?.addEventListener('change', () => onDependentChange(dependentInput, input, suggestionsDiv));
+    }
+
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
             suggestionsDiv.style.display = 'none';
             activeSuggestionIndex = -1;
         }
     });
 
-    choferInput.addEventListener('keydown', (e) => {
+    input.addEventListener('keydown', e => {
         const items = Array.from(suggestionsDiv.children);
-        if (items.length === 0) return;
+        if (!items.length) return;
 
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
-            highlightSuggestion(items[activeSuggestionIndex]);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
-            highlightSuggestion(items[activeSuggestionIndex]);
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (activeSuggestionIndex > -1) {
-                items[activeSuggestionIndex].click();
-            } else if (items.length === 1 && choferInput.value === items[0].dataset.nombre) { // Usar .dataset.nombre
-                items[0].click();
-            }
-        } else if (e.key === 'Escape') {
-            suggestionsDiv.style.display = 'none';
-            activeSuggestionIndex = -1;
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
+                highlightSuggestion(items[activeSuggestionIndex]);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
+                highlightSuggestion(items[activeSuggestionIndex]);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (activeSuggestionIndex > -1) items[activeSuggestionIndex].click();
+                else if (items.length === 1 && input.value === items[0].dataset.nombre) items[0].click();
+                break;
+            case 'Escape':
+                suggestionsDiv.style.display = 'none';
+                activeSuggestionIndex = -1;
+                break;
         }
     });
 
-    function highlightSuggestion(item) {
+    suggestionsDiv.addEventListener('mousedown', e => e.preventDefault());
+
+    input.addEventListener('focus', () => displaySuggestions(filterSuggestions(input.value.trim())));
+
+    const highlightSuggestion = item => {
         Array.from(suggestionsDiv.children).forEach(el => el.classList.remove('active'));
         item.classList.add('active');
         item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+};
+
+// Setup chofer autocomplete
+const setupChoferAutocomplete = inputId => setupAutocomplete({
+    inputId,
+    filterSuggestions: query => query.length < 2 ? [] : allChoferes.filter(chofer => chofer.nombre.toLowerCase().includes(query.toLowerCase())),
+    renderSuggestion: chofer => `${chofer.nombre} (${chofer.cuil})`,
+    onSelect: (input, chofer) => {
+        input.value = chofer.nombre;
+        input.dataset.selectedChoferNombre = chofer.nombre;
+        input.dataset.selectedChoferCuil = chofer.cuil;
     }
-    
-    suggestionsDiv.addEventListener('mousedown', (e) => {
-        e.preventDefault();
+});
+
+// Setup tarifa autocomplete
+const setupTarifaAutocomplete = () => {
+    const tarifaAutodescargableBase = 0;
+    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac') || '[]');
+
+    setupAutocomplete({
+        inputId: 'tarifa',
+        dependentInputId: 'kilometro',
+        filterSuggestions: () => {
+            const currentKm = parseInt(document.getElementById('kilometro')?.value.trim(), 10);
+            const tarifaCatacCalculada = (!isNaN(currentKm) && currentKm > 0 && currentKm <= tarifasCatac.length && tarifasCatac[currentKm - 1]?.valor !== undefined)
+                ? tarifasCatac[currentKm - 1].valor
+                : 0;
+
+            return [
+                { type: 'Tarifa CATAC', value: tarifaCatacCalculada },
+                { type: 'Tarifa Autodescargable', value: tarifaAutodescargableBase }
+            ];
+        },
+        renderSuggestion: suggestion => `${suggestion.type}: ${suggestion.value}`,
+        onSelect: (input, suggestion) => input.value = suggestion.value,
+        onDependentChange: (dependentInput, input, suggestionsDiv) => {
+            const queryKm = parseInt(dependentInput.value.trim(), 10);
+            if (isNaN(queryKm) || queryKm <= 0 || queryKm > tarifasCatac.length) {
+                input.value = '';
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            const tarifa = tarifasCatac[queryKm - 1];
+            input.value = tarifa?.valor ?? '';
+            suggestionsDiv.style.display = 'none';
+            if (!tarifa?.valor) console.warn(`No se encontró tarifa para ${queryKm} km.`);
+        }
     });
-}
+};
 
-
-// --- Inicialización al cargar el DOM ---
-
-document.addEventListener('DOMContentLoaded', async function() {
-    // Primero, carga todos los choferes
-    await fetchAllChoferes(); // Esto poblará la variable `allChoferes`
-
-    // Luego, carga y configura el Header
-    if (typeof loadHeader === 'function') { 
-        await loadHeader(); 
-    } else {
-        console.error("loadHeader no está definido. Asegúrate de que /FRONTEND/scripts/header.js se cargue antes.");
+// Setup carga/descarga autocomplete
+const setupCargaDescargaAutocomplete = () => {
+    const [toneladas, cargado, descargado] = ['toneladas', 'cargado', 'descargado'].map(id => document.getElementById(id));
+    if (!toneladas || !cargado || !descargado) {
+        console.error("Inputs de toneladas, cargado o descargado no encontrados.");
+        return;
     }
 
-    // Carga y configura el Sidebar
-    if (typeof loadSidebar === 'function') { 
-        const userRole = localStorage.getItem('userRole') || 'admin';
-        await loadSidebar(userRole);
-    } else {
-        console.error("loadSidebar no está definido. Asegúrate de que /FRONTEND/scripts/sidebar.js se cargue antes.");
-    }
+    toneladas.addEventListener('change', () => {
+        const value = parseFloat(toneladas.value.trim());
+        if (!isNaN(value) && value >= 0) {
+            cargado.value = value;
+            descargado.value = value;
+        } else {
+            cargado.value = '';
+            descargado.value = '';
+        }
+    });
+};
 
-    // Lógica para resaltar el ítem del sidebar
-    const currentPath = window.location.pathname;
+// DOMContentLoaded initialization
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!checkSession()) return;
+
+    allChoferes = await fetchAllChoferes();
+    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac')) || await fetchTarifas();
+
+    if (typeof loadHeader === 'function') await loadHeader();
+    else console.error("loadHeader no está definido. Asegúrate de cargar /FRONTEND/scripts/header.js.");
+
+    if (typeof loadSidebar === 'function') await loadSidebar(localStorage.getItem('userRole') || 'admin');
+    else console.error("loadSidebar no está definido. Asegúrate de cargar /FRONTEND/scripts/sidebar.js.");
+
     const sidebarItems = document.querySelectorAll('.sidebar-item');
-
     sidebarItems.forEach(item => {
-        const targetPage = item.dataset.targetPage; 
-        if (targetPage && currentPath.includes(targetPage)) {
-            sidebarItems.forEach(el => el.classList.remove('active')); 
+        if (item.dataset.targetPage && window.location.pathname.includes(item.dataset.targetPage)) {
+            sidebarItems.forEach(el => el.classList.remove('active'));
             item.classList.add('active');
         }
     });
 
-    setTodayDate(); 
-
-    // Inicializa la funcionalidad de pestañas.
-    // setupTabSelectors ahora se encargará de llamar a setupChoferAutocomplete
-    // para los inputs de chofer apropiados una vez que las pestañas sean activas.
-    setupTabSelectors(); 
-    
+    setTodayDate();
+    setupTabSelectors();
     setupAddViajeBtn();
     setupViajesSearchBar();
     setupAddPagoBtn();
-    
-    // No necesitamos llamar a setupChoferAutocomplete aquí directamente
-    // si ya se maneja a través de setupTabSelectors al cambiar de pestaña
 });

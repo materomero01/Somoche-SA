@@ -11,6 +11,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 var usersRouter = require('./routes/users');
 var choferesRouter = require('./routes/choferes');
+var viajesRouter = require('./routes/viajes');
+var pagosRouter = require('./routes/pagos');
+var catacRouter = require('./routes/catac');
 var app = express();
 
 // view engine setup
@@ -50,6 +53,9 @@ app.use('/api/users', usersRouter);
 //Rutas Protegidas por JSWT
 app.use(authenticateToken);
 app.use('/api/choferes', choferesRouter);
+app.use('/api/viajes', viajesRouter);
+app.use('/api/pagos', pagosRouter);
+app.use('/api/catac', catacRouter)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
