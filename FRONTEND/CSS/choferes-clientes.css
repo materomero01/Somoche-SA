@@ -7,21 +7,6 @@
  overflow: hidden; /* Mantener el overflow original */
 }
 
-.cheques-section {
-    padding: 20px;
-}
-
-.cheques-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.cheques-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-}
 
 /* Estilo para la tabla de cheques */
 .tabla-dinamica {

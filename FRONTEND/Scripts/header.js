@@ -30,14 +30,14 @@ function setupHeaderDynamicContent() {
     }
     const storedName = localStorage.getItem('userName');
     const storedRole = localStorage.getItem('userRole');
-    if (storedName === null || storedRole === null)
-        logout();
-    if (userNameElement) {
-        userNameElement.textContent = storedName;
-    }
-    if (userRoleElement) {
-        userRoleElement.textContent = storedRole.toUpperCase();
-    }
+    //if (storedName === null || storedRole === null)
+    //    logout();
+    //if (userNameElement) {
+    //    userNameElement.textContent = storedName;
+    //}
+    //if (userRoleElement) {
+    //    userRoleElement.textContent = storedRole.toUpperCase();
+    //}
 }
 
 function setupHeaderInteractions() {
@@ -50,9 +50,4 @@ function setupHeaderInteractions() {
             console.log('Se ha hecho clic en el icono de logout.');
         });
     }
-}
-
-function logout() {
-    localStorage.clear();
-    window.location.href = "login.html";
 }

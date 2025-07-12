@@ -12,7 +12,10 @@ export function renderTabla({
     editingRowId = null, 
     onEdit = null,
     tableType = 'default', // Nuevo parámetro para distinguir tipos de tabla
-    onPageChange = null // Callback para notificar cambios de página
+    onPageChange = null, // Callback para notificar cambios de página
+    checkboxColumn = false, // NUEVO: Parámetro para la columna de checkbox
+    checkboxColumnPosition = 'start', // NUEVO: Posición de la columna de checkbox ('start' o 'end')
+    onCheckboxChange = null // NUEVO: Callback para el cambio de checkbox
 }) {
     const container = document.getElementById(containerId);
     const paginacionContainer = document.getElementById(paginacionContainerId);
@@ -43,6 +46,14 @@ export function renderTabla({
 
     // --- Renderizar Encabezados de la Tabla ---
     const headerRow = document.createElement("tr");
+    
+    // Añadir encabezado del checkbox al inicio si la posición es 'start'
+    if (checkboxColumn && checkboxColumnPosition === 'start') {
+        const th = document.createElement("th");
+        th.classList.add("checkbox-cell"); // Clase para estilos específicos del checkbox
+        headerRow.appendChild(th);
+    }
+
     columnas.forEach(col => {
         const th = document.createElement("th");
         th.textContent = col.label;
@@ -54,6 +65,14 @@ export function renderTabla({
         thAcciones.classList.add("acciones-cell");
         headerRow.appendChild(thAcciones);
     }
+
+    // Añadir encabezado del checkbox al final si la posición es 'end'
+    if (checkboxColumn && checkboxColumnPosition === 'end') {
+        const th = document.createElement("th");
+        th.classList.add("checkbox-cell"); // Clase para estilos específicos del checkbox
+        headerRow.appendChild(th);
+    }
+
     thead.appendChild(headerRow);
     tabla.appendChild(thead);
     tabla.appendChild(tbody);
@@ -70,7 +89,8 @@ export function renderTabla({
         if (currentData.length === 0) {
             const noDataRow = document.createElement('tr');
             const noDataCell = document.createElement('td');
-            noDataCell.colSpan = columnas.length + (actions.length > 0 ? 1 : 0);
+            // Ajustar colspan para incluir la nueva columna de checkbox
+            noDataCell.colSpan = columnas.length + (actions.length > 0 ? 1 : 0) + (checkboxColumn ? 1 : 0);
             noDataCell.textContent = "No se encontraron resultados.";
             noDataCell.style.textAlign = "center";
             noDataCell.style.padding = "20px";
@@ -89,6 +109,25 @@ export function renderTabla({
             
             if (isEditing) {
                 tr.classList.add('editing-row');
+            }
+
+            // Añadir la celda del checkbox al inicio si la posición es 'start'
+            if (checkboxColumn && checkboxColumnPosition === 'start') {
+                const td = document.createElement("td");
+                td.classList.add("checkbox-cell");
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.setAttribute('data-id', item.id); // Guardar el ID del cheque
+                if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
+                    checkbox.checked = true;
+                }
+                checkbox.addEventListener('change', (e) => {
+                    if (onCheckboxChange) {
+                        onCheckboxChange(item.id, e.target.checked); // Notificar el cambio
+                    }
+                });
+                td.appendChild(checkbox);
+                tr.appendChild(td);
             }
 
             columnas.forEach(col => {
@@ -175,6 +214,26 @@ export function renderTabla({
                 
                 tr.appendChild(tdAcciones);
             }
+
+            // Añadir la celda del checkbox al final si la posición es 'end'
+            if (checkboxColumn && checkboxColumnPosition === 'end') {
+                const td = document.createElement("td");
+                td.classList.add("checkbox-cell");
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.setAttribute('data-id', item.id); // Guardar el ID del cheque
+                if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
+                    checkbox.checked = true;
+                }
+                checkbox.addEventListener('change', (e) => {
+                    if (onCheckboxChange) {
+                        onCheckboxChange(item.id, e.target.checked); // Notificar el cambio
+                    }
+                });
+                td.appendChild(checkbox);
+                tr.appendChild(td);
+            }
+
             tbody.appendChild(tr);
         });
     }

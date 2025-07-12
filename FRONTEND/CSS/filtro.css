@@ -1,0 +1,145 @@
+/* ============================= */
+/* FILTRO GENERAL (COMPONENTE REUTILIZABLE) */
+/* ============================= */
+.filter-card {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    z-index: 1000;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    min-width: 450px;
+    max-width: 700px;
+}
+
+.filter-card:not(.hidden) {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Flecha superior del filtro */
+.filter-card::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #fff;
+}
+
+.filter-card::after {
+    content: '';
+    position: absolute;
+    top: -9px;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #ddd;
+}
+
+/* Grupos de inputs del filtro */
+.filter-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+    width: 100%;
+}
+
+.filter-input-group label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 2px;
+}
+
+.filter-input-group input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background-color: #fafafa;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.filter-input-group input:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.1);
+    background-color: #fff;
+}
+
+/* Estilo para el botón de aplicar filtro dentro del componente */
+/* Nota: Asume que este botón tendrá otras clases para su estilo visual (ej. .btn .btn-success) */
+.filter-card .apply-button {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    grid-column: 1 / -1; /* Hace que el botón abarque ambas columnas */
+    justify-self: end; /* Alinea el botón al final (derecha) de la cuadrícula */
+}
+
+/* ============================= */
+/* BOTÓN DE LIMPIAR FILTRO (REUTILIZABLE) */
+/* ============================= */
+.clear-filter-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0 !important;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-right: 8px;
+}
+
+.clear-filter-btn:hover {
+    background-color: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.clear-filter-btn i {
+    font-size: 1.2rem;
+}
+
+/* Media queries para el componente de filtro */
+@media (max-width: 768px) {
+    .filter-card {
+        width: 280px;
+        padding: 15px;
+    }
+}
