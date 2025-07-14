@@ -1,0 +1,150 @@
+/* Estilos específicos para la sección "Mi Cuenta" */
+
+.mi-cuenta-section {
+    padding: 20px;
+    padding-top: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: calc(100vh - 120px);
+}
+
+.account-card {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    padding: 35px 40px; /* Mantenemos el padding aumentado */
+    width: 100%;
+    max-width: 800px; /* Mantenemos el ancho máximo */
+    box-sizing: border-box;
+    /* Eliminamos las propiedades grid de aquí, ahora van al formulario */
+}
+
+.account-card h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 25px;
+    font-size: 1.8rem;
+    font-weight: 600;
+    /* Ya no necesita grid-column aquí, porque es hermano del formulario, no su hijo directo en el grid. */
+}
+
+/* === AHORA APLICAMOS GRID AL FORMULARIO === */
+#account-form {
+    display: grid; /* Convertir el formulario a grid */
+    grid-template-columns: repeat(2, 1fr); /* Dos columnas de igual ancho */
+    gap: 25px 40px; /* Espacio vertical y horizontal entre elementos */
+    width: 100%; /* Asegurarse de que ocupe el ancho disponible en la tarjeta */
+}
+/* === FIN APLICACIÓN GRID AL FORMULARIO === */
+
+
+/* --- ESTILOS DE INPUTS --- */
+.account-card .form-group {
+    margin-bottom: 0; /* Eliminado el margen inferior para que el gap del grid se encargue del espaciado */
+}
+
+.account-card .form-group label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 6px;
+    display: block; 
+}
+
+/* Contenedor del input y el icono para posicionamiento relativo */
+.account-card .input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.account-card .text-input {
+    width: 100%;
+    padding: 10px 10px 10px 45px;
+    border: 1px solid #ccc;
+    border-radius: 8px; 
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.account-card .text-input::placeholder {
+    color: #aaa;
+}
+
+.account-card .text-input:focus {
+    border-color: #28a745; 
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.1);
+    outline: none;
+}
+
+.account-card .input-icon-wrapper { 
+    position: absolute;
+    left: 15px; 
+    color: #888;
+    font-size: 1.1rem; 
+    pointer-events: none; 
+}
+
+/* Estilos para campos de solo lectura */
+.account-card .text-input[readonly] {
+    background-color: #f0f0f0; 
+    cursor: default; 
+    border-color: #e0e0e0;
+}
+
+.account-card .text-input[readonly] + .input-icon-wrapper { 
+    color: #bbb; 
+}
+
+/* Botones de acción */
+.form-actions {
+    grid-column: 1 / -1; /* Hace que los botones ocupen todas las columnas dentro del grid del formulario */
+    display: flex;
+    justify-content: flex-end; 
+    gap: 15px; 
+    margin-top: 30px; 
+}
+
+.form-actions .btn {
+    min-width: 120px; 
+    padding: 10px 15px;
+    font-size: 1rem;
+}
+
+/* Clase para ocultar elementos */
+.hidden {
+    display: none !important;
+}
+
+/* Media Queries para adaptabilidad */
+@media (max-width: 768px) { 
+    #account-form { /* Ajustamos el formulario para una sola columna en móviles */
+        grid-template-columns: 1fr; 
+        gap: 18px; 
+    }
+
+    .account-card { /* Ajustamos la tarjeta también */
+        padding: 20px;
+        max-width: 95%; 
+    }
+
+    .account-card h2 {
+        font-size: 1.6rem;
+        margin-bottom: 15px; 
+    }
+
+    .form-actions {
+        flex-direction: column; 
+        align-items: stretch; 
+        gap: 10px;
+        margin-top: 20px; 
+    }
+
+    .form-actions .btn {
+        min-width: unset; 
+        width: 100%;
+    }
+}
