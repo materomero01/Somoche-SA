@@ -1,3 +1,4 @@
+// FRONTEND/scripts/login-register.js
 const formSesion = document.getElementById("formSesion");
 const targetsInputs = document.getElementsByClassName("target-input");
 const regexInputs = {
@@ -32,39 +33,44 @@ formSesion?.addEventListener("submit", async (event) => {
     if(!valid) {return;}
     const isRegisterForm = document.getElementById('register');
     const userData = new FormData(formSesion);
+    // Convertir FormData a un objeto plano y trim() los valores de cadena
+    const payload = {};
     for (let [key, value] of userData.entries()) {
-        userData[key] = value.trim();
+        payload[key] = typeof value === 'string' ? value.trim() : value;
     }
-    console.log(userData);
+    
     let apiURL;
     let redirectURL;
-    let payload = {
-        cuil: userData['cuil'],
-        password: userData['password'],
-    };
+
+    // Ajustar el payload y la URL según sea formulario de registro o login
     if (isRegisterForm){
         apiURL = 'http://localhost:3000/api/users/register';
         redirectURL = 'login.html';
-        methodURL = 'POST';
-        payload = {
-            ...payload,
-            nombre_y_apellido: userData['nombre'],
-            trabajador: userData['trabajador_seleccionado'] || 'Monotributista', // Asegúrate que el name del input sea 'trabajador-input'
-            patente_chasis: userData['chasis']?.toUpperCase() || null,
-            patente_acoplado: userData['acoplado']?.toUpperCase() || null,
-            telefono: userData['telefono'] || null,
-            email: userData['email'] || null,
-        };
+        // Ajustar nombres de campos para el backend y añadir valores por defecto/null
+        payload.nombre_y_apellido = payload.nombre; // Mapear 'nombre' del frontend a 'nombre_y_apellido' del backend
+        payload.trabajador = payload.trabajador_seleccionado || 'Monotributista'; // Usar 'trabajador_seleccionado' o defecto
+        payload.patente_chasis = payload.chasis?.toUpperCase() || null;
+        payload.patente_acoplado = payload.acoplado?.toUpperCase() || null;
+        payload.telefono = payload.telefono || null;
+        payload.email = payload.email || null;
+
+        // Eliminar campos originales del frontend si ya se mapearon o no se necesitan en el backend
+        delete payload.nombre;
+        delete payload.chasis;
+        delete payload.acoplado;
+        delete payload.trabajador_seleccionado;
     } else {
         apiURL = 'http://localhost:3000/api/users/login';
         redirectURL = 'layout-prueba.html';
     }
-    console.log(payload);
-    console.log(apiURL);
+
+    console.log("Payload enviado:", payload);
+    console.log("URL de la API:", apiURL);
+
     // --- Enviar datos al Backend ---
     try {
         const response = await fetch(apiURL, {
-            method: 'POST',
+            method: 'POST', // El método es siempre POST para login y register
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -80,6 +86,7 @@ formSesion?.addEventListener("submit", async (event) => {
                 localStorage.setItem('jwtToken', data.token);
                 localStorage.setItem('userName', data.nombre_apellido);
                 localStorage.setItem('userRole', data.role);
+                localStorage.setItem('userCuil', data.cuil);
             }
             alert(data.message);
             window.location.href = redirectURL;
@@ -88,7 +95,8 @@ formSesion?.addEventListener("submit", async (event) => {
             console.error('Error del backend:', data);
         }
     } catch (error) {
-        console.error('Error de red al registrar usuario:', error);
+        console.error('Error de red al registrar o iniciar sesión:', error);
+        alert('Error de conexión con el servidor.');
     }
 });
 

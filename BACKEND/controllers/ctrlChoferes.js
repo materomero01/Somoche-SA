@@ -181,3 +181,25 @@ exports.deleteChofer = async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 }
+
+exports.getChoferByCuil = async (req, res) => {
+    if (req.user.role !== 'chofer' && req.user.cuil !== req.params.cuil) {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
+    const { cuil } = req.params;
+    try {
+        const result = await pool.query(
+            `SELECT u.nombre_apellido AS nombre, c.cuil, tipo_trabajador AS trabajador, patente_chasis, patente_acoplado, telefono, email FROM usuario u 
+            INNER JOIN chofer c ON u.cuil = c.cuil
+            WHERE u.cuil = $1 AND u.role = 'chofer'`,
+            [cuil]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Chofer no encontrado.' });
+        }
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al obtener chofer por CUIL:', error);
+        res.status(500).json({ message: 'Error interno del servidor al buscar chofer.' });
+    }
+};

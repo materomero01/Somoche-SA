@@ -3,6 +3,7 @@
 .mi-cuenta-section {
     padding: 20px;
     padding-top: 50px;
+    padding-left: 50px;
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -14,7 +15,7 @@
     border: 1px solid #ddd;
     border-radius: 12px;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    padding: 35px 40px; /* Mantenemos el padding aumentado */
+    padding: 0px 40px; /* Mantenemos el padding aumentado */
     width: 100%;
     max-width: 800px; /* Mantenemos el ancho máximo */
     box-sizing: border-box;
@@ -24,7 +25,6 @@
 .account-card h2 {
     text-align: center;
     color: #333;
-    margin-bottom: 25px;
     font-size: 1.8rem;
     font-weight: 600;
     /* Ya no necesita grid-column aquí, porque es hermano del formulario, no su hijo directo en el grid. */

@@ -10,81 +10,126 @@
   <link rel="stylesheet" href="/FRONTEND/css/sidebar.css" />
   <link rel="stylesheet" href="/FRONTEND/css/button.css">
   <link rel="stylesheet" href="/FRONTEND/css/mi-cuenta.css" />
+  <style>
+    /* Estilos básicos para el spinner de carga */
+    #loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: calc(100vh - 60px); /* Ajusta si tu header/sidebar ocupan más espacio */
+        font-size: 1.2em;
+        color: #555;
+        flex-direction: column;
+        gap: 15px;
+    }
+    #loading-spinner .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #007bff; /* Color del spinner */
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
   <div id="header-container"></div>
   <div id="sidebar-container"></div>
 
-  <main class="content">
-    <section class="mi-cuenta-section">
-      <div class="account-card">
-        <h2>Mi Cuenta</h2>
-        <form id="account-form">
-          
-          <div class="form-group">
-            <label for="nombre-input">Nombre y Apellido *</label>
-            <div class="input-wrapper">
-              <div class="input-icon-wrapper"> <i class="bi bi-person-vcard"></i>
+  <div id="loading-spinner">
+    <div class="spinner"></div>
+    Cargando datos...
+  </div>
+
+  <div id="main-content-wrapper" style="display: none;">
+    <main class="content">
+      <section class="mi-cuenta-section">
+        <div class="account-card">
+          <h2>Mi Cuenta</h2>
+          <form id="account-form">
+            
+            <div class="form-group">
+              <label for="nombre-input">Nombre y Apellido *</label>
+              <div class="input-wrapper">
+                <div class="input-icon-wrapper"> <i class="bi bi-person-vcard"></i>
+                </div>
+                <input type="text" id="nombre-input" name="nombre" class="text-input" placeholder="Juan Pedro" readonly required>
               </div>
-              <input type="text" id="nombre-input" name="nombre" class="text-input" placeholder="Juan Pedro" readonly required>
             </div>
-          </div>
 
-          <div class="form-group">
-            <label for="cuil-input">CUIL / CUIT *</label>
-            <div class="input-wrapper">
-              <div class="input-icon-wrapper"> <i class="bi bi-person-badge"></i>
+            <div class="form-group">
+              <label for="cuil-input">CUIL / CUIT *</label>
+              <div class="input-wrapper">
+                <div class="input-icon-wrapper"> <i class="bi bi-person-badge"></i>
+                </div>
+                <input type="text" id="cuil-input" name="cuil" class="text-input" placeholder="XX-XXXXXXXX-X" readonly required>
               </div>
-              <input type="text" id="cuil-input" name="cuil" class="text-input" placeholder="XX-XXXXXXXX-X" readonly required>
             </div>
-          </div>
 
-          <div class="form-group">
-            <label for="telefono-input">Teléfono</label>
-            <div class="input-wrapper">
-              <div class="input-icon-wrapper"> <i class="bi bi-telephone"></i>
+            <div class="form-group">
+              <label for="telefono-input">Teléfono</label>
+              <div class="input-wrapper">
+                <div class="input-icon-wrapper"> <i class="bi bi-telephone"></i>
+                </div>
+                <input type="number" id="telefono-input" name="telefono" class="text-input" placeholder="2262 123456" readonly>
               </div>
-              <input type="number" id="telefono-input" name="telefono" class="text-input" placeholder="2262 123456" readonly>
             </div>
-          </div>
 
-          <div class="form-group">
-            <label for="email-input">Email</label>
-            <div class="input-wrapper">
-              <div class="input-icon-wrapper"> <i class="bi bi-envelope"></i>
+            <div class="form-group">
+              <label for="email-input">Email</label>
+              <div class="input-wrapper">
+                <div class="input-icon-wrapper"> <i class="bi bi-envelope"></i>
+                </div>
+                <input type="email" id="email-input" name="email" class="text-input" placeholder="example@address.com" readonly>
               </div>
-              <input type="email" id="email-input" name="email" class="text-input" placeholder="example@address.com" readonly>
             </div>
-          </div>
 
-          <div class="form-group">
-            <label for="chasis-input">Chasis</label>
-            <div class="input-wrapper">
-              <div class="input-icon-wrapper"> <i class="bi bi-truck"></i>
+            <div class="form-group">
+              <label for="trabajador-input">Tipo de Trabajador *</label>
+              <div class="input-wrapper">
+                <div class="input-icon-wrapper"> <i class="bi bi-person-workspace"></i>
+                </div>
+                <select id="trabajador-input" name="trabajador" class="text-input" disabled required>
+                  <option value="">Seleccione tipo</option>
+                  <option value="Monotributista">Monotributista</option>
+                  <option value="Responsable Inscripto">Responsable Inscripto</option>
+                </select>
               </div>
-              <input type="text" id="chasis-input" name="chasis" class="text-input" placeholder="ABC-123" readonly>
             </div>
-          </div>
-
-          <div class="form-group">
-            <label for="acoplado-input">Acoplado</label>
-            <div class="input-wrapper">
-              <div class="input-icon-wrapper"> <i class="bi bi-truck-flatbed"></i>
+            
+            <div class="form-group">
+              <label for="chasis-input">Chasis</label>
+              <div class="input-wrapper">
+                <div class="input-icon-wrapper"> <i class="bi bi-truck"></i>
+                </div>
+                <input type="text" id="chasis-input" name="chasis" class="text-input" placeholder="ABC-123" readonly>
               </div>
-              <input type="text" id="acoplado-input" name="acoplado" class="text-input" placeholder="XYZ-456" readonly>
             </div>
-          </div>
 
-          <div class="form-actions">
-            <button type="button" id="edit-button" class="btn btn-primary">Editar</button>
-            <button type="submit" id="save-button" class="btn btn-success hidden">Guardar Cambios</button>
-            <button type="button" id="cancel-button" class="btn btn-secondary hidden">Cancelar</button>
-          </div>
+            <div class="form-group">
+              <label for="acoplado-input">Acoplado</label>
+              <div class="input-wrapper">
+                <div class="input-icon-wrapper"> <i class="bi bi-truck-flatbed"></i>
+                </div>
+                <input type="text" id="acoplado-input" name="acoplado" class="text-input" placeholder="XYZ-456" readonly>
+              </div>
+            </div>
 
-        </form>
-      </div>
-    </section>
-  </main>
+            <div class="form-actions">
+              <button type="button" id="edit-button" class="btn btn-primary">Editar</button>
+              <button type="submit" id="save-button" class="btn btn-success hidden">Guardar Cambios</button>
+              <button type="button" id="cancel-button" class="btn btn-secondary hidden">Cancelar</button>
+            </div>
+
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script src="/FRONTEND/scripts/header.js"></script>
   <script src="/FRONTEND/scripts/sidebar.js"></script>

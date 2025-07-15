@@ -98,7 +98,8 @@ exports.loginUser = async (req, res) => {
         const payload = {
             cuil: user.cuil,
             nombre_apellido: user.nombre_apellido,
-            role: user.role
+            role: user.role,
+            cuil: cuil
         };
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 
@@ -106,7 +107,8 @@ exports.loginUser = async (req, res) => {
             message: 'Inicio de sesión exitoso.',
             token,
             nombre_apellido: user.nombre_apellido,
-            role: user.role
+            role: user.role,
+            cuil: cuil
         });
     } catch (error) {
         console.error('Error en loginUser:', error);

@@ -27,34 +27,43 @@ const validateUser = (data) => {
             continue;
         }
 
-        // Verificar si el campo requerido está presente
+        // NUEVA LÓGICA: Convertir cadena vacía a null para campos opcionales ANTES de cualquier validación
+        if (value === '' && !rules.required) {
+            validatedData[key] = null;
+            continue; // Saltar el resto de las validaciones para este campo
+        }
+
+        // Verificar si el campo requerido está presente (y no es cadena vacía)
+        // La validación de cadena vacía para requeridos se hizo en el bloque anterior,
+        // pero aquí se asegura que si es requerido, no sea undefined, null o cadena vacía.
         if (rules.required && (value === undefined || value === null || (typeof value === 'string' && value.trim() === ''))) {
             errors.push(key);
             continue;
         }
 
-        // Aplicar valor por defecto si no está presente
+        // Aplicar valor por defecto si no está presente (y es undefined, no cadena vacía)
         if (value === undefined && !rules.required && rules.default !== undefined) {
             validatedData[key] = rules.default;
             continue;
         }
 
         // Validar tipo y manejar valores
+        // Esta parte ahora solo se ejecuta si el valor no es undefined, null, ni cadena vacía (si es opcional)
         if (value !== undefined && value !== null) {
             if (rules.type === 'string') {
                 if (typeof value !== 'string') {
                     errors.push(key);
                     continue;
                 }
-                // Validar regex si existe y el valor no es null
+                // Validar regex si existe y el valor no es null (ya manejado el vacío)
                 if (rules.regex && !rules.regex.test(value)) {
                     errors.push(key);
                     continue;
                 }
-                validatedData[key] = value.trim() === '' ? null : value;
+                validatedData[key] = value; // Ya no necesitamos trim() === '' ? null : value; aquí
             } else if (rules.type === 'number') {
                 const parsedValue = typeof value === 'string' ? parseFloat(value) : value;
-                if (isNaN(parsedValue)) {
+                if (isNaN(parsedValue)) { // Esto ahora no debería fallar en '' porque se convierte a null antes
                     errors.push(key);
                     continue;
                 }
@@ -77,7 +86,7 @@ const validateUser = (data) => {
                 continue;
             }
         } else if (!rules.required) {
-            // Asignar null a campos opcionales que son null
+            // Asignar null a campos opcionales que son null (si vienen explícitamente como null del frontend)
             validatedData[key] = null;
         }
     }
