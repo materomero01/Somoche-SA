@@ -86,5 +86,7 @@ exports.insertPagos = async (req, res) => {
         if (client) await client.query('ROLLBACK');
         console.error('Error en insertPagos:', error);
         res.status(500).json({ message: 'Error interno del servidor al registrar pago(s).' });
+    } finally {
+        client?.release();
     }
 };

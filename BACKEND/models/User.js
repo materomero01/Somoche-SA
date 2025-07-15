@@ -15,13 +15,21 @@ const validateUser = (data) => {
         role: { type: 'string', required: false, default: 'chofer', enum: ['chofer', 'admin'] }
     };
 
-    // Validar cada campo
-    for (const [key, rules] of Object.entries(requiredFields)) {
-        let value = data[key];
+    // Validar solo los campos presentes en data
+    for (const key of Object.keys(data)) {
+        const value = data[key];
+        const rules = requiredFields[key];
+        console.log(key + " " + value)
+
+        // Si el campo no está en requiredFields, incluirlo en validatedData sin validar
+        if (!rules) {
+            validatedData[key] = value;
+            continue;
+        }
 
         // Verificar si el campo requerido está presente
         if (rules.required && (value === undefined || value === null || (typeof value === 'string' && value.trim() === ''))) {
-            errors.push(`El campo ${key} es obligatorio.`);
+            errors.push(key);
             continue;
         }
 
@@ -35,29 +43,29 @@ const validateUser = (data) => {
         if (value !== undefined && value !== null) {
             if (rules.type === 'string') {
                 if (typeof value !== 'string') {
-                    errors.push(`El campo ${key} debe ser una cadena.`);
+                    errors.push(key);
                     continue;
                 }
                 // Validar regex si existe y el valor no es null
                 if (rules.regex && !rules.regex.test(value)) {
-                    errors.push(`El campo ${key} no cumple con el formato esperado.`);
+                    errors.push(key);
                     continue;
                 }
                 validatedData[key] = value.trim() === '' ? null : value;
             } else if (rules.type === 'number') {
                 const parsedValue = typeof value === 'string' ? parseFloat(value) : value;
                 if (isNaN(parsedValue)) {
-                    errors.push(`El campo ${key} debe ser un número válido.`);
+                    errors.push(key);
                     continue;
                 }
                 if (rules.min !== undefined && parsedValue < rules.min) {
-                    errors.push(`El campo ${key} debe ser mayor o igual a ${rules.min}.`);
+                    errors.push(key);
                     continue;
                 }
                 validatedData[key] = parsedValue;
             } else if (rules.type === 'boolean') {
                 if (typeof value !== 'boolean') {
-                    errors.push(`El campo ${key} debe ser un booleano.`);
+                    errors.push(key);
                     continue;
                 }
                 validatedData[key] = value;
@@ -65,7 +73,7 @@ const validateUser = (data) => {
 
             // Validar enum si existe
             if (rules.enum && !rules.enum.includes(value)) {
-                errors.push(`El campo ${key} debe ser uno de: ${rules.enum.join(', ')}.`);
+                errors.push(key);
                 continue;
             }
         } else if (!rules.required) {

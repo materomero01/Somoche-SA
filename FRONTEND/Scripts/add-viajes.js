@@ -35,17 +35,6 @@ const setTodayDate = () => {
     }
 };
 
-// Check session validity
-const checkSession = () => {
-    token = localStorage.getItem('jwtToken');
-    if (!token) {
-        alert('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
-        logout();
-        return false;
-    }
-    return true;
-};
-
 // Validate form inputs
 const validateInputs = (payload, fields) => {
     for (const [key, label] of Object.entries(fields)) {
@@ -305,6 +294,7 @@ const setupAddPagoBtn = () => {
         try {
             const data = await addPagos(payload);
             alert(data.message);
+            
         } catch (error) {
             alert(`Error al añadir el pago: ${error.message}`);
             console.error('Error en addPagos:', error.message);
@@ -486,8 +476,6 @@ const setupCargaDescargaAutocomplete = () => {
 
 // DOMContentLoaded initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!checkSession()) return;
-
     allChoferes = await fetchAllChoferes();
     tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac')) || await fetchTarifas();
 

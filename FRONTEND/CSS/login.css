@@ -73,26 +73,6 @@ body {
     margin-bottom: 5px;
 }
 
-.eye-icon-1 {
-    width: 30px;
-    height: 0px;
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    cursor: pointer;
-}
-
-.icon-button {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    font-size: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .invalid-input {
     color: red;
     font-family: 'Source Sans 3'; 

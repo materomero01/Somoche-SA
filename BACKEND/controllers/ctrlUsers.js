@@ -6,15 +6,20 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 exports.insertUser = async (req, res) => {
+    let client;
    try {
         // Validar datos de entrada
+        console.log(req.body);
         const { errors, validatedData } = userSchema(req.body);
         if (errors.length > 0) {
-            return res.status(400).json({ message: 'Errores de validación', errors });
+            return res.status(400).json({ message: `Los datos ingresados para ${errors.join(', ')} no son validos` });
         }
 
+        client = await pool.connect();
+        await client.query('BEGIN');
+
         // Verificar si el CUIL o email ya están registrados
-        const userExists = await pool.query(
+        const userExists = await client.query(
             'SELECT cuil FROM usuario WHERE cuil = $1 OR email = $2',
             [validatedData.cuil, validatedData.email]
         );
@@ -27,37 +32,42 @@ exports.insertUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(validatedData.password, salt);
 
         // Insertar en la tabla usuario
-        await pool.query(
+        await client.query(
             `INSERT INTO usuario (
                 cuil, nombre_apellido, password, telefono, email, role
             ) VALUES ($1, $2, $3, $4, $5, $6)`,
             [
                 validatedData.cuil,
-                validatedData.nombre_y_apellido,
+                validatedData.nombre_y_apellido? validatedData.nombre_y_apellido : validatedData.nombre,
                 hashedPassword,
                 validatedData.telefono,
                 validatedData.email,
-                validatedData.role
+                'chofer'
             ]
         );
 
         // Insertar en la tabla chofer
-        await pool.query(
+        await client.query(
             `INSERT INTO chofer (
                 cuil, tipo_trabajador, patente_chasis, patente_acoplado
             ) VALUES ($1, $2, $3, $4)`,
             [
                 validatedData.cuil,
                 validatedData.trabajador,
-                validatedData.patente_chasis,
-                validatedData.patente_acoplado
+                validatedData.patente_chasis.toUpperCase(),
+                validatedData.patente_acoplado?.toUpperCase()
             ]
         );
 
+        await client.query('COMMIT');
+
         res.status(201).json({ message: 'Usuario registrado con éxito' });
     } catch (error) {
+        if (client) await client.query('ROLLBACK');
         console.error('Error en insertUser:', error);
         res.status(500).json({ message: 'Error interno del servidor al registrar usuario.' });
+    } finally {
+        client?.release();
     }
 };
 

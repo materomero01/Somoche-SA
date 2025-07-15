@@ -1,7 +1,7 @@
 .text-input {
     width: 100%;
     height: 55px;
-    padding: 0px 10px 0px 48px; /* Desplazamiento para icono */
+    padding: 0px 10px 0px 48px !important;/* Desplazamiento para icono */
     background: #FFFFFF;
     color: #444444;
     border-color: #D6D6D6;
@@ -15,7 +15,32 @@
     box-sizing: border-box; /* Include padding and border in the element's total width and height */
 }
 
-.icon-wrapper {
+.form-group input,
+.form-group select { /* Añadido 'select' para que tenga los mismos estilos básicos que los inputs */
+ padding: 8px 12px;
+ border: 1px solid #ccc;
+ border-radius: 5px;
+ font-size: 15px;
+ outline: none;
+}
+
+.input[type="date"] {
+  padding: 6.5px 12px;
+}
+
+.form-group input[type="number"]::-webkit-outer-spin-button,
+.form-group input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.form-group input:focus,
+.form-group select:focus { 
+ border-color: #007bff;
+ box-shadow: 0 0 3px rgba(0, 123, 255, 0.3);
+}
+
+.icon-wrapper-input {
     position: absolute;
     left: 18px;
     top: 39px;
@@ -23,13 +48,14 @@
     align-items: center;
 }
 
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
+.password-icon {
+    width: 25px;
+    height: 25px;
+    position: absolute;
+    right: 4%;
+    top: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-
-input[type="number"] {
-    -moz-appearance: textfield;
-}
-

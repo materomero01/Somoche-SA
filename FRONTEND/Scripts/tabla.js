@@ -302,7 +302,7 @@ export function renderTabla({
             case 'email':
                 return 'email';
             case 'telefono':
-                return 'tel';
+                return 'number';
             default:
                 return 'text';
         }
@@ -310,12 +310,12 @@ export function renderTabla({
 
     function getPlaceholder(fieldKey) {
         const placeholders = {
-            'nombre': 'Ingrese el nombre',
+            'nombre': 'Nombre y Apellido',
             'cuil': 'XX-XXXXXXXX-X',
             'cuit': 'XX-XXXXXXXX-X',
-            'chasis': 'Código de chasis',
-            'acoplado': 'Código de acoplado',
-            'telefono': 'XX-XXXX-XXXX',
+            'chasis': 'Patente del chasis',
+            'acoplado': 'Patente del acoplado',
+            'telefono': 'Ej: 2262123456',
             'email': 'ejemplo@correo.com'
         };
         return placeholders[fieldKey] || 'Ingrese el valor';

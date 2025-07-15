@@ -1,6 +1,4 @@
 const formSesion = document.getElementById("formSesion");
-const inputPassword = document.getElementById("password-input");
-const iconoToggle = document.querySelector(".toggle");
 const targetsInputs = document.getElementsByClassName("target-input");
 const regexInputs = {
     'cuil-input': /^\d{2}-\d{8}-\d{1}$/,
@@ -10,20 +8,24 @@ const regexInputs = {
     'email-input': /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 };
 
-iconoToggle.addEventListener("click", (e) =>{
-    if (inputPassword.type ==="password"){
+export function seePassword(passwordId) {
+    const iconoToggle = document.querySelector(".toggle");
+    const inputPassword = document.getElementById("password-input");
+    iconoToggle.addEventListener("click", (e) =>{
+    if (inputPassword?.type ==="password"){
         inputPassword.type = "text";
         e.target.classList.replace("bi-eye-slash", "bi-eye");
     } else {
         inputPassword.type = "password";
         e.target.classList.replace("bi-eye","bi-eye-slash");
     }
-});
+    });
+}
 
 formSesion?.addEventListener("submit", async (event) => {
     event.preventDefault(); // Evita que el formulario se envíe por defecto
     
-    valid = true;
+    var valid = true;
     for (let i=0; i < targetsInputs.length; i++)
     if(!validFormat(targetsInputs[i], regexInputs[targetsInputs[i].id], document.getElementById(targetsInputs[i].id + "-error")))
         valid = false;
@@ -48,11 +50,10 @@ formSesion?.addEventListener("submit", async (event) => {
             ...payload,
             nombre_y_apellido: userData['nombre'],
             trabajador: userData['trabajador_seleccionado'] || 'Monotributista', // Asegúrate que el name del input sea 'trabajador-input'
-            patente_chasis: userData['chasis'] || null,
-            patente_acoplado: userData['acoplado'] || null,
+            patente_chasis: userData['chasis']?.toUpperCase() || null,
+            patente_acoplado: userData['acoplado']?.toUpperCase() || null,
             telefono: userData['telefono'] || null,
             email: userData['email'] || null,
-            role: 'chofer' // Valor fijo para el registro
         };
     } else {
         apiURL = 'http://localhost:3000/api/users/login';
@@ -89,6 +90,10 @@ formSesion?.addEventListener("submit", async (event) => {
     } catch (error) {
         console.error('Error de red al registrar usuario:', error);
     }
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+    seePassword("password-input");
 });
 
 /**

@@ -1,5 +1,4 @@
 // /FRONTEND/catac.js
-import { stringify } from 'querystring';
 import { fetchTarifas, updateTarifas} from './api.js';
 
 let datosCatac = [];
@@ -30,14 +29,14 @@ function renderTabla({ containerId, datos, filas = 10, columnas = 5, pageNum = 1
             const tr = document.createElement("tr");
 
             for (let j = 0; j < columnas; j++) {
-                const indice = startIndex + (i * columnas) + j; // Corregido para distribución en filas
+                const indice = startIndex + (j * filas) + i // Corregido para distribución en filas
                 const tdId = document.createElement("td");
                 tdId.classList.add("table-id-cell");
                 tdId.textContent = indice + 1;
 
                 const tdValor = document.createElement("td");
                 tdValor.classList.add("catac-value-cell");
-                tdValor.textContent = indice < datos.length ? datos[indice]['valor'] : ""; // Rellenar con vacío si no hay datos
+                tdValor.textContent = indice < datos.length ? datos[indice].valor : ""; // Rellenar con vacío si no hay datos
 
                 tr.appendChild(tdId);
                 tr.appendChild(tdValor);
@@ -146,7 +145,7 @@ function configurarInteraccionesCatac() {
                 return;
             }
             const factor = porcentaje / 100;
-            payload = {
+            const payload = {
                 factor: factor
             }
             if (confirm(`Estas seguro de que desea actualizar las tarifas de Catac en un ${textoPorcentaje}%?`)){
@@ -216,7 +215,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
         
-        datosCatac = Array.from({ length: 1500 }, () => (Math.random() * 20000).toFixed(2));
         const container = document.getElementById('tabla-catac');
         if (!container) {
             console.error('Contenedor tabla-catac no encontrado.');
