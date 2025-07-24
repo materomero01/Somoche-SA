@@ -1,29 +1,13 @@
 // /FRONTEND/scripts/cheques.js
 
+import { getCheques } from './apiPublic.js';
 import { renderTabla } from './tabla.js'; // Asegúrate que la ruta sea correcta
 
 // Simulamos datos de cheques próximos y pagos
 // Es importante que los objetos de datos tengan las 'keys' que usaremos en las columnas
-const datosChequesProximos = Array.from({ length: 15 }, (_, i) => ({
-    id: `prox-${i}`, // Añadimos un ID único para cada fila, necesario para tabla.js
-    diasRestantes: Math.floor(Math.random() * 30) + 1,
-    fechaCobro: generarFechaFutura(),
-    cheque: `#${10000 + i}`,
-    destinatario: `Cliente ${i + 1}`,
-    banco: ['Banco Nación', 'Santander', 'Galicia'][i % 3],
-    fechaPago: generarFechaPasada(), // Fecha de emisión del cheque
-    importe: (Math.random() * 100 + 10).toFixed(2)
-}));
+let datosChequesProximos = [];
 
-const datosChequesPagos = Array.from({ length: 12 }, (_, i) => ({
-    id: `pago-${i}`, // Añadimos un ID único
-    fechaCobro: generarFechaPasada(),
-    cheque: `#${8000 + i}`,
-    destinatario: `Proveedor ${i + 1}`,
-    banco: ['Banco Nación', 'Santander', 'Galicia'][i % 3],
-    fechaPago: generarFechaPasada(), // Fecha de emisión del cheque
-    importe: (Math.random() * 100 + 10).toFixed(2)
-}));
+let datosChequesPagos = [];
 
 function generarFechaFutura() {
     const hoy = new Date();
@@ -37,30 +21,57 @@ function generarFechaPasada() {
     return hoy.toISOString().split('T')[0];
 }
 
+// Función para parsear el importe (remueve '$' y comas)
+function parseImporte(importe) {
+    if (typeof importe === 'string') {
+        return parseFloat(importe.replace(/[$,]/g, '')) || 0;
+    }
+    return parseFloat(importe) || 0;
+}
+
 function calcularTotalImportes(data) {
-    return data.reduce((acc, el) => acc + parseFloat(el.importe), 0).toFixed(2);
+    return data.reduce((acc, el) => acc + parseImporte(el.importe), 0).toFixed(2);
+}
+
+// Función para calcular los días restantes hasta la fecha de cobro
+function calcularDiasRestantes(fechaCheque) {
+    const hoy = new Date();
+    const fechaCobro = new Date(fechaCheque);
+    const diffTime = fechaCobro - hoy;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays : 0; // Evitar días negativos
+}
+
+// Función para formatear fechas ISO a YYYY-MM-DD
+function formatFecha(fecha) {
+    return new Date(fecha).toISOString().split('T')[0];
 }
 
 function renderTablaProximos() {
+
     renderTabla({
         containerId: 'tabla-proximos',
-        paginacionContainerId: 'paginacion-proximos', // Nuevo ID para el contenedor de paginación
+        paginacionContainerId: 'paginacion-proximos',
         columnas: [
-            { label: 'Días', key: 'diasRestantes' }, // Mapea a la propiedad 'diasRestantes'
-            { label: 'Fecha Cobro', key: 'fechaCobro' },
-            { label: 'Cheque', key: 'cheque' },
+            { label: 'Días', key: 'diasRestantes', class: 'text-right' },
+            { label: 'Fecha Cobro', key: 'fecha_cheque' },
+            { label: 'Cheque', key: 'nro_cheque' },
             { label: 'Destinatario', key: 'destinatario' },
-            { label: 'Tercero (Banco)', key: 'banco' }, // Mapea a la propiedad 'banco'
-            { label: 'Fecha de Emisión', key: 'fechaPago' }, // Cambiado el label a "Fecha de Emisión" para ser más claro
-            { label: 'Importe', key: 'importe', class: 'text-right' } // Agregamos una clase si queremos alinear a la derecha
+            { label: 'Tercero (Banco)', key: 'tercero' },
+            { label: 'Fecha de Emisión', key: 'fecha_pago' },
+            { label: 'Importe', key: 'importe', class: 'text-right' }
         ],
         datos: datosChequesProximos.map(c => ({
-            ...c, // Mantener todas las propiedades del objeto original
-            importe: `$${c.importe}`, // Formatear el importe aquí para mostrar '$'
-            diasRestantes: `${c.diasRestantes} días` // Formatear los días aquí
+            id: c.nro_cheque,
+            diasRestantes: calcularDiasRestantes(c.fecha_cheque) > 0 ? `${calcularDiasRestantes(c.fecha_cheque)} días` : 'Hoy',
+            fecha_cheque: formatFecha(c.fecha_cheque),
+            nro_cheque: c.nro_cheque,
+            destinatario: c.destinatario,
+            tercero: c.tercero,
+            fecha_pago: formatFecha(c.fecha_pago),
+            importe: `$${parseImporte(c.importe).toFixed(2)}`
         })),
-        itemsPorPagina: 10, // Usamos itemsPorPagina que es el nombre del parámetro en tabla.js
-        // No pasamos actions, editingRowId, onEdit ya que no son necesarios aquí
+        itemsPorPagina: 10
     });
 
     const total = calcularTotalImportes(datosChequesProximos);
@@ -71,20 +82,25 @@ function renderTablaProximos() {
 function renderTablaPagos() {
     renderTabla({
         containerId: 'tabla-pagos',
-        paginacionContainerId: 'paginacion-pagos', // Nuevo ID para el contenedor de paginación
+        paginacionContainerId: 'paginacion-pagos',
         columnas: [
-            { label: 'Fecha Cobro', key: 'fechaCobro' },
-            { label: 'Cheque', key: 'cheque' },
+            { label: 'Fecha Cobro', key: 'fecha_cheque' },
+            { label: 'Cheque', key: 'nro_cheque' },
             { label: 'Destinatario', key: 'destinatario' },
-            { label: 'Tercero (Banco)', key: 'banco' },
-            { label: 'Fecha de Emisión', key: 'fechaPago' },
+            { label: 'Tercero (Banco)', key: 'tercero' },
+            { label: 'Fecha de Emisión', key: 'fecha_pago' },
             { label: 'Importe', key: 'importe', class: 'text-right' }
         ],
         datos: datosChequesPagos.map(c => ({
-            ...c,
-            importe: `$${c.importe}`
+            id: c.nro_cheque,
+            fecha_cheque: formatFecha(c.fecha_cheque),
+            nro_cheque: c.nro_cheque,
+            destinatario: c.destinatario,
+            tercero: c.tercero,
+            fecha_pago: formatFecha(c.fecha_pago),
+            importe: `$${parseImporte(c.importe).toFixed(2)}`
         })),
-        itemsPorPagina: 10,
+        itemsPorPagina: 10
     });
 }
 
@@ -122,14 +138,37 @@ function mostrarContenidoTabCheques(tab) {
     if (tab === 'proximos') {
         proximosDiv.classList.remove('hidden');
         pagosDiv.classList.add('hidden');
-        renderTablaProximos(); // Asegúrate de renderizar cuando la pestaña se activa
+        renderTablaProximos();
     } else if (tab === 'pagos') {
         pagosDiv.classList.remove('hidden');
         proximosDiv.classList.add('hidden');
-        renderTablaPagos(); // Asegúrate de renderizar cuando la pestaña se activa
+        renderTablaPagos();
     }
 }
 
+async function loadChequesData() {
+    try {
+        const userCuil = localStorage.getItem("userCuil");
+        if (!userCuil) {
+            throw new Error('No se encontró userCuil en localStorage');
+        }
+        const data = await getCheques(null, userCuil);
+        console.log(data);
+        if (data && data.length > 0) {
+            const today = formatFecha(new Date());
+            datosChequesProximos = data.filter(cheque => formatFecha(cheque.fecha_cheque) >= today);
+            datosChequesPagos = data.filter(cheque => formatFecha(cheque.fecha_cheque) < today);
+        } else {
+            datosChequesProximos = [];
+            datosChequesPagos = [];
+        }
+    } catch (error) {
+        console.error('Error al cargar cheques:', error.message);
+        alert(`Error al cargar los datos de cheques: ${error.message}`);
+        datosChequesProximos = [];
+        datosChequesPagos = [];
+    }
+}
 // Setup general al cargar la página
 
 document.addEventListener('DOMContentLoaded', async function () {
@@ -148,6 +187,9 @@ document.addEventListener('DOMContentLoaded', async function () {
             item.classList.add('active');
         }
     });
+
+    // Cargar datos iniciales
+    await loadChequesData();
 
     // Inicializar el tab selector (ya debe estar disponible globalmente)
     setupChequesTabSelector();

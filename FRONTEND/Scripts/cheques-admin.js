@@ -1,35 +1,16 @@
 // /FRONTEND/scripts/cheques-admin.js
 
+import { setChequesPagos } from './api.js';
 import { renderTabla } from './tabla.js';
+import { getCheques } from './apiPublic.js';
 
-// Simulamos datos de cheques próximos y pagos
-// Añadir un ID único a cada cheque y la propiedad 'selected'
-const datosChequesProximos = Array.from({ length: 15 }, (_, i) => ({
-    id: `cheque-prox-${crypto.randomUUID()}`, // ID único para cada cheque
-    diasRestantes: Math.floor(Math.random() * 30) + 1,
-    fechaCobro: generarFechaFutura(),
-    cheque: `#${10000 + i}`,
-    destinatario: `Cliente ${i + 1}`,
-    tercero: `Empresa YZ ${i % 5}`, // Añadido para el filtro
-    banco: ['Banco Nación', 'Santander', 'Galicia'][i % 3],
-    fechaPago: generarFechaPasada(), // Usado como "Fecha Emisión" para próximos
-    importe: parseFloat((Math.random() * 50000 + 10000).toFixed(2)), // Convertir a número
-    selected: false // Estado de selección para el checkbox
-}));
-
-const datosChequesPagos = Array.from({ length: 12 }, (_, i) => ({
-    id: `cheque-pago-${crypto.randomUUID()}`, // ID único
-    fechaCobro: generarFechaPasada(),
-    cheque: `#${8000 + i}`,
-    destinatario: `Proveedor ${i + 1}`,
-    tercero: `Empresa AB ${i % 4}`, // Añadido para el filtro
-    banco: ['HSBC', 'Macro', 'Provincia'][i % 3],
-    fechaPago: generarFechaPasada(),
-    importe: parseFloat((Math.random() * 40000 + 8000).toFixed(2)) // Convertir a número
-}));
+// Arrays para almacenar los datos de cheques próximos y pagados
+let datosChequesProximos = [];
+let datosChequesPagos = [];
+let chequesFueraFecha = [];
 
 // Mapa para mantener el estado de los cheques seleccionados
-const selectedCheques = new Map(); // Map<chequeId, chequeObject>
+const selectedCheques = new Map(); // Map<nro_cheque, chequeObject>
 
 // Objeto para almacenar los filtros actuales
 let currentFilter = {
@@ -42,16 +23,26 @@ let currentFilter = {
     montoMaximo: ''
 };
 
-function generarFechaFutura() {
+// Función para calcular los días restantes hasta la fecha de cobro
+function calcularDiasRestantes(fechaCheque) {
     const hoy = new Date();
-    hoy.setDate(hoy.getDate() + Math.floor(Math.random() * 30) + 1);
-    return hoy.toISOString().split('T')[0];
+    const fechaCobro = new Date(fechaCheque);
+    const diffTime = fechaCobro - hoy;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays : 0; // Evitar días negativos
 }
 
-function generarFechaPasada() {
-    const hoy = new Date();
-    hoy.setDate(hoy.getDate() - Math.floor(Math.random() * 30) - 1);
-    return hoy.toISOString().split('T')[0];
+// Función para formatear fechas ISO a YYYY-MM-DD
+function formatFecha(fecha) {
+    return new Date(fecha).toISOString().split('T')[0];
+}
+
+// Función para parsear el importe (remueve '$' y comas)
+function parseImporte(importe) {
+    if (typeof importe === 'string') {
+        return parseFloat(importe.replace(/[$,]/g, '')) || 0;
+    }
+    return parseFloat(importe) || 0;
 }
 
 // Función para filtrar los datos de cheques según los criterios
@@ -59,7 +50,7 @@ function filtrarCheques(data, filters) {
     return data.filter(cheque => {
         let match = true;
 
-        if (filters.numero && !cheque.cheque.toLowerCase().includes(filters.numero.toLowerCase())) {
+        if (filters.numero && !cheque.nro_cheque.toString().toLowerCase().includes(filters.numero.toLowerCase())) {
             match = false;
         }
         if (filters.destinatario && !cheque.destinatario.toLowerCase().includes(filters.destinatario.toLowerCase())) {
@@ -68,18 +59,18 @@ function filtrarCheques(data, filters) {
         if (filters.tercero && !cheque.tercero.toLowerCase().includes(filters.tercero.toLowerCase())) {
             match = false;
         }
-        // Las fechas deben ser comparadas como objetos Date o cadenas consistentes
-        if (filters.fechaDesde && cheque.fechaCobro < filters.fechaDesde) {
+        // Comparar fechas
+        if (filters.fechaDesde && formatFecha(cheque.fecha_cheque) < filters.fechaDesde) {
             match = false;
         }
-        if (filters.fechaHasta && cheque.fechaCobro > filters.fechaHasta) {
+        if (filters.fechaHasta && formatFecha(cheque.fecha_cheque) > filters.fechaHasta) {
             match = false;
         }
-        // Los montos deben ser comparados como números
-        if (filters.montoMinimo !== undefined && filters.montoMinimo !== '' && cheque.importe < parseFloat(filters.montoMinimo)) {
+        // Comparar montos
+        if (filters.montoMinimo !== undefined && filters.montoMinimo !== '' && parseImporte(cheque.importe) < parseFloat(filters.montoMinimo)) {
             match = false;
         }
-        if (filters.montoMaximo !== undefined && filters.montoMaximo !== '' && cheque.importe > parseFloat(filters.montoMaximo)) {
+        if (filters.montoMaximo !== undefined && filters.montoMaximo !== '' && parseImporte(cheque.importe) > parseFloat(filters.montoMaximo)) {
             match = false;
         }
         return match;
@@ -89,46 +80,45 @@ function filtrarCheques(data, filters) {
 function renderTablaProximos() {
     let filteredData = filtrarCheques(datosChequesProximos, currentFilter);
 
-    // Ordenar por 'diasRestantes' de forma ascendente
-    filteredData.sort((a, b) => a.diasRestantes - b.diasRestantes);
-
     renderTabla({
         containerId: 'tabla-proximos',
         paginacionContainerId: 'paginacion-proximos',
         columnas: [
             { label: 'Días', key: 'diasRestantes', class: 'text-right' },
-            { label: 'Fecha Cobro', key: 'fechaCobro' },
-            { label: 'Cheque', key: 'cheque' },
+            { label: 'Fecha Cobro', key: 'fecha_cheque' },
+            { label: 'Cheque', key: 'nro_cheque' },
             { label: 'Destinatario', key: 'destinatario' },
-            { label: 'Banco', key: 'banco' },
-            { label: 'Fecha Emisión', key: 'fechaPago' }, 
+            { label: 'Tercero', key: 'tercero' },
+            { label: 'Fecha Emisión', key: 'fecha_pago' },
+            { label: 'Chofer Nombre', key: 'nombre' },
             { label: 'Importe', key: 'importe', class: 'text-right' }
         ],
         datos: filteredData.map(c => ({
-            id: c.id,
-            diasRestantes: `${c.diasRestantes} días`,
-            fechaCobro: c.fechaCobro,
-            cheque: c.cheque,
+            id: c.nro_cheque, // Usar nro_cheque como ID
+            diasRestantes: calcularDiasRestantes(c.fecha_cheque) > 0? `${calcularDiasRestantes(c.fecha_cheque)} días` : 'Hoy',
+            fecha_cheque: formatFecha(c.fecha_cheque),
+            nro_cheque: c.nro_cheque,
             destinatario: c.destinatario,
-            banco: c.banco,
-            fechaPago: c.fechaPago,
-            importe: `$${c.importe.toFixed(2)}`,
-            selected: c.selected // Pasar el estado de selección a renderTabla
+            tercero: c.tercero,
+            fecha_pago: formatFecha(c.fecha_pago),
+            importe: `$${parseImporte(c.importe).toFixed(2)}`,
+            nombre: c.nombre,
+            selected: selectedCheques.get(c.nro_cheque)? true : false // Estado de selección
         })),
         itemsPorPagina: 10,
-        checkboxColumn: true, // Habilitar la columna de checkbox
-        checkboxColumnPosition: 'end', // Posicionar el checkbox al final
-        onCheckboxChange: handleCheckboxChange // Asignar el handler para cambios en los checkboxes
+        checkboxColumn: true,
+        checkboxColumnPosition: 'end',
+        onCheckboxChange: handleCheckboxChange
     });
 
-    // Actualizar el total a cobrar (de todos los cheques actualmente mostrados, no solo los seleccionados)
+    // Actualizar el total a cobrar
     const total = calcularTotalImportesGlobal(filteredData);
-    const totalDiv = document.getElementById('selected-cheques-total'); // Corregido ID
-    if (totalDiv) totalDiv.textContent = total; // Corregido para solo el número
+    const totalDiv = document.getElementById('selected-cheques-total');
+    if (totalDiv) totalDiv.textContent = total;
 
     // Actualizar el resumen de cheques seleccionados
     updateSelectedChequesSummary();
-    updateClearFilterButtonVisibility(); // Actualizar visibilidad del botón de limpiar filtro
+    updateClearFilterButtonVisibility();
 }
 
 function renderTablaPagos() {
@@ -138,39 +128,42 @@ function renderTablaPagos() {
         containerId: 'tabla-pagos',
         paginacionContainerId: 'paginacion-pagos',
         columnas: [
-            { label: 'Fecha Cobro', key: 'fechaCobro' },
-            { label: 'Cheque', key: 'cheque' },
+            { label: 'Fecha Cobro', key: 'fecha_cheque' },
+            { label: 'Cheque', key: 'nro_cheque' },
             { label: 'Destinatario', key: 'destinatario' },
-            { label: 'Banco', key: 'banco' },
-            { label: 'Fecha Pago', key: 'fechaPago' },
+            { label: 'Tercero', key: 'tercero' },
+            { label: 'Fecha Pago', key: 'fecha_pago' },
+            { label: 'Chofer Nombre', key: 'nombre' },
             { label: 'Importe', key: 'importe', class: 'text-right' }
         ],
         datos: filteredData.map(c => ({
-            id: c.id,
-            fechaCobro: c.fechaCobro,
-            cheque: c.cheque,
+            id: c.nro_cheque,
+            fecha_cheque: formatFecha(c.fecha_cheque),
+            nro_cheque: c.nro_cheque,
             destinatario: c.destinatario,
-            banco: c.banco,
-            fechaPago: c.fechaPago,
-            importe: `$${c.importe.toFixed(2)}`
+            tercero: c.tercero,
+            fecha_pago: formatFecha(c.fecha_pago),
+            importe: `$${parseImporte(c.importe).toFixed(2)}`,
+            nombre: c.nombre
         })),
         itemsPorPagina: 10,
-        checkboxColumn: false // No hay checkboxes para la tabla de cheques pagos
+        checkboxColumn: false
     });
-    updateClearFilterButtonVisibility(); // Actualizar visibilidad del botón de limpiar filtro
+    updateClearFilterButtonVisibility();
 }
 
 function calcularTotalImportesGlobal(data) {
-    return data.reduce((acc, el) => acc + el.importe, 0).toFixed(2);
+    return data.reduce((acc, el) => acc + parseImporte(el.importe), 0).toFixed(2);
 }
 
-// Función para actualizar el resumen de cheques seleccionados
 function updateSelectedChequesSummary() {
     const count = selectedCheques.size;
-    const total = Array.from(selectedCheques.values()).reduce((sum, cheque) => sum + cheque.importe, 0).toFixed(2);
+    const total = Array.from(selectedCheques.values()).reduce((sum, cheque) => sum + parseImporte(cheque.importe), 0).toFixed(2);
 
-    document.getElementById('selected-cheques-count').textContent = count;
-    document.getElementById('selected-cheques-total').textContent = total;
+    const countElement = document.getElementById('selected-cheques-count');
+    const totalElement = document.getElementById('selected-cheques-total');
+    if (countElement) countElement.textContent = count;
+    if (totalElement) totalElement.textContent = `${total}`;
 
     const chequesSelectionControls = document.getElementById('cheques-selection-controls');
     if (chequesSelectionControls) {
@@ -182,16 +175,14 @@ function updateSelectedChequesSummary() {
     }
 }
 
-// Handler para cuando un checkbox cambia de estado
-function handleCheckboxChange(chequeId, isChecked) {
-    // Buscar el cheque en los datos originales (no en los filtrados/paginados)
-    const cheque = datosChequesProximos.find(c => c.id === chequeId);
+function handleCheckboxChange(nroCheque, isChecked) {
+    const cheque = datosChequesProximos.find(c => c.nro_cheque === nroCheque);
     if (cheque) {
-        cheque.selected = isChecked; // Actualizar el estado 'selected' en el objeto original
+        cheque.selected = isChecked;
         if (isChecked) {
-            selectedCheques.set(chequeId, cheque);
+            selectedCheques.set(nroCheque, cheque);
         } else {
-            selectedCheques.delete(chequeId);
+            selectedCheques.delete(nroCheque);
         }
         updateSelectedChequesSummary();
     }
@@ -215,89 +206,126 @@ function setupChequesTabSelector() {
             mostrarContenidoTabCheques(selectedTab);
         });
     });
-
-    const initialActive = tabSelector.querySelector('.tab-item.active');
-    if (initialActive) {
-        mostrarContenidoTabCheques(initialActive.dataset.tab);
-    }
 }
 
-function mostrarContenidoTabCheques(tab) {
+async function mostrarContenidoTabCheques(tab) {
     const proximosDiv = document.getElementById('content-proximos');
     const pagosDiv = document.getElementById('content-pagos');
 
-    currentFilter = {}; // Reiniciar filtros al cambiar de pestaña
-    clearFilterInputs(); // Limpiar campos de entrada del filtro
+    currentFilter = {};
+    clearFilterInputs();
 
     if (tab === 'proximos') {
         proximosDiv.classList.remove('hidden');
         pagosDiv.classList.add('hidden');
-        renderTablaProximos(); // Volver a renderizar al cambiar de pestaña
+        if (datosChequesProximos.length < 1) {
+            try {
+                datosChequesProximos = await getCheques(false, null);
+                console.log(datosChequesProximos);
+                datosChequesProximos.forEach(cheque => {
+                    cheque.selected = false;
+                    cheque.importe = parseImporte(cheque.importe);
+                });
+                console.log(datosChequesProximos)
+                if(datosChequesProximos.length > 0){
+                    datosChequesProximos.filter(
+                                cheque =>formatFecha(cheque.fecha_cheque) < formatFecha(new Date())
+                            ).forEach( cheque => chequesFueraFecha.push(cheque.nro_cheque));
+                }
+                    
+                if(chequesFueraFecha.length > 0){
+                    console.log(chequesFueraFecha);
+                    await setChequesPagos(chequesFueraFecha);
+                    datosChequesProximos = datosChequesProximos.filter(cheque => !chequesFueraFecha.includes(cheque.nro_cheque))
+                }
+            } catch (error) {
+                console.error(error.message);
+            }
+        }
+        renderTablaProximos();
     } else if (tab === 'pagos') {
         proximosDiv.classList.add('hidden');
         pagosDiv.classList.remove('hidden');
-        renderTablaPagos(); // Volver a renderizar al cambiar de pestaña
+        if (datosChequesPagos.length < 1) {
+            try {
+                datosChequesPagos = await getCheques(true, null);
+                datosChequesPagos.forEach(cheque => {
+                    cheque.importe = parseImporte(cheque.importe);
+                });
+            } catch (error) {
+                alert(error.message);
+                console.error(error.message);
+            }
+        }
+        renderTablaPagos();
     }
-    updateClearFilterButtonVisibility(); // Actualizar visibilidad del botón de limpiar filtro
+    updateClearFilterButtonVisibility();
 }
 
-// Lógica de la tarjeta de filtro
 let filterCardVisible = false;
-let currentActiveFilterBtn = null; // Para saber qué botón de filtro abrió la tarjeta
+let currentActiveFilterBtn = null;
 
 function toggleFilterCard(event, filterBtnId) {
     const filterCard = document.getElementById('filter-card');
     const clickedBtn = document.getElementById(filterBtnId);
 
+    if (!filterCard || !clickedBtn) return;
+
     if (filterCardVisible && currentActiveFilterBtn === clickedBtn) {
-        // Si se hace clic en el mismo botón y la tarjeta está visible, la ocultamos
         filterCard.classList.add('hidden');
         filterCardVisible = false;
         currentActiveFilterBtn = null;
     } else {
-        // Mostrar la tarjeta y posicionarla junto al botón que se hizo clic
         filterCard.classList.remove('hidden');
         filterCardVisible = true;
         currentActiveFilterBtn = clickedBtn;
 
-        // Posicionar la tarjeta de filtro relativa al botón
-        const rect = clickedBtn.getBoundingClientRect();
-        // Alinea el borde derecho de la tarjeta con el borde derecho del botón
-        // y 12px debajo del botón (ajustado para el CSS)
-        filterCard.style.top = `${rect.bottom + 12}px`; 
-        filterCard.style.left = `${rect.right - filterCard.offsetWidth}px`; 
+        // Calcular la posición del filtro
+        positionFilterCard(filterCard, clickedBtn);
 
-        // Asegurarse de que la tarjeta no se salga de la pantalla por la izquierda
-        // Si el borde izquierdo de la tarjeta es menor que 0 (se sale por la izquierda)
-        // o si el ancho de la tarjeta es mayor que el ancho de la ventana
-        if (filterCard.offsetLeft < 0 || filterCard.offsetWidth > window.innerWidth) {
-            filterCard.style.left = '10px'; // Un pequeño margen desde la izquierda
+        // Asegurar que el filtro no se salga de la pantalla
+        const cardRect = filterCard.getBoundingClientRect();
+        if (cardRect.left < 10) {
+            filterCard.style.left = '10px';
+        } else if (cardRect.right > window.innerWidth - 10) {
+            filterCard.style.left = `${window.innerWidth - cardRect.width - 10}px`;
         }
     }
 
-    event.stopPropagation(); // Prevenir que el clic en el botón cierre inmediatamente la tarjeta por el click fuera
+    event.stopPropagation();
 }
 
-// Función para aplicar los filtros
+function positionFilterCard(filterCard, button) {
+    const rect = button.getBoundingClientRect();
+    const cardWidth = filterCard.offsetWidth;
+    const buttonWidth = rect.width;
+
+    // Posicionar el filtro justo debajo del botón, alineado al centro
+    const top = rect.bottom + window.scrollY + 12; // 12px para el espacio
+    const left = rect.left + window.scrollX + (buttonWidth - cardWidth); // Centrar a la izquierda respecto al botón
+
+    filterCard.style.top = `${top}px`;
+    filterCard.style.left = `${left}px`;
+    console.log(filterCard.style.left);
+}
+
 function applyFilters() {
     currentFilter = {
-        numero: document.getElementById('filter-cheque-numero').value,
-        destinatario: document.getElementById('filter-destinatario').value,
-        tercero: document.getElementById('filter-tercero').value,
-        fechaDesde: document.getElementById('filter-fecha-desde').value,
-        fechaHasta: document.getElementById('filter-fecha-hasta').value,
-        montoMinimo: document.getElementById('filter-monto-minimo').value,
-        montoMaximo: document.getElementById('filter-monto-maximo').value
+        numero: document.getElementById('filter-cheque-numero')?.value || '',
+        destinatario: document.getElementById('filter-destinatario')?.value || '',
+        tercero: document.getElementById('filter-tercero')?.value || '',
+        fechaDesde: document.getElementById('filter-fecha-desde')?.value || '',
+        fechaHasta: document.getElementById('filter-fecha-hasta')?.value || '',
+        montoMinimo: document.getElementById('filter-monto-minimo')?.value || '',
+        montoMaximo: document.getElementById('filter-monto-maximo')?.value || ''
     };
 
-    // Eliminar los valores vacíos para que no se tomen en cuenta en el filtro
     for (const key in currentFilter) {
         if (currentFilter[key] === '') {
             delete currentFilter[key];
         }
     }
-    
-    // Determinar qué pestaña está activa y volver a renderizar su tabla con los filtros aplicados
+
     const activeTab = document.querySelector('.tab-item.active');
     if (activeTab) {
         const tabName = activeTab.dataset.tab;
@@ -307,29 +335,34 @@ function applyFilters() {
             renderTablaPagos();
         }
     }
-    
-    // Ocultar la tarjeta de filtro después de aplicar los filtros
-    document.getElementById('filter-card').classList.add('hidden');
-    filterCardVisible = false;
-    currentActiveFilterBtn = null;
 
-    updateClearFilterButtonVisibility(); // Actualizar visibilidad del botón de limpiar filtro
+    const filterCard = document.getElementById('filter-card');
+    if (filterCard) {
+        filterCard.classList.add('hidden');
+        filterCardVisible = false;
+        currentActiveFilterBtn = null;
+    }
+
+    updateClearFilterButtonVisibility();
 }
 
-// Función para limpiar los campos de entrada del filtro
 function clearFilterInputs() {
-    document.getElementById('filter-cheque-numero').value = '';
-    document.getElementById('filter-destinatario').value = '';
-    document.getElementById('filter-tercero').value = '';
-    document.getElementById('filter-fecha-desde').value = '';
-    document.getElementById('filter-fecha-hasta').value = '';
-    document.getElementById('filter-monto-minimo').value = '';
-    document.getElementById('filter-monto-maximo').value = '';
+    const inputs = [
+        'filter-cheque-numero',
+        'filter-destinatario',
+        'filter-tercero',
+        'filter-fecha-desde',
+        'filter-fecha-hasta',
+        'filter-monto-minimo',
+        'filter-monto-maximo'
+    ];
+    inputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.value = '';
+    });
 }
 
-// Función para verificar si hay algún filtro activo
 function hasActiveFilters() {
-    // Verifica si el objeto currentFilter tiene alguna propiedad con un valor no vacío
     for (const key in currentFilter) {
         if (currentFilter.hasOwnProperty(key) && currentFilter[key] !== '' && currentFilter[key] !== undefined) {
             return true;
@@ -338,7 +371,6 @@ function hasActiveFilters() {
     return false;
 }
 
-// Función para actualizar la visibilidad del botón de limpiar filtro
 function updateClearFilterButtonVisibility() {
     const clearBtnProximos = document.getElementById('clear-filter-btn-proximos');
     const clearBtnPagos = document.getElementById('clear-filter-btn-pagos');
@@ -353,13 +385,11 @@ function updateClearFilterButtonVisibility() {
             if (clearBtnProximos) clearBtnProximos.classList.add('hidden');
         }
     } else {
-        // Si no hay filtros activos, ocultar ambos botones
         if (clearBtnProximos) clearBtnProximos.classList.add('hidden');
         if (clearBtnPagos) clearBtnPagos.classList.add('hidden');
     }
 }
 
-// Función para manejar clics fuera de la tarjeta de filtro
 function handleClickOutsideFilterCard(event) {
     const filterCard = document.getElementById('filter-card');
     const filterBtnProximos = document.getElementById('filter-btn-proximos');
@@ -367,17 +397,16 @@ function handleClickOutsideFilterCard(event) {
     const clearFilterBtnProximos = document.getElementById('clear-filter-btn-proximos');
     const clearFilterBtnPagos = document.getElementById('clear-filter-btn-pagos');
 
-    // Si la tarjeta de filtro está visible y el clic fue fuera de la tarjeta y fuera de los botones de filtro
     if (filterCardVisible && 
-        !filterCard.contains(event.target) && 
-        event.target !== filterBtnProximos && 
+        filterCard && !filterCard.contains(event.target) && 
+        filterBtnProximos && event.target !== filterBtnProximos && 
         !filterBtnProximos.contains(event.target) && 
-        event.target !== filterBtnPagos && 
+        filterBtnPagos && event.target !== filterBtnPagos && 
         !filterBtnPagos.contains(event.target) &&
-        event.target !== clearFilterBtnProximos && 
-        ! (clearFilterBtnProximos && clearFilterBtnProximos.contains(event.target)) && 
-        event.target !== clearFilterBtnPagos && 
-        ! (clearFilterBtnPagos && clearFilterBtnPagos.contains(event.target))
+        clearFilterBtnProximos && event.target !== clearFilterBtnProximos && 
+        !(clearFilterBtnProximos && clearFilterBtnProximos.contains(event.target)) && 
+        clearFilterBtnPagos && event.target !== clearFilterBtnPagos && 
+        !(clearFilterBtnPagos && clearFilterBtnPagos.contains(event.target))
     ) {
         filterCard.classList.add('hidden');
         filterCardVisible = false;
@@ -385,15 +414,13 @@ function handleClickOutsideFilterCard(event) {
     }
 }
 
-
 document.addEventListener('DOMContentLoaded', async function () {
     if (typeof loadHeader === 'function') await loadHeader();
     if (typeof loadSidebar === 'function') {
-        const role = localStorage.getItem('userRole') || 'admin'; // Asumir rol 'admin' para esta página
+        const role = localStorage.getItem('userRole') || 'admin';
         await loadSidebar(role);
     }
 
-    // Selecciona item activo en el sidebar si corresponde
     const currentPath = window.location.pathname;
     document.querySelectorAll('.sidebar-item').forEach(item => {
         const target = item.dataset.targetPage;
@@ -403,51 +430,65 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
-    // Inicializar el tab selector
     setupChequesTabSelector();
 
-    // Renderizado inicial basado en la pestaña activa
     const initialActiveTab = document.querySelector('.tab-item.active');
     if (initialActiveTab) {
         mostrarContenidoTabCheques(initialActiveTab.dataset.tab);
     }
 
-    // Event listeners para los botones de acción (Cancelar y Pagar)
     const cancelSelectionBtn = document.getElementById('cancel-selection-btn');
     if (cancelSelectionBtn) {
         cancelSelectionBtn.addEventListener('click', () => {
-            selectedCheques.clear(); // Limpiar el mapa de cheques seleccionados
-            // Desmarcar todos los checkboxes visibles
+            selectedCheques.clear();
             document.querySelectorAll('#tabla-proximos input[type="checkbox"]').forEach(checkbox => {
                 checkbox.checked = false;
             });
-            // Restablecer el estado 'selected' en los datos originales
-            datosChequesProximos.forEach(cheque => cheque.selected = false); 
-            updateSelectedChequesSummary(); // Actualizar el resumen
+            datosChequesProximos.forEach(cheque => cheque.selected = false);
+            updateSelectedChequesSummary();
+        });
+    }
+
+    const clearFilterBtnProximos = document.getElementById('clear-filter-btn-proximos');
+    if (clearFilterBtnProximos) {
+        clearFilterBtnProximos.addEventListener('click', () => {
+            clearFilterInputs();
+            currentFilter = {};
+            applyFilters();
         });
     }
 
     const paySelectedBtn = document.getElementById('pay-selected-btn');
     if (paySelectedBtn) {
-        paySelectedBtn.addEventListener('click', () => {
+        paySelectedBtn.addEventListener('click', async () => {
             if (selectedCheques.size === 0) {
                 alert('No hay cheques seleccionados para pagar.');
                 return;
             }
-            const chequeIdsToPay = Array.from(selectedCheques.keys()).join(', ');
-            alert(`Se pagaron los cheques con IDs: ${chequeIdsToPay}`);
+            try {
+                const response = await setChequesPagos(Array.from(selectedCheques.keys()));
+                if (response) {
+                    // Filtrar datosChequesProximos para remover los cheques seleccionados
+                    if (datosChequesPagos.length > 0)
+                        datosChequesProximos.filter(
+                            cheque => selectedCheques.has(cheque.nro_cheque)
+                        ).forEach( cheque => datosChequesPagos.push(cheque));
+                    datosChequesProximos = datosChequesProximos.filter(
+                        cheque => !selectedCheques.has(cheque.nro_cheque)
+                    );
+                    const chequeIdsToPay = Array.from(selectedCheques.keys()).join(', ');
+                    alert(`Se marcaron como pagos los cheques con número: ${chequeIdsToPay}`);
+
+                }
+            } catch (error){
+                console.log(error.message);
+            }
             
-            // Aquí iría la lógica para procesar el pago de los cheques
-            // Por ejemplo, enviar al backend, mover cheques a la lista de "pagos", etc.
-            
-            // Después de pagar, limpiar la selección y volver a renderizar la tabla
             selectedCheques.clear();
-            datosChequesProximos.forEach(cheque => cheque.selected = false); // Restablecer el estado 'selected'
-            renderTablaProximos(); // Volver a renderizar para reflejar los cambios
+            clearFilterBtnProximos.click();
         });
     }
 
-    // Event listeners para los botones de filtro
     const filterBtnProximos = document.getElementById('filter-btn-proximos');
     if (filterBtnProximos) {
         filterBtnProximos.addEventListener('click', (e) => toggleFilterCard(e, 'filter-btn-proximos'));
@@ -463,28 +504,22 @@ document.addEventListener('DOMContentLoaded', async function () {
         applyFilterBtn.addEventListener('click', applyFilters);
     }
 
-    // Adjuntar el event listener al botón de limpiar filtro (para ambos, si se clonaron)
-    const clearFilterBtnProximos = document.getElementById('clear-filter-btn-proximos');
-    if (clearFilterBtnProximos) {
-        clearFilterBtnProximos.addEventListener('click', () => {
-            clearFilterInputs();
-            currentFilter = {}; 
-            applyFilters(); 
-        });
-    }
-
     const clearFilterBtnPagos = document.getElementById('clear-filter-btn-pagos');
     if (clearFilterBtnPagos) {
         clearFilterBtnPagos.addEventListener('click', () => {
             clearFilterInputs();
-            currentFilter = {}; 
-            applyFilters(); 
+            currentFilter = {};
+            applyFilters();
         });
     }
+    // Añadir listener para redimensionamiento o zoom
+    window.addEventListener('resize', () => {
+        if (filterCardVisible && currentActiveFilterBtn) {
+            const filterCard = document.getElementById('filter-card');
+            positionFilterCard(filterCard, currentActiveFilterBtn);
+        }
+    });
 
-    // Cerrar la tarjeta de filtro al hacer clic fuera
     document.addEventListener('click', handleClickOutsideFilterCard);
-
-    // Inicializar la visibilidad del botón de limpiar filtro al cargar la página
     updateClearFilterButtonVisibility();
 });

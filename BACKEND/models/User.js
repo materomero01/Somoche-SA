@@ -19,7 +19,6 @@ const validateUser = (data) => {
     for (const key of Object.keys(data)) {
         const value = data[key];
         const rules = requiredFields[key];
-        console.log(key + " " + value)
 
         // Si el campo no está en requiredFields, incluirlo en validatedData sin validar
         if (!rules) {

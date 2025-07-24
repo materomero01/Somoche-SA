@@ -1,43 +1,48 @@
-// /FRONTEND/js/tabla.js (Modificado para edición inline con CSS mejorado)
-
 export function renderTabla({ 
     containerId, 
     paginacionContainerId, 
-    datos, 
     columnas, 
-    itemsPorPagina = 10, 
-    paginaActual = 1, 
-    currentPage = 1, // Nuevo parámetro para la página actual
+    datos, 
+    itemsPorPagina = 5, 
+    currentPage = 1,
     actions = [], 
     editingRowId = null, 
     onEdit = null,
-    tableType = 'default', // Nuevo parámetro para distinguir tipos de tabla
+    tableType = 'default',
     onPageChange = null, // Callback para notificar cambios de página
-    checkboxColumn = false, // NUEVO: Parámetro para la columna de checkbox
-    checkboxColumnPosition = 'start', // NUEVO: Posición de la columna de checkbox ('start' o 'end')
-    onCheckboxChange = null // NUEVO: Callback para el cambio de checkbox
+    checkboxColumn = false,
+    checkboxColumnPosition = 'start',
+    onCheckboxChange = null,
+    useScrollable = false
 }) {
     const container = document.getElementById(containerId);
-    const paginacionContainer = document.getElementById(paginacionContainerId);
+    const paginacionContainer = useScrollable ? null : document.getElementById(paginacionContainerId);
+    const tableWrapper = container.querySelector('.tabla-dinamica');
 
     if (!container) {
         console.error(`Contenedor de tabla '${containerId}' no encontrado.`);
         return;
     }
-    if (!paginacionContainer) {
+    if (!useScrollable && !paginacionContainer) {
         console.error(`Contenedor de paginación '${paginacionContainerId}' no encontrado.`);
         return;
     }
 
-    // Usar currentPage si se proporciona, sino usar paginaActual
-    const pageToUse = currentPage || paginaActual;
+    // Store current scroll position if scrollable
+    let scrollPosition = 0;
+    if (useScrollable && tableWrapper) {
+        scrollPosition = tableWrapper.scrollTop;
+    }
 
-    // Agregar clase específica para el tipo de tabla
-    container.className = `tabla-dinamica ${tableType === 'clientes' ? 'tabla-clientes' : ''}`;
-    
-    container.dataset.currentPage = pageToUse;
+    // Limpiar contenedores
     container.innerHTML = "";
-    paginacionContainer.innerHTML = "";
+    if (!useScrollable && paginacionContainer) {
+        paginacionContainer.innerHTML = "";
+    }
+
+    // Crear contenedor para la tabla
+    const newTableWrapper = document.createElement("div");
+    newTableWrapper.className = `tabla-dinamica ${useScrollable ? 'tabla-scrollable' : ''} ${tableType === 'clientes' ? 'tabla-clientes' : ''}`;
 
     const tabla = document.createElement("table");
     tabla.classList.add("data-table");
@@ -47,10 +52,9 @@ export function renderTabla({
     // --- Renderizar Encabezados de la Tabla ---
     const headerRow = document.createElement("tr");
     
-    // Añadir encabezado del checkbox al inicio si la posición es 'start'
-    if (checkboxColumn && checkboxColumnPosition === 'start') {
+    if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'start') {
         const th = document.createElement("th");
-        th.classList.add("checkbox-cell"); // Clase para estilos específicos del checkbox
+        th.classList.add("checkbox-cell");
         headerRow.appendChild(th);
     }
 
@@ -59,17 +63,26 @@ export function renderTabla({
         th.textContent = col.label;
         headerRow.appendChild(th);
     });
+
     if (actions.length > 0) {
         const thAcciones = document.createElement("th");
         thAcciones.textContent = "Acciones";
         thAcciones.classList.add("acciones-cell");
+        thAcciones.style.textAlign = "center";
         headerRow.appendChild(thAcciones);
     }
 
-    // Añadir encabezado del checkbox al final si la posición es 'end'
-    if (checkboxColumn && checkboxColumnPosition === 'end') {
+    if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
         const th = document.createElement("th");
-        th.classList.add("checkbox-cell"); // Clase para estilos específicos del checkbox
+        if (datos.length > 0 && datos[0].facturaSubida != null) {
+            const facturaButton = document.createElement("button");
+            facturaButton.classList.add("btn-action", "btn-upload");
+            facturaButton.innerHTML = '<i class="bi bi-file-earmark-arrow-up"></i>';
+            facturaButton.title = "Subir Factura";
+            th.classList.add("checkbox-cell", "factura-cell");
+            th.style.textAlign = "center";
+            th.appendChild(facturaButton);
+        }
         headerRow.appendChild(th);
     }
 
@@ -77,20 +90,17 @@ export function renderTabla({
     tabla.appendChild(thead);
     tabla.appendChild(tbody);
 
-    // --- Lógica de Paginación ---
+    // --- Lógica de Paginación o Scroll ---
     const totalPaginas = Math.ceil(datos.length / itemsPorPagina);
 
     function renderBody(page) {
         tbody.innerHTML = "";
-        const start = (page - 1) * itemsPorPagina;
-        const end = start + itemsPorPagina;
-        const currentData = datos.slice(start, end);
+        const currentData = useScrollable ? datos : datos.slice((page - 1) * itemsPorPagina, page * itemsPorPagina);
 
         if (currentData.length === 0) {
             const noDataRow = document.createElement('tr');
             const noDataCell = document.createElement('td');
-            // Ajustar colspan para incluir la nueva columna de checkbox
-            noDataCell.colSpan = columnas.length + (actions.length > 0 ? 1 : 0) + (checkboxColumn ? 1 : 0);
+            noDataCell.colSpan = columnas.length + (actions.length > 0 ? 1 : 0) + (checkboxColumn && !editingRowId ? 1 : 0);
             noDataCell.textContent = "No se encontraron resultados.";
             noDataCell.style.textAlign = "center";
             noDataCell.style.padding = "20px";
@@ -103,27 +113,27 @@ export function renderTabla({
         currentData.forEach(item => {
             const tr = document.createElement("tr");
             tr.setAttribute('data-id', item.id);
+            tr.id = `row-${item.id}`; // Unique ID for each row
             
-            // Determinar si esta fila está en modo edición
             const isEditing = editingRowId === item.id;
-            
             if (isEditing) {
                 tr.classList.add('editing-row');
             }
 
-            // Añadir la celda del checkbox al inicio si la posición es 'start'
-            if (checkboxColumn && checkboxColumnPosition === 'start') {
+            if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'start') {
                 const td = document.createElement("td");
                 td.classList.add("checkbox-cell");
                 const checkbox = document.createElement("input");
                 checkbox.type = "checkbox";
-                checkbox.setAttribute('data-id', item.id); // Guardar el ID del cheque
+                checkbox.setAttribute('data-id', item.id);
+                checkbox.checked = false;
                 if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
                     checkbox.checked = true;
                 }
                 checkbox.addEventListener('change', (e) => {
                     if (onCheckboxChange) {
-                        onCheckboxChange(item.id, e.target.checked); // Notificar el cambio
+                        item.selected = !item.selected;
+                        onCheckboxChange(item.id, e.target.checked);
                     }
                 });
                 td.appendChild(checkbox);
@@ -133,13 +143,38 @@ export function renderTabla({
             columnas.forEach(col => {
                 const td = document.createElement("td");
                 
-                if (isEditing) {
-                    // Crear input editable
+                if (col.key === 'facturaSubida' && !isEditing) {
+                    if (item.facturaSubida) {
+                        const downloadBtn = document.createElement("button");
+                        downloadBtn.className = "btn-action download-btn";
+                        downloadBtn.innerHTML = '<i class="bi bi-download"></i>';
+                        downloadBtn.title = "Descargar factura";
+                        downloadBtn.addEventListener('click', () => {
+                            descargarFactura(item.id);
+                        });
+                        td.appendChild(downloadBtn);
+                    } else {
+                        const checkbox = document.createElement("input");
+                        checkbox.type = "checkbox";
+                        checkbox.setAttribute('data-id', item.id);
+                        checkbox.checked = false;
+                        if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
+                            checkbox.checked = true;
+                        }
+                        checkbox.addEventListener('change', (e) => {
+                            if (onCheckboxChange) {
+                                item.selected = !item.selected;
+                                onCheckboxChange(item.id, e.target.checked);
+                            }
+                        });
+                        td.appendChild(checkbox);
+                    }
+                } else if (isEditing) {
                     const input = createEditableInput(col, item[col.key], item.id);
                     td.appendChild(input);
                 } else {
-                    // Mostrar texto normal
                     td.textContent = item[col.key] !== undefined ? item[col.key] : '';
+                    td.title = item[col.key] || ''; /* Tooltip for full text */
                 }
                 
                 if (col.class) {
@@ -153,7 +188,6 @@ export function renderTabla({
                 tdAcciones.classList.add("acciones-cell");
                 
                 if (isEditing) {
-                    // Mostrar botones de guardar y cancelar
                     const saveBtn = document.createElement("button");
                     saveBtn.className = "btn-action save-btn";
                     saveBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
@@ -171,11 +205,9 @@ export function renderTabla({
                         e.stopPropagation();
                         cancelEditingRow(item.id);
                     });
-                    
                     tdAcciones.appendChild(saveBtn);
                     tdAcciones.appendChild(cancelBtn);
                 } else {
-                    // Mostrar acciones normales
                     const actionContainer = document.createElement("div");
                     actionContainer.classList.add("action-icons");
                     
@@ -183,7 +215,6 @@ export function renderTabla({
                         const button = document.createElement("button");
                         button.className = "btn-action";
                         
-                        // Agregar clases específicas según el tipo de acción
                         if (action.icon.includes('pencil')) {
                             button.classList.add('edit-btn');
                         } else if (action.icon.includes('trash')) {
@@ -199,7 +230,7 @@ export function renderTabla({
                                 }
                             });
                         }
-                        
+
                         button.innerHTML = `<i class="${action.icon}"></i>`;
                         button.title = action.tooltip || '';
                         button.addEventListener('click', (e) => {
@@ -215,22 +246,34 @@ export function renderTabla({
                 tr.appendChild(tdAcciones);
             }
 
-            // Añadir la celda del checkbox al final si la posición es 'end'
-            if (checkboxColumn && checkboxColumnPosition === 'end') {
+            if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
                 const td = document.createElement("td");
                 td.classList.add("checkbox-cell");
-                const checkbox = document.createElement("input");
-                checkbox.type = "checkbox";
-                checkbox.setAttribute('data-id', item.id); // Guardar el ID del cheque
-                if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
-                    checkbox.checked = true;
-                }
-                checkbox.addEventListener('change', (e) => {
-                    if (onCheckboxChange) {
-                        onCheckboxChange(item.id, e.target.checked); // Notificar el cambio
+                if (item.facturaSubida) {
+                    const downloadBtn = document.createElement("button");
+                    downloadBtn.className = "btn-action navigate-btn";
+                    downloadBtn.innerHTML = '<i class="bi bi-download"></i>';
+                    downloadBtn.title = "Descargar factura";
+                    downloadBtn.addEventListener('click', () => {
+                        descargarFactura(item.id);
+                    });
+                    td.appendChild(downloadBtn);
+                } else {
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.setAttribute('data-id', item.id);
+                    checkbox.checked = false;
+                    if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
+                        checkbox.checked = true;
                     }
-                });
-                td.appendChild(checkbox);
+                    checkbox.addEventListener('change', (e) => {
+                        if (onCheckboxChange) {
+                            item.selected = !item.selected;
+                            onCheckboxChange(item.id, e.target.checked);
+                        }
+                    });
+                    td.appendChild(checkbox);
+                }
                 tr.appendChild(td);
             }
 
@@ -242,10 +285,8 @@ export function renderTabla({
         let input;
         
         if (column.type === 'select' && column.options) {
-            // Crear select para campos con opciones
             input = document.createElement('select');
             input.className = 'editable-input editable-select';
-            
             column.options.forEach(option => {
                 const optionElement = document.createElement('option');
                 optionElement.value = option;
@@ -256,21 +297,19 @@ export function renderTabla({
                 input.appendChild(optionElement);
             });
         } else {
-            // Crear input de texto normal
             input = document.createElement('input');
             input.type = getInputType(column.key);
             input.className = 'editable-input';
             input.value = value || '';
-            
-            // Agregar placeholder apropiado
             input.placeholder = getPlaceholder(column.key);
+            if (column.key === 'tarifa'){
+                input.id = 'tarifaEdit';
+            }
         }
         
-        // Agregar atributos para mejor UX
         input.setAttribute('data-field', column.key);
         input.setAttribute('data-item-id', itemId);
         
-        // Agregar event listener para cambios
         input.addEventListener('input', (e) => {
             if (onEdit) {
                 onEdit(itemId, column.key, e.target.value);
@@ -283,7 +322,6 @@ export function renderTabla({
             }
         });
         
-        // Agregar event listener para Enter (guardar) y Escape (cancelar)
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -298,46 +336,39 @@ export function renderTabla({
     }
 
     function getInputType(fieldKey) {
-        switch (fieldKey) {
-            case 'email':
-                return 'email';
-            case 'telefono':
-                return 'number';
-            default:
-                return 'text';
-        }
+        if (fieldKey.includes('fecha')) return 'date';
+        if (['km', 'tarifa', 'variacion', 'toneladas', 'cargado', 'descargado', 'importe'].includes(fieldKey)) return 'number';
+        return 'text';
     }
 
     function getPlaceholder(fieldKey) {
         const placeholders = {
-            'nombre': 'Nombre y Apellido',
-            'cuil': 'XX-XXXXXXXX-X',
-            'cuit': 'XX-XXXXXXXX-X',
-            'chasis': 'Patente del chasis',
-            'acoplado': 'Patente del acoplado',
-            'telefono': 'Ej: 2262123456',
-            'email': 'ejemplo@correo.com'
+            fecha: 'YYYY-MM-DD',
+            comprobante: 'Nº de comprobante',
+            campo: 'Nombre del campo',
+            km: 'Kilómetros',
+            tarifa: 'Tarifa por tonelada',
+            variacion: 'Variación (%)',
+            toneladas: 'Toneladas',
+            cargado: 'Peso cargado',
+            descargado: 'Peso descargado'
         };
         return placeholders[fieldKey] || 'Ingrese el valor';
     }
 
     function saveEditingRow(itemId) {
-        // Disparar evento personalizado para que choferes-clientes.js lo maneje
-        const event = new CustomEvent('saveEdit', {
-            detail: { itemId: itemId }
-        });
+        const event = new CustomEvent('saveEdit', { detail: { itemId } });
         document.dispatchEvent(event);
     }
 
     function cancelEditingRow(itemId) {
-        // Disparar evento personalizado para que choferes-clientes.js lo maneje
-        const event = new CustomEvent('cancelEdit', {
-            detail: { itemId: itemId }
-        });
+        const event = new CustomEvent('cancelEdit', { detail: { itemId } });
         document.dispatchEvent(event);
     }
 
     function renderPaginacion(currentPage) {
+        if (useScrollable) return;
+
         paginacionContainer.innerHTML = "";
 
         const btnPrev = document.createElement("button");
@@ -419,17 +450,33 @@ export function renderTabla({
         container.dataset.currentPage = nuevaPagina;
         renderBody(nuevaPagina);
         renderPaginacion(nuevaPagina);
-        
         // Notificar el cambio de página al componente padre
         if (onPageChange) {
             onPageChange(nuevaPagina);
         }
     }
 
-    // Inicializa el cuerpo y la paginación con la página actual
-    renderBody(pageToUse);
-    renderPaginacion(pageToUse);
+    
 
-    // Adjuntar la tabla completa al contenedor
-    container.appendChild(tabla);
+    // Inicializa el cuerpo y la paginación con la página actual
+    renderBody(currentPage);
+    if (!useScrollable) {
+        renderPaginacion(currentPage);
+    }
+
+    newTableWrapper.appendChild(tabla);
+    container.appendChild(newTableWrapper);
+
+    // Restore scroll position to edited row if applicable
+    if (useScrollable && editingRowId && newTableWrapper) {
+        const editedRow = document.getElementById(`row-${editingRowId}`);
+        if (editedRow) {
+            const rowOffset = editedRow.offsetTop;
+            const containerHeight = newTableWrapper.clientHeight;
+            const scrollOffset = rowOffset - (containerHeight / 2); // Center the row
+            newTableWrapper.scrollTop = scrollOffset > 0 ? scrollOffset : 0;
+        } else {
+            newTableWrapper.scrollTop = scrollPosition; // Fallback to previous position
+        }
+    }
 }

@@ -33,12 +33,19 @@
         <div id="viajes" class="tab-content">
      <h2 style="padding-left: 15px;">Datos del viaje</h2>
 
+     <div class="form-row">
+        <div class="form-group autocomplete-container" style="width: 40%;;">
+            <label for="chofer">Chofer</label>
+            <input type="search" id="chofer" name="chofer" style="width: 100%;">
+            <div class="suggestions-list" id="chofer-suggestions"></div>
+        </div>
+        <div class="form-group autocomplete-container" style="align-items: end; width: 40%;">
+            <label for="cliente">Cliente</label>
+            <input type="search" id="cliente" name="cliente" style="width: 100%;">
+            <div class="suggestions-list" id="cliente-suggestions"></div>
+        </div>
+    </div>
      <form class="form-grid" id="formViaje">
-      <div class="form-group full-width autocomplete-container">
-       <label for="chofer" style="font-weight: bold;">Chofer</label>
-       <input type="search" id="chofer" placeholder="Nombre y Apellido" required/>
-       <div id="chofer-suggestions" class="suggestions-list"></div> 
-      </div>
       <div class="form-group">
        <label for="kilometro">Kilómetros</label>
        <input type="number" id="kilometro" name="kilometro" placeholder="Cantidad de kilómetros" required/>

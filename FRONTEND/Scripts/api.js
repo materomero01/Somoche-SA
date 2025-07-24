@@ -1,13 +1,6 @@
-const apiURL = 'http://localhost:3000';
+import {getToken, handleAuthorization, handleAuthError} from './apiPublic.js'
 
-// Obtener el token desde localStorage
-function getToken() {
-    const token = localStorage.getItem('jwtToken');
-    if (!token) {
-        throw new Error('No se encontró token JWT en localStorage.');
-    }
-    return token;
-}
+const apiURL = 'http://localhost:3000/api';
 
 // Función para cerrar sesión
 export function logout() {
@@ -15,28 +8,12 @@ export function logout() {
     window.location.href = "login.html";
 }
 
-export function handleAuthorization () {
-    const userRole = localStorage.getItem('userRole');
-    if (!userRole || userRole !== 'admin'){
-        alert("No tienes autorización para realizar esta acción");
-        logout();
-    }
-}
-
-// Manejar errores de autenticación
-function handleAuthError(error) {
-    console.error(error.message);
-    alert('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
-    logout();
-    return [];
-}
-
 // Obtener todos los choferes
 export async function fetchAllChoferes() {
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/choferes/all`, {
+        const response = await fetch(`${apiURL}/choferes/all`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -63,7 +40,7 @@ export async function fetchAllDataChoferes() {
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/choferes/allData`, {
+        const response = await fetch(`${apiURL}/choferes/allData`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -86,7 +63,7 @@ export async function fetchAllDataChoferes() {
 export async function fetchTarifas() {
     try {
         const token = getToken();
-        const response = await fetch(`${apiURL}/api/catac/tarifas`, {
+        const response = await fetch(`${apiURL}/catac/tarifas`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -99,7 +76,6 @@ export async function fetchTarifas() {
 
         const data = await response.json();
         localStorage.setItem('tarifasCatac', JSON.stringify(data.tarifas));
-        console.log(data.tarifas);
         return data.tarifas;
     } catch (error) {
         console.error('Error al buscar las tarifas en el backend:', error.message);
@@ -112,7 +88,7 @@ export async function updateTarifas(payload) {
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/catac/update`, {
+        const response = await fetch(`${apiURL}/catac/update`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -139,7 +115,7 @@ export async function addViaje(payload) {
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/viajes/addViaje`, {
+        const response = await fetch(`${apiURL}/viajes/addViaje`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -152,10 +128,34 @@ export async function addViaje(payload) {
             throw new Error('Error al añadir viaje');
         }
 
-        return await response.json();
+        return response;
     } catch (error) {
-        handleAuthError(error);
+        console.log(error.message);
         throw error;
+    }
+}
+
+// Modificar Viaje
+export async function updateViaje(payload) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/updateViajes`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok){
+            const data = await response.json();
+            console.log(data.message);
+        }
+        return response.ok;
+    } catch (error){
+        console.log(error.message);
     }
 }
 
@@ -164,7 +164,7 @@ export async function addPagos(payload) {
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/pagos/addPagos`, {
+        const response = await fetch(`${apiURL}/pagos/addPagos`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -177,18 +177,19 @@ export async function addPagos(payload) {
             throw new Error('Error al añadir los pagos');
         }
 
-        return await response.json();
+        return response;
     } catch (error) {
-        handleAuthError(error);
+        console.log(error.message);
         throw error;
     }
 }
 
-// Modificar un chofer
-export async function updateChofer(cuilOriginal, payload){
+// Modificar Pagos
+export async function updatePagos(payload) {
     try {
         const token = getToken();
-        const response = await fetch(`${apiURL}/api/choferes/updateChofer/${encodeURIComponent(cuilOriginal)}`, {
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/updatePagos`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -196,15 +197,43 @@ export async function updateChofer(cuilOriginal, payload){
             },
             body: JSON.stringify(payload)
         });
-        
+
         if (!response.ok){
             const data = await response.json();
+            console.log(data.message);
+        }
+        return response.ok;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+// Marcar cheques como pagos
+export async function setChequesPagos(cheques) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/setChequesPagos`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(cheques)
+        });
+
+        const data = await response.json();
+        if(response.status === 403) {
+            handleAuthError(data.message);
+            return;
+        }
+        if (!response.ok) {
             alert(data.message);
         }
-        
         return response.ok;
     } catch (error) {
         console.log(error.message);
+        alert(error.message);
     }
 }
 
@@ -213,7 +242,7 @@ export async function deleteChofer(cuil){
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/users/updateUser`, {
+        const response = await fetch(`${apiURL}/users/updateUser`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -236,7 +265,7 @@ export async function insertChofer(payload) {
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/users/register`, {
+        const response = await fetch(`${apiURL}/users/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -260,7 +289,7 @@ export async function fetchClientes() {
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/clientes/`, {
+        const response = await fetch(`${apiURL}/clientes/`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -272,7 +301,12 @@ export async function fetchClientes() {
         }
 
         const data = await response.json();
-        return data.clientes;
+        if (data.clientes && Array.isArray(data.clientes)) {
+            console.log('Clientes cargados:', data.clientes.length);
+            return data.clientes;
+        } else {
+            throw new Error('El formato de respuesta de choferes no es el esperado.');
+        }
     } catch (error) {
         handleAuthError(error);
         throw error;
@@ -284,7 +318,7 @@ export async function updateCliente(cuitOriginal, payload){
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/clientes/updateCliente/${encodeURIComponent(cuitOriginal)}`, {
+        const response = await fetch(`${apiURL}/clientes/updateCliente/${encodeURIComponent(cuitOriginal)}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -314,7 +348,7 @@ export async function insertCliente(payload){
             alert("Los datos ingresados para el cliente no son validos");
             return;
         }
-        const response = await fetch(`${apiURL}/api/clientes/addCliente`, {
+        const response = await fetch(`${apiURL}/clientes/addCliente`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -334,3 +368,58 @@ export async function insertCliente(payload){
     }
 }
 
+// Obtener viajes cliente
+export async function getViajesCliente(cuit) {
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/viajesCliente/${encodeURIComponent(cuit)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+// Añadir resumen luego de cerrar cuenta
+export async function addResumen(cuil, groupId, viajesGroup, pagosGroup, pagoRestante) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        let payload = {
+            choferCuil: cuil,
+            groupStamp: groupId,
+            viajes: viajesGroup,
+            pagos: pagosGroup,
+        };
+
+        if (pagoRestante){
+            payload = {
+                ...payload,
+                pagoAdicional: pagoRestante
+            };
+        }
+        const response = await fetch(`${apiURL}/resumenes/insertResumen`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok){
+            const data = await response.json();
+            console.log(data.message);
+        }
+        
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}

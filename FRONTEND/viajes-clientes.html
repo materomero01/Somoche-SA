@@ -1,0 +1,55 @@
+<div class="modal-content tables" id="contentModalViajes">
+    <span id= "closeBtnViaje" class="close-button">&times;</span>
+    <div class="modal-header-content" style="margin-bottom: 50px;">
+        <div style="display: flex; gap: 7px; align-items: center;">
+            <div class="person-info">
+                <i class="bi bi-buildings"></i>
+                <span>Nombre del Cliente</span>
+            </div>
+            <button class="btn btn-gray btn-circle" id="historial">
+                <i class="bi bi-clock-history"></i>
+            </button>
+            <div id="back-historial" class="hidden">
+                <button class="btn btn-sm btn-gray" id="back-historialBtn">
+                    <i class="bi bi-arrow-left"></i>
+                    Atras
+                </button>
+                <select id="selectResumenes">
+                    <option value=10> 10 </option>
+                    <option value=20> 20 </option>
+                    <option value=30> 30 </option>
+                    <option value=40> 40 </option>
+                </select>
+            </div>
+        </div>
+        <h2 id="headerModal">Viajes</h2>
+    </div>
+
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        Cargando datos...
+    </div>
+    <div id="content-clientesViajes" class="hidden">
+        <div class="table-section">
+            <div id="clientesViajesSearchBar" class="search-bar">
+                <input type="text" class="search-input" placeholder="Buscar viaje ..." />
+                <div class="search-icon"><i class="bi bi-search"></i></div>
+            </div>
+            <div id="clientesViajes-table" class="tabla-dinamica" style="margin-top: 15px;"></div>
+        </div>
+
+        <div class="summary-boxes">
+            <div id ="subtotal"class="summary-box subtotal">
+                Subtotal: $0.00
+            </div>
+            <div id="iva" class="summary-box iva">
+                IVA (21%): $0.00
+            </div>
+            <div id="total-viajes" class="summary-box total-viajes">
+                Total Viajes: $0.00
+            </div>
+        </div>
+
+        <div id="paginacion-viajes" class="pagination-controls"></div>
+    </div>
+</div>

@@ -31,9 +31,21 @@
 }
 
 .modal-content h2 {
-    margin-top: 0;
     color: #333;
     font-size: 1.5rem;
+    position: relative;
+    left: 50%; /* Centra horizontalmente */
+    transform: translateX(-50%); /* Ajusta para que el centro del h2 esté en el medio */
+    text-align: center; /* Centra el texto dentro del h2 */
+}
+
+.modal-header-content h2 {
+    position: absolute; /* Posiciona el h2 absolutamente respecto a modal-header-content */
+}
+
+/* Clase para deshabilitar el scroll */
+.no-scroll {
+    overflow: hidden;
 }
 
 .modal-content p {
@@ -92,4 +104,39 @@
 
 .modal-buttons .btn-secondary:hover {
     background-color: #5a6268;
+}
+
+/* Modal Viajes / Pagos */
+
+.modal-content.tables {
+    max-width: 90%;
+    align-items: center;
+}
+.modal-header-content {
+    display:flex;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+    width: 100%;
+}
+.person-info {
+    display: flex;
+    align-items: center;
+    margin-right: auto;
+    gap: 10px;
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px 15px;
+}
+
+.person-info i {
+    font-size: 1.5rem;
+    color: #495057;
+}
+
+.person-info span {
+    font-weight: bold;
+    color: #343a40;
 }

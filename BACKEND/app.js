@@ -15,6 +15,7 @@ var viajesRouter = require('./routes/viajes');
 var pagosRouter = require('./routes/pagos');
 var catacRouter = require('./routes/catac');
 var clientesRouter = require('./routes/clientes');
+var resumenesRouter = require('./routes/resumenes');
 var app = express();
 
 // view engine setup
@@ -58,6 +59,7 @@ app.use('/api/viajes', viajesRouter);
 app.use('/api/pagos', pagosRouter);
 app.use('/api/catac', catacRouter);
 app.use('/api/clientes', clientesRouter);
+app.use('/api/resumenes', resumenesRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

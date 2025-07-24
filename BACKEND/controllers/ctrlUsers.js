@@ -94,6 +94,18 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ message: 'La contraseña no es correcta.' });
         }
 
+        let choferTrabajador;
+        if (user.role === "chofer"){
+            const choferResult = await pool.query(
+                'SELECT tipo_trabajador FROM chofer WHERE cuil = $1',
+                [cuil]
+            );
+            if (choferResult.rows.length === 0) {
+                return res.status(401).json({ message: 'El CUIL proporcionado no se encuentra registrado como chofer.' });
+            }
+            choferTrabajador = choferResult.rows[0];
+        }
+
         // Generar token JWT
         const payload = {
             cuil: user.cuil,
@@ -108,7 +120,8 @@ exports.loginUser = async (req, res) => {
             token,
             nombre_apellido: user.nombre_apellido,
             role: user.role,
-            cuil: cuil
+            cuil: cuil,
+            trabajador: choferTrabajador
         });
     } catch (error) {
         console.error('Error en loginUser:', error);
