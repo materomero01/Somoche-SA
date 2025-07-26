@@ -1,5 +1,8 @@
 // /FRONTEND/scripts/mi-cuenta-chofer.js
 
+// Importar las nuevas funciones desde api.js
+import { fetchChoferData as apiFetchChoferData, updateChofer } from './api.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Carga el header
     if (typeof loadHeader === 'function') {
@@ -98,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // --- INICIO: Lógica para enviar los cambios al backend ---
-    accountForm.addEventListener('submit', async (event) => { // Hacemos la función asíncrona
+    accountForm.addEventListener('submit', async (event) => {
         event.preventDefault(); 
         
         const formData = new FormData(accountForm);
@@ -119,33 +122,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         console.log('Datos a guardar (frontend):', updatedData);
 
-        const token = localStorage.getItem('jwtToken');
         const userCuil = localStorage.getItem('userCuil');
 
-        if (!token || !userCuil) {
-            alert('No se pudo guardar: Sesión no iniciada o token/CUIL faltante.');
-            console.error('Token o CUIL del usuario no encontrado para guardar.');
+        if (!userCuil) {
+            alert('No se pudo guardar: CUIL de usuario faltante.');
+            console.error('CUIL del usuario no encontrado para guardar.');
             return;
         }
 
         try {
-            const response = await fetch(`${BASE_URL}/choferes/updateChofer/${userCuil}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(updatedData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Error al guardar datos del chofer:', response.status, errorData.message);
-                alert(`Error al guardar cambios: ${errorData.message || 'Error desconocido'}`);
-                return;
-            }
-
-            const successData = await response.json();
+            // Usar la función importada de api.js para la actualización
+            const successData = await updateChofer(userCuil, updatedData);
+            
             console.log('Datos guardados exitosamente:', successData);
             alert('Cambios guardados exitosamente!');
             
@@ -156,59 +144,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             setViewMode(); // Volver al modo de visualización
 
         } catch (error) {
-            console.error('Error de red o desconocido al guardar datos del chofer:', error);
-            alert('Error de conexión al guardar los datos del chofer.');
+            console.error('Error al guardar datos del chofer:', error);
+            alert(`Error al guardar cambios: ${error.message || 'Error desconocido'}`);
         }
     });
     // --- FIN: Lógica para enviar los cambios al backend ---
 
     // --- INICIO: Carga de datos del chofer desde el backend ---
-    const BASE_URL = 'http://localhost:3000/api'; // Asegúrate que este sea el puerto correcto de tu backend
+    // La BASE_URL ya no es necesaria aquí, se maneja en api.js
+    // const BASE_URL = 'http://localhost:3000/api'; 
 
-    // 1. Obtener el token y el CUIL del usuario logueado
-    const token = localStorage.getItem('jwtToken');
     const userCuil = localStorage.getItem('userCuil');
 
-    if (!token || !userCuil) {
-        console.error('Token o CUIL del usuario no encontrado en localStorage. Redirigiendo al login...');
+    if (!userCuil) {
+        console.error('CUIL del usuario no encontrado en localStorage. Redirigiendo al login...');
         window.location.href = '/FRONTEND/login.html';
-        // Ocultar spinner si no hay token/CUIL y no se cargará nada
+        // Ocultar spinner si no hay CUIL y no se cargará nada
         if (loadingSpinner) loadingSpinner.style.display = 'none'; 
         return;
     }
 
-    async function fetchChoferData(cuil, authToken) {
+    async function loadChoferDataAndRender() {
         try {
-            const response = await fetch(`${BASE_URL}/choferes/${cuil}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Error al obtener datos del chofer:', response.status, errorData.message);
-                let errorMessage = 'Error desconocido al cargar datos.';
-                if (response.status === 403) {
-                     errorMessage = 'No tienes permiso para ver esta información. (Asegúrate de ser Admin o ver tus propios datos)';
-                } else if (response.status === 404) {
-                     errorMessage = 'Chofer no encontrado.';
-                } else if (response.status === 401) {
-                     errorMessage = 'Sesión expirada o no autorizada. Por favor, inicia sesión de nuevo.';
-                     // Redirigir al login si la sesión expira o no está autorizada
-                     window.location.href = '/FRONTEND/login.html';
-                     return; // Salir de la función para evitar más procesamiento
-                }
-                alert(errorMessage);
-                // Si hay un error, el spinner se ocultará en el finally, pero el formulario permanecerá oculto.
-                // Podrías mostrar un mensaje de error permanente en el mainContentWrapper aquí si lo deseas.
-                if (mainContentWrapper) mainContentWrapper.innerHTML = `<p class="error-message">${errorMessage}</p>`;
-                return;
-            }
-
-            const choferData = await response.json();
+            // Usar la función importada de api.js para obtener los datos
+            const choferData = await apiFetchChoferData(userCuil);
+            
             console.log('Datos del chofer obtenidos:', choferData);
 
             // Rellenar los inputs del formulario con los datos obtenidos
@@ -227,9 +187,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             setViewMode(); // Asegurarse de que los inputs estén en modo solo lectura al cargar
 
         } catch (error) {
-            console.error('Error de red o desconocido al obtener datos del chofer:', error);
-            alert('Error de conexión al cargar los datos del chofer.');
-            if (mainContentWrapper) mainContentWrapper.innerHTML = `<p class="error-message">Error de conexión al cargar los datos.</p>`;
+            console.error('Error al obtener datos del chofer:', error);
+            let displayMessage = `Error al cargar los datos: ${error.message || 'Error desconocido'}`;
+            // Puedes añadir lógica para redirigir si el error es por autenticación, por ejemplo
+            if (error.message.includes('Token inválido o expirado') || error.message.includes('No se encontró token JWT')) {
+                alert('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
+                // Redirigir al login
+                window.location.href = '/FRONTEND/login.html';
+                return; 
+            }
+            alert(displayMessage);
+            if (mainContentWrapper) mainContentWrapper.innerHTML = `<p class="error-message">${displayMessage}</p>`;
         } finally {
             // Ocultar el spinner y mostrar el contenido (o el mensaje de error si lo hay)
             if (loadingSpinner) loadingSpinner.style.display = 'none';
@@ -237,6 +205,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Llamar a la función para cargar los datos al inicio
-    fetchChoferData(userCuil, token);
+    // Llamar a la función principal que carga los datos y maneja el renderizado
+    loadChoferDataAndRender();
 });

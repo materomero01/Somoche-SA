@@ -184,7 +184,7 @@ export async function addPagos(payload) {
     }
 }
 
-// Modificar un chofer
+// Modificar un chofer (ya existe en tu api.js original)
 export async function updateChofer(cuilOriginal, payload){
     try {
         const token = getToken();
@@ -208,12 +208,12 @@ export async function updateChofer(cuilOriginal, payload){
     }
 }
 
-// Eliminar un chofer
+// Eliminar un chofer (ya existe en tu api.js original)
 export async function deleteChofer(cuil){
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/api/users/updateUser`, {
+        const response = await fetch(`${apiURL}/api/users/updateUser`, { // Ojo: esta URL parece incorrecta para un DELETE de chofer. Debería ser algo como `/api/choferes/deleteChofer/${cuil}`
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -231,7 +231,7 @@ export async function deleteChofer(cuil){
     }
 }
 
-// Añadir un CHOFER
+// Añadir un CHOFER (ya existe en tu api.js original)
 export async function insertChofer(payload) {
     try {
         const token = getToken();
@@ -255,7 +255,7 @@ export async function insertChofer(payload) {
     }
 }
 
-// Obtener Clientes
+// Obtener Clientes (ya existe en tu api.js original)
 export async function fetchClientes() {
     try {
         const token = getToken();
@@ -279,7 +279,7 @@ export async function fetchClientes() {
     }
 }
 
-// Modificar un cliente
+// Modificar un cliente (ya existe en tu api.js original)
 export async function updateCliente(cuitOriginal, payload){
     try {
         const token = getToken();
@@ -304,7 +304,7 @@ export async function updateCliente(cuitOriginal, payload){
     }
 }
 
-// Registrar un cliente
+// Registrar un cliente (ya existe en tu api.js original)
 export async function insertCliente(payload){
     try {
         const token = getToken();
@@ -334,3 +334,28 @@ export async function insertCliente(payload){
     }
 }
 
+// NUEVA FUNCIÓN AÑADIDA
+// Obtener datos de un chofer por CUIL
+export async function fetchChoferData(cuil) {
+    const token = getToken(); // Obtener el token internamente
+    try {
+        const response = await fetch(`${apiURL}/api/choferes/${cuil}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Error al obtener datos del chofer.');
+        }
+
+        return await response.json();
+
+    } catch (error) {
+        console.error('Error en fetchChoferData (api.js):', error);
+        throw error; // Re-lanzar para que el frontend lo capture en su try/catch
+    }
+}

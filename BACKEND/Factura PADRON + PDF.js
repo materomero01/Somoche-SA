@@ -1,0 +1,659 @@
+const fs = require('fs');
+const path = require('path');
+const PDFDocument = require('pdfkit');
+const axios = require('axios');
+const xml2js = require('xml2js');
+const QRCode = require('qrcode');
+const { promisify } = require('util');
+const { execSync } = require('child_process');
+
+// Directorio de certificados y scripts
+const certDir = path.join(__dirname, 'cert');
+
+// Promisify parseString para uso asíncrono
+const parseString = promisify(xml2js.parseString);
+
+// Función para limpiar el contenido del XML (solo para TA)
+function limpiarXML(xmlContent) {
+  let cleaned = xmlContent.replace(/^\uFEFF+|^[\s\x00-\x1F]+/, '');
+  const xmlStartIndex = cleaned.indexOf('<?xml');
+  if (xmlStartIndex > 0) {
+    cleaned = cleaned.substring(xmlStartIndex);
+  }
+  return cleaned;
+}
+
+// Función para verificar si el TA es válido (no vencido)
+async function esTAValido(responseFile) {
+  try {
+    let xmlContent = fs.readFileSync(path.join(certDir, responseFile), 'utf16le');
+    xmlContent = limpiarXML(xmlContent);
+    const parsed = await parseString(xmlContent, { explicitArray: false });
+    const expirationTime = new Date(parsed.loginTicketResponse.header.expirationTime);
+    const now = new Date();
+    return expirationTime > now;
+  } catch (error) {
+    console.warn(`Error al verificar TA en ${responseFile}: ${error.message}`);
+    return false;
+  }
+}
+
+// Función para generar o leer el TA
+async function generarTA() {
+  const cuitRepresentada = '20433059221';
+  const files = fs.readdirSync(certDir).filter(f => f.endsWith('-loginTicketResponse_padron.xml')).sort().reverse();
+  const latestResponse = files[0];
+
+  if (latestResponse && await esTAValido(latestResponse)) {
+    let xmlContent = fs.readFileSync(path.join(certDir, latestResponse), 'utf16le');
+    xmlContent = limpiarXML(xmlContent);
+    const parsed = await parseString(xmlContent, { explicitArray: false });
+    const credentials = parsed.loginTicketResponse.credentials;
+    console.log(`TA válido encontrado: ${latestResponse}`);
+    return {
+      token: credentials.token,
+      sign: credentials.sign,
+      cuitRepresentada
+    };
+  }
+
+  if (latestResponse) {
+    const prefix = latestResponse.replace('-loginTicketResponse_padron.xml', '');
+    const filesToDelete = [
+      `${prefix}-LoginTicketRequest_padron.xml`,
+      `${prefix}-LoginTicketRequest_padron.xml.cms-DER`,
+      `${prefix}-LoginTicketRequest_padron.xml.cms-DER-b64`,
+      latestResponse
+    ];
+    filesToDelete.forEach(file => {
+      try {
+        const filePath = path.join(certDir, file);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.warn(`Eliminado archivo vencido: ${file}`);
+        }
+      } catch (error) {
+        console.warn(`No se pudo eliminar ${file}: ${error.message}`);
+      }
+    });
+  }
+
+  const command = `powershell -File ${path.join(certDir, 'scriptPadron.ps1')}`;
+  try {
+    execSync(command, { stdio: 'inherit', cwd: certDir });
+    const newFiles = fs.readdirSync(certDir).filter(f => f.endsWith('-loginTicketResponse_padron.xml')).sort().reverse();
+    const newResponse = newFiles[0];
+    if (!newResponse) {
+      throw new Error('No se encontró el nuevo archivo de respuesta del WSAA');
+    }
+    let xmlContent = fs.readFileSync(path.join(certDir, newResponse), 'utf16le');
+    xmlContent = limpiarXML(xmlContent);
+    const parsed = await parseString(xmlContent, { explicitArray: false });
+    const credentials = parsed.loginTicketResponse.credentials;
+    if (!credentials || !credentials.token || !credentials.sign) {
+      throw new Error('No se encontraron token o sign en la respuesta del WSAA');
+    }
+    console.log(`Nuevo TA generado: ${newResponse}`);
+    return {
+      token: credentials.token,
+      sign: credentials.sign,
+      cuitRepresentada
+    };
+  } catch (error) {
+    throw new Error(`Error al generar TA: ${error.message}`);
+  }
+}
+
+// Función para consultar datos del cliente por CUIT
+async function consultarCUIT(cuit) {
+  const serviceUrl = 'https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5';
+  try {
+    const auth = await generarTA();
+    const soapRequest = `<?xml version="1.0" encoding="UTF-8"?>
+<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap-env:Body>
+    <ns0:getPersona_v2 xmlns:ns0="http://a5.soap.ws.server.puc.sr/">
+      <token>${auth.token}</token>
+      <sign>${auth.sign}</sign>
+      <cuitRepresentada>${auth.cuitRepresentada}</cuitRepresentada>
+      <idPersona>${cuit}</idPersona>
+    </ns0:getPersona_v2>
+  </soap-env:Body>
+</soap-env:Envelope>`;
+
+    console.log('XML enviado:', soapRequest);
+    const response = await axios.post(serviceUrl, soapRequest, {
+      headers: {
+        'Content-Type': 'text/xml; charset=utf-8',
+        'SOAPAction': 'http://a5.soap.ws.server.puc.sr/getPersona_v2'
+      }
+    });
+
+    const parsedResult = await parseString(response.data, { explicitArray: false });
+    console.log('Respuesta SOAP:', JSON.stringify(parsedResult, null, 2));
+
+    const persona = parsedResult['soap:Envelope']['soap:Body']['ns2:getPersona_v2Response']['personaReturn']['datosGenerales'];
+    if (!persona || parsedResult['soap:Envelope']['soap:Body']['ns2:getPersona_v2Response']['personaReturn']['errorConstancia']) {
+      const error = parsedResult['soap:Envelope']['soap:Body']['ns2:getPersona_v2Response']['personaReturn']['errorConstancia']?.error || 'CUIT no encontrado o inactivo';
+      throw new Error(error);
+    }
+
+    const datosRegimenGeneral = parsedResult['soap:Envelope']['soap:Body']['ns2:getPersona_v2Response']['personaReturn']['datosRegimenGeneral'];
+    let condicionIVA = 'No Informado';
+    if (datosRegimenGeneral?.impuesto) {
+      const impuesto = Array.isArray(datosRegimenGeneral.impuesto) ? datosRegimenGeneral.impuesto : [datosRegimenGeneral.impuesto];
+      const ivaImpuesto = impuesto.find(i => i.idImpuesto === '30');
+      condicionIVA = ivaImpuesto ? {
+        'AC': 'IVA Responsable Inscripto',
+        'EX': 'Exento',
+        'NA': 'No Alcanzado',
+        'XN': 'No Inscripto',
+        'AN': 'No Responsable',
+        'NI': 'No Informado'
+      }[ivaImpuesto.estadoImpuesto] || 'No Informado' : 'No Informado';
+    }
+
+    return {
+      cuitCliente: cuit,
+      razonSocialCliente: persona.razonSocial || `${persona.apellido || ''} ${persona.nombre || ''}`.trim(),
+      domicilioCliente: `${persona.domicilioFiscal?.direccion || ''} - ${persona.domicilioFiscal?.localidad || ''}, ${persona.domicilioFiscal?.descripcionProvincia || ''} (${persona.domicilioFiscal?.codPostal || ''})`.trim(),
+      condicionIVACliente: condicionIVA
+    };
+  } catch (error) {
+    throw new Error(`Error al consultar CUIT: ${error.message}`);
+  }
+}
+
+// Función para generar el enlace del QR según AFIP
+async function generarEnlaceQR(datos, impTotal) {
+  // Convertir fechaEmision de DD/MM/YYYY a YYYY-MM-DD
+  const [day, month, year] = datos.fechaEmision.split('/');
+  const fechaISO = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  
+  const qrData = {
+    ver: 1,
+    fecha: fechaISO,
+    cuit: 20433059221,
+    ptoVta: parseInt(datos.ptoVta, 10),
+    tipoCmp: 1,
+    nroCmp: parseInt(datos.cbteNro, 10),
+    importe: parseFloat(impTotal),
+    moneda: 'PES',
+    ctz: 1,
+    tipoCodAut: 'E',
+    codAut: parseInt(datos.cae, 10)
+  };
+  const qrJson = JSON.stringify(qrData);
+  const qrBase64 = Buffer.from(qrJson).toString('base64');
+  const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${qrBase64}`;
+  console.log('QR JSON:', qrJson); // Depuración
+  console.log('QR Base64:', qrBase64); // Depuración
+  return qrUrl;
+}
+
+// Función principal para generar la factura
+async function generarFactura(datos, outputPath = 'factura_simulada.pdf') {
+  const requiredFields = [
+    'ptoVta', 'cbteNro', 'fechaEmision', 'periodoDesde', 'periodoHasta',
+    'fechaVtoPago', 'condicionVenta', 'cae', 'caeFchVto', 'servicios'
+  ];
+  for (const field of requiredFields) {
+    if (!datos[field]) {
+      throw new Error(`Falta el campo obligatorio: ${field}`);
+    }
+  }
+
+  let clienteDatos = {
+    cuitCliente: datos.cuitCliente,
+    razonSocialCliente: datos.razonSocialCliente,
+    domicilioCliente: datos.domicilioCliente,
+    condicionIVACliente: datos.condicionIVACliente
+  };
+
+  if (datos.cuitCliente && !datos.razonSocialCliente) {
+    try {
+      clienteDatos = await consultarCUIT(datos.cuitCliente);
+    } catch (error) {
+      console.error(error.message);
+      throw new Error('No se pudieron obtener los datos del cliente desde AFIP');
+    }
+  }
+
+  datos = { ...datos, ...clienteDatos };
+  datos.tributos = datos.tributos || [];
+
+  const impNeto = datos.servicios.reduce((sum, s) => sum + parseFloat(s.subtotal), 0).toFixed(2);
+  const ivaMap = datos.servicios.reduce((acc, s) => {
+    const ivaId = s.ivaId;
+    const baseImp = parseFloat(s.subtotal);
+    const ivaRate = ivaId === 5 ? 0.21 : ivaId === 4 ? 0.105 : 0;
+    const importe = parseFloat((baseImp * ivaRate).toFixed(2));
+    if (!acc[ivaId]) acc[ivaId] = { baseImp: 0, importe: 0 };
+    acc[ivaId].baseImp += baseImp;
+    acc[ivaId].importe += importe;
+    return acc;
+  }, {});
+  const impIVA = parseFloat(Object.values(ivaMap).reduce((sum, iva) => sum + iva.importe, 0).toFixed(2));
+  const impTrib = parseFloat(datos.tributos.reduce((sum, t) => sum + parseFloat(t.importe), 0).toFixed(2));
+  const impTotal = parseFloat(parseFloat(impNeto) + impIVA + impTrib).toFixed(2);
+
+  const doc = new PDFDocument({ size: 'A4', margin: 0 });
+  const stream = fs.createWriteStream(outputPath);
+  doc.pipe(stream);
+
+  const PAGE_WIDTH = 595.28;
+  const PAGE_HEIGHT = 841.89;
+  const PADDING_X = 28.35;
+
+  doc.font('Helvetica').fontSize(9);
+
+  let currentY = PADDING_X;
+
+  // ORIGINAL header
+  doc.lineWidth(1.5);
+  doc.rect(PADDING_X, currentY, PAGE_WIDTH - (2 * PADDING_X), 20).stroke();
+  doc.font('Helvetica-Bold').fontSize(20).text('ORIGINAL', PADDING_X, currentY + 3, { align: 'center', width: PAGE_WIDTH - (2 * PADDING_X) });
+  currentY += 25;
+
+  // Box structure for company and invoice details
+  const headerBoxWidth = (PAGE_WIDTH - (2 * PADDING_X)) / 2;
+  const headerBoxStartY = currentY;
+  const headerBoxMinHeight = 105;
+
+  // Somoche S.A. Box
+  doc.rect(PADDING_X, headerBoxStartY, headerBoxWidth, headerBoxMinHeight).stroke();
+  doc.font('Helvetica-Bold').fontSize(24).text('Somoche S.A.', PADDING_X, headerBoxStartY + 5, { align: 'center', width: headerBoxWidth });
+  doc.font('Helvetica').fontSize(10);
+  let somocheTextY = headerBoxStartY + 45;
+  doc.font('Helvetica-Bold').text(`Razón Social: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`Somoche S.A.`, { width: headerBoxWidth - 10 });
+  somocheTextY += 12;
+  doc.font('Helvetica-Bold').text(`Domicilio Comercial: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`550 - Quequen, Buenos Aires`, { width: headerBoxWidth - 10 });
+  somocheTextY += 12;
+  doc.font('Helvetica-Bold').text(`Condición frente al IVA: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`IVA Responsable Inscripto`, { width: headerBoxWidth - 10 });
+
+  // FACTURA Box
+  doc.rect(PADDING_X + headerBoxWidth, headerBoxStartY, headerBoxWidth, headerBoxMinHeight).stroke();
+  doc.font('Helvetica-Bold').fontSize(24).text('FACTURA', PADDING_X + headerBoxWidth, headerBoxStartY + 5, { align: 'center', width: headerBoxWidth });
+  doc.font('Helvetica').fontSize(10);
+  let facturaTextY = headerBoxStartY + 45;
+  doc.font('Helvetica-Bold').text(`Punto de Venta: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`${datos.ptoVta.toString().padStart(5, '0')}    Comp. Nro: ${datos.cbteNro.toString().padStart(8, '0')}`);
+  facturaTextY += 12;
+  doc.font('Helvetica-Bold').text(`Fecha de Emisión: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`${datos.fechaEmision}`);
+  facturaTextY += 12;
+  doc.font('Helvetica-Bold').text(`CUIT: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`20433059221`);
+  facturaTextY += 12;
+  doc.font('Helvetica-Bold').text(`Ingresos Brutos: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`Exento`);
+  facturaTextY += 12;
+  doc.font('Helvetica-Bold').text(`Fecha de Inicio de Actividades: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`10/10/2015`);
+
+  // Floating 'A COD. 01' Box
+  const floatingBoxWidth = 75;
+  const floatingBoxHeight = 44;
+  const floatingBoxX = PADDING_X + (PAGE_WIDTH - (2 * PADDING_X) - floatingBoxWidth) / 2;
+  doc.lineWidth(1.5);
+  doc.rect(floatingBoxX, headerBoxStartY - 1, floatingBoxWidth, floatingBoxHeight).fill('white');
+  doc.fillColor('black');
+  doc.rect(floatingBoxX, headerBoxStartY - 1, floatingBoxWidth, floatingBoxHeight).stroke();
+  doc.fillColor('black');
+  doc.font('Helvetica-Bold').fontSize(36).text('A', floatingBoxX, headerBoxStartY + 2, { align: 'center', width: floatingBoxWidth });
+  doc.fontSize(10).text('COD. 01', floatingBoxX, headerBoxStartY + 34, { align: 'center', width: floatingBoxWidth });
+
+  currentY = headerBoxStartY + headerBoxMinHeight;
+
+  // Periodo Facturado y Fecha Vto. Pago
+  currentY += 1;
+  const periodosHeight = 20;
+  doc.rect(PADDING_X, currentY, PAGE_WIDTH - (2 * PADDING_X), periodosHeight).stroke();
+  doc.font('Helvetica-Bold').fontSize(11).text(`Período Facturado Desde: `, PADDING_X + 5, currentY + 5, { continued: true }).font('Helvetica').text(`${datos.periodoDesde}  `, { continued: true });
+  doc.font('Helvetica-Bold').text(`Hasta: `, { continued: true }).font('Helvetica').text(`${datos.periodoHasta}  `, { continued: true });
+  doc.font('Helvetica-Bold').text(`Fecha de Vto. para el pago: `, { continued: true }).font('Helvetica').text(`${datos.fechaVtoPago}`);
+  currentY += periodosHeight + 1;
+
+  // Datos del Cliente
+  const clientBoxHeight = 65;
+  doc.rect(PADDING_X, currentY, PAGE_WIDTH - (2 * PADDING_X), clientBoxHeight).stroke();
+  doc.font('Helvetica').fontSize(10);
+  let clientTextY = currentY + 5;
+  const clientBoxInnerWidth = PAGE_WIDTH - (2 * PADDING_X) - 10;
+
+  const cuitSectionWidth = clientBoxInnerWidth * 0.3;
+  const razonSocialSectionWidth = clientBoxInnerWidth * 0.7;
+
+  doc.font('Helvetica-Bold').text(`CUIT: `, PADDING_X + 5, clientTextY, { continued: true });
+  let currentTextX = doc.x;
+  doc.font('Helvetica').text(`${datos.cuitCliente}`, currentTextX, clientTextY, { width: cuitSectionWidth - (currentTextX - (PADDING_X + 5)), align: 'left' });
+
+  const razonSocialLabelX = PADDING_X + 5 + cuitSectionWidth;
+  doc.font('Helvetica-Bold').text(`Apellido y Nombre / Razón Social: `, razonSocialLabelX, clientTextY, { continued: true });
+  currentTextX = doc.x;
+  doc.font('Helvetica').text(`${datos.razonSocialCliente}`, currentTextX, clientTextY, { width: razonSocialSectionWidth - (currentTextX - razonSocialLabelX), align: 'left' });
+
+  clientTextY += 14;
+
+  const condicionIvaSectionWidth = clientBoxInnerWidth * 0.7;
+  const domicilioSectionWidth = clientBoxInnerWidth * 0.3;
+  const domicilioLabelX = PADDING_X + 5 + condicionIvaSectionWidth - 30;
+
+  doc.font('Helvetica-Bold').text(`Condición frente al IVA: `, PADDING_X + 5, clientTextY, { continued: true });
+  currentTextX = doc.x;
+  doc.font('Helvetica').text(`${datos.condicionIVACliente}`, currentTextX, clientTextY, { width: condicionIvaSectionWidth - (currentTextX - (PADDING_X + 5)), align: 'left' });
+
+  doc.font('Helvetica-Bold').text(`Domicilio: `, domicilioLabelX, clientTextY, { continued: true });
+  currentTextX = doc.x;
+  const formattedDomicilio = datos.domicilioCliente.replace(/ - /, ' -\n');
+  doc.font('Helvetica').text(formattedDomicilio, currentTextX, clientTextY, { width: domicilioSectionWidth - (currentTextX - domicilioLabelX), align: 'left' });
+
+  clientTextY += 14;
+
+  doc.font('Helvetica-Bold').text(`Condición de venta: `, PADDING_X + 5, clientTextY, { continued: true }).font('Helvetica').text(`${datos.condicionVenta}`);
+  clientTextY += 14;
+  currentY += clientBoxHeight + 5;
+
+  // Tabla de servicios con salto automático de página
+  const tableHeaders = ['Código', 'Producto / Servicio', 'Cantidad', 'U. Medida', 'Precio Unit.', '% Bonif', 'Subtotal', 'Alícuota IVA', 'Subtotal c/IVA'];
+  const tableColumnWidths = [40, 100, 50, 50, 55, 40, 60, 60, 80];
+  const tableStartX = PADDING_X;
+  const tableWidth = PAGE_WIDTH - (2 * PADDING_X);
+  const headerRowHeight = 27;
+  const dataRowHeight = 40;
+
+  function drawTableHeader(y) {
+    doc.lineWidth(1);
+    doc.rect(tableStartX, y, tableWidth, headerRowHeight).fill('#ccc').stroke();
+    doc.fillColor('black').font('Helvetica-Bold').fontSize(10);
+    let currentColumnX = tableStartX;
+    tableHeaders.forEach((header, i) => {
+      doc.text(header, currentColumnX + 2, y + 5, { width: tableColumnWidths[i] - 4, align: 'center' });
+      currentColumnX += tableColumnWidths[i];
+    });
+    doc.stroke();
+    return y + headerRowHeight;
+  }
+
+  currentY = drawTableHeader(currentY);
+
+  doc.font('Helvetica').fontSize(9);
+  datos.servicios.forEach((s, index) => {
+    if (currentY + dataRowHeight > PAGE_HEIGHT - PADDING_X - 150) {
+      doc.addPage({ margin: 0 });
+      currentY = PADDING_X;
+      currentY = drawTableHeader(currentY);
+    }
+
+    const ivaRateDisplay = s.ivaId === 5 ? '1,21' : s.ivaId === 4 ? '1,105' : '0,00';
+    const rowData = [
+      s.codigo,
+      s.descripcion,
+      s.cantidad,
+      s.unidad,
+      s.precioUnit,
+      s.bonif,
+      s.subtotal,
+      ivaRateDisplay,
+      s.subtotalConIVA
+    ];
+
+    let currentColumnX = tableStartX;
+    rowData.forEach((cellData, j) => {
+      let align = 'center';
+      if (j === 0 || j === 1) align = 'left';
+      if (j >= 2 && j <= 8) align = 'right';
+      doc.text(cellData, currentColumnX + 2, currentY + 5, { width: tableColumnWidths[j] - 4, align: align });
+      currentColumnX += tableColumnWidths[j];
+    });
+    currentY += dataRowHeight;
+  });
+
+  currentY += 20;
+
+  // Otros Tributos y Totales
+  const footerSectionStartY = currentY;
+  const footerBoxWidth = PAGE_WIDTH - (2 * PADDING_X);
+  const tributosTableWidth = footerBoxWidth * 0.55;
+  const totalesBoxWidth = footerBoxWidth * 0.40;
+  let gapBetweenTributosAndTotales = footerBoxWidth - tributosTableWidth - totalesBoxWidth - 10;
+
+  const tributosHeaderHeight = 25;
+  const tributosRowHeight = 18;
+  const minTributosRows = 4;
+  const actualTributosRows = datos.tributos.length > 0 ? datos.tributos.length : minTributosRows;
+  const tributosTableHeight = tributosHeaderHeight + (actualTributosRows * tributosRowHeight);
+
+  // Corregir cálculo de totalesHeight para evitar solapamientos
+  const totalLines = Math.max(Object.keys(ivaMap).length, 6) + 2; // 6 IVA + Neto + Tributos
+  const totalesHeight = totalLines * 16 + 20; // 16 por línea + 20 de margen
+
+  const overallFooterBoxHeight = Math.max(tributosTableHeight + 20, totalesHeight + 20);
+  doc.rect(PADDING_X, footerSectionStartY, footerBoxWidth, overallFooterBoxHeight).stroke();
+
+  // Otros Tributos
+  doc.font('Helvetica-Bold').fontSize(10).text('Otros tributos', PADDING_X + 5, footerSectionStartY + 5);
+  let tributosCurrentY = footerSectionStartY + 20;
+
+  const tributosColWidths = [tributosTableWidth * 0.45, tributosTableWidth * 0.25, tributosTableWidth * 0.15, tributosTableWidth * 0.15];
+  const tributosHeaders = ['Descripción', 'Detalle', 'Alíc. %', 'Importe'];
+
+  doc.rect(PADDING_X + 5, tributosCurrentY, tributosTableWidth - 1, tributosHeaderHeight).fill('#ccc').stroke();
+  doc.fillColor('black').font('Helvetica-Bold').fontSize(10);
+  let currentTributoColX = PADDING_X + 5;
+  tributosHeaders.forEach((header, i) => {
+    doc.text(header, currentTributoColX + 2, tributosCurrentY + 5, { width: tributosColWidths[i] - 4, align: i === 3 ? 'right' : 'left' });
+    currentTributoColX += tributosColWidths[i];
+  });
+  tributosCurrentY += tributosHeaderHeight;
+
+  doc.font('Helvetica').fontSize(9);
+  const displayTributos = datos.tributos.length > 0 ? datos.tributos : [
+    { desc: 'Per./Ret. de Impuesto a las Ganancias', detalle: '', alic: '', importe: '0,00' },
+    { desc: 'Per./Ret. de IVA', detalle: '', alic: '', importe: '0,00' },
+    { desc: 'Impuestos Internos', detalle: '', alic: '', importe: '0,00' },
+    { desc: 'Impuestos Municipales', detalle: '', alic: '', importe: '0,00' }
+  ];
+
+  displayTributos.forEach((t) => {
+    let currentTributoColX = PADDING_X + 5;
+    const row = [t.desc, t.detalle, t.alic, t.importe];
+    row.forEach((cell, j) => {
+      doc.text(cell || '', currentTributoColX + 2, tributosCurrentY + 5, { width: tributosColWidths[j] - 4, align: j === 3 ? 'right' : 'left' });
+      currentTributoColX += tributosColWidths[j];
+    });
+    tributosCurrentY += tributosRowHeight;
+  });
+
+  // Totales Box
+  let totalesCurrentY = footerSectionStartY + 10;
+  const totalesLabelWidth = totalesBoxWidth * 0.65;
+  const totalesValueWidth = totalesBoxWidth * 0.35;
+  const totalesBoxX = PADDING_X + tributosTableWidth + gapBetweenTributosAndTotales;
+
+  doc.rect(totalesBoxX, footerSectionStartY + 5, totalesBoxWidth, totalesHeight).stroke();
+  doc.font('Helvetica-Bold').fontSize(11);
+  doc.text(`Importe Neto Gravado: $`, totalesBoxX + 5, totalesCurrentY, { align: 'right', width: totalesLabelWidth - 5 });
+  doc.font('Helvetica').text(`${impNeto}`, totalesBoxX + totalesLabelWidth, totalesCurrentY, { align: 'right', width: totalesValueWidth - 10 });
+  totalesCurrentY += 16;
+
+  const ivaPercentagesOrder = ['27%', '21%', '10.5%', '5%', '2.5%', '0%'];
+  const ivaIdToPercentage = {
+    '5': '21%',
+    '4': '10.5%',
+    '3': '27%',
+    '6': '5%',
+    '8': '2.5%',
+    '9': '0%'
+  };
+
+  const displayedIvaTypes = new Set();
+
+  Object.entries(ivaMap).forEach(([ivaId, { importe }]) => {
+    const percentage = ivaIdToPercentage[ivaId] || `${ivaId}%`;
+    displayedIvaTypes.add(percentage);
+    doc.font('Helvetica-Bold').text(`IVA ${percentage}: $`, totalesBoxX + 5, totalesCurrentY, { align: 'right', width: totalesLabelWidth });
+    doc.font('Helvetica').text(`${importe.toFixed(2)}`, totalesBoxX + totalesLabelWidth, totalesCurrentY, { align: 'right', width: totalesValueWidth - 10 });
+    totalesCurrentY += 16;
+  });
+
+  ivaPercentagesOrder.forEach(percentage => {
+    if (!displayedIvaTypes.has(percentage)) {
+      doc.font('Helvetica-Bold').text(`IVA ${percentage}: $`, totalesBoxX + 5, totalesCurrentY, { align: 'right', width: totalesLabelWidth });
+      doc.font('Helvetica').text(`0,00`, totalesBoxX + totalesLabelWidth, totalesCurrentY, { align: 'right', width: totalesValueWidth - 10 });
+      totalesCurrentY += 16;
+    }
+  });
+
+  doc.font('Helvetica-Bold').text(`Importe Otros Tributos: $`, totalesBoxX + 5, totalesCurrentY, { align: 'right', width: totalesLabelWidth });
+  doc.font('Helvetica').text(`${impTrib.toFixed(2)}`, totalesBoxX + totalesLabelWidth, totalesCurrentY, { align: 'right', width: totalesValueWidth - 10 });
+  totalesCurrentY += 16;
+
+  doc.font('Helvetica-Bold').text(`Importe Total: $`, totalesBoxX + 5, totalesCurrentY, { align: 'right', width: totalesLabelWidth });
+  doc.font('Helvetica').text(`${impTotal}`, totalesBoxX + totalesLabelWidth, totalesCurrentY, { align: 'right', width: totalesValueWidth - 10 });
+  totalesCurrentY += 16;
+
+  currentY = footerSectionStartY + overallFooterBoxHeight + 20;
+
+  // Bottom section (QR, AFIP text, CAE)
+  const qrWidth = (PAGE_WIDTH - (2 * PADDING_X)) * 0.20; // ~113.35
+  const afipInfoWidth = (PAGE_WIDTH - (2 * PADDING_X)) * 0.45; // ~242.91
+  const caeInfoWidth = (PAGE_WIDTH - (2 * PADDING_X)) * 0.35; // ~188.32
+
+  // Verificar si hay espacio para la sección inferior (QR + texto + CAE)
+  if (currentY + 100 > PAGE_HEIGHT - PADDING_X) {
+    doc.addPage({ margin: 0 });
+    currentY = PADDING_X;
+  }
+
+  const bottomSectionStartY = currentY;
+
+  // Generar e insertar el QR
+  try {
+    const qrUrl = await generarEnlaceQR(datos, impTotal);
+    console.log('QR URL:', qrUrl);
+    const timestamp = Date.now();
+    const qrFilePath = path.join(certDir, `qr-test-${timestamp}.png`);
+    await QRCode.toFile(qrFilePath, qrUrl, { width: 120, margin: 6, errorCorrectionLevel: 'M', scale: 8 });
+    const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 120, margin: 6, errorCorrectionLevel: 'M', scale: 8 });
+    console.log(`QR guardado en: ${qrFilePath}, tamaño del buffer: ${qrBuffer.length} bytes`);
+    doc.image(qrBuffer, PADDING_X + 5, bottomSectionStartY + 5, { width: 120 });
+    console.log('QR insertado en el PDF');
+  } catch (e) {
+    console.warn('Error al generar el QR:', e.message || e);
+  }
+
+  // AFIP text (centrado)
+  const afipInfoX = (PAGE_WIDTH - afipInfoWidth) / 2; // Centrar: ~176.185
+  doc.font('Helvetica-BoldOblique').fontSize(11).text('Comprobante Autorizado', afipInfoX, bottomSectionStartY + 45, { width: afipInfoWidth, align: 'center' });
+  doc.font('Helvetica-Oblique').fontSize(8).text('Esta Administración Federal no se responsabiliza por los datos ingresados en el detalle de la operación', afipInfoX, bottomSectionStartY + 60, { width: afipInfoWidth, align: 'center' });
+
+  // CAE Info
+  const caeInfoX = PADDING_X + qrWidth + afipInfoWidth - 40;
+  doc.font('Helvetica-Bold').fontSize(10);
+  let caeTextY = bottomSectionStartY + 10;
+  const caeLabelOffsetX = 5;
+  const caeValueOffsetX = 120;
+
+  doc.text(`CAE N°:`, caeInfoX + caeLabelOffsetX, caeTextY);
+  doc.font('Helvetica').text(`${datos.cae}`, caeInfoX + caeValueOffsetX, caeTextY, { width: 100 });
+  caeTextY += 12;
+
+  doc.font('Helvetica-Bold').text(`Fecha de Vto. de CAE:`, caeInfoX + caeLabelOffsetX, caeTextY);
+  doc.font('Helvetica').text(`${datos.caeFchVto}`, caeInfoX + caeValueOffsetX, caeTextY, { width: 100 });
+
+  // Page 1/1 (ajustado para múltiples páginas)
+  const pageCount = doc.bufferedPageRange().count;
+  doc.font('Helvetica-Bold').fontSize(10).text(`Pág ${pageCount}/${pageCount}`, PADDING_X, PAGE_HEIGHT - PADDING_X - 10, { align: 'center', width: PAGE_WIDTH - (2 * PADDING_X) });
+
+  doc.end();
+  stream.on('finish', () => {
+    console.log(`✅ PDF generado: ${outputPath}`);
+  });
+}
+
+// Ejemplo 1: Muchos servicios (10 servicios)
+const ejemploDatos1 = {
+  ptoVta: "001",
+  cbteNro: "00000124",
+  fechaEmision: "24/07/2025",
+  periodoDesde: "24/07/2025",
+  periodoHasta: "24/07/2025",
+  fechaVtoPago: "03/08/2025",
+  cuitCliente: "20224107030",
+  condicionVenta: "Efectivo",
+  cae: "12345678901235",
+  caeFchVto: "03/08/2025",
+  servicios: [
+    { codigo: "1", descripcion: "Consultoría estratégica", cantidad: "2.00", unidad: "horas", precioUnit: "5000.00", bonif: "0.00", subtotal: "10000.00", ivaId: 5, subtotalConIVA: "12100.00" },
+    { codigo: "2", descripcion: "Desarrollo software", cantidad: "1.50", unidad: "horas", precioUnit: "4000.00", bonif: "0.00", subtotal: "6000.00", ivaId: 5, subtotalConIVA: "7260.00" },
+    { codigo: "3", descripcion: "Capacitación personal", cantidad: "3.00", unidad: "sesiones", precioUnit: "2000.00", bonif: "0.00", subtotal: "6000.00", ivaId: 4, subtotalConIVA: "6630.00" },
+    { codigo: "4", descripcion: "Soporte técnico", cantidad: "5.00", unidad: "horas", precioUnit: "1500.00", bonif: "0.00", subtotal: "7500.00", ivaId: 5, subtotalConIVA: "9075.00" },
+    { codigo: "5", descripcion: "Licencia software", cantidad: "1.00", unidad: "unidades", precioUnit: "10000.00", bonif: "0.00", subtotal: "10000.00", ivaId: 5, subtotalConIVA: "12100.00" },
+    { codigo: "6", descripcion: "Mantenimiento equipo", cantidad: "2.00", unidad: "unidades", precioUnit: "3000.00", bonif: "0.00", subtotal: "6000.00", ivaId: 4, subtotalConIVA: "6630.00" },
+    { codigo: "7", descripcion: "Diseño gráfico", cantidad: "4.00", unidad: "horas", precioUnit: "1200.00", bonif: "0.00", subtotal: "4800.00", ivaId: 5, subtotalConIVA: "5808.00" },
+    { codigo: "8", descripcion: "Auditoría de sistemas", cantidad: "1.00", unidad: "servicio", precioUnit: "8000.00", bonif: "0.00", subtotal: "8000.00", ivaId: 5, subtotalConIVA: "9680.00" },
+    { codigo: "9", descripcion: "Instalación hardware", cantidad: "2.00", unidad: "unidades", precioUnit: "2500.00", bonif: "0.00", subtotal: "5000.00", ivaId: 4, subtotalConIVA: "5525.00" },
+  
+  ],
+  tributos: [
+    { id: 99, desc: "Impuesto Municipal 001", detalle: "", alic: "5.00", importe: "10.00" }
+  ]
+};
+
+// Ejemplo 2: Muchos tributos (6 tributos)
+const ejemploDatos2 = {
+  ptoVta: "001",
+  cbteNro: "00000125",
+  fechaEmision: "24/07/2025",
+  periodoDesde: "24/07/2025",
+  periodoHasta: "24/07/2025",
+  fechaVtoPago: "03/08/2025",
+  cuitCliente: "20224107030",
+  condicionVenta: "Efectivo",
+  cae: "12345678901236",
+  caeFchVto: "03/08/2025",
+  servicios: [
+    { codigo: "1", descripcion: "Consultoría estratégica", cantidad: "2.00", unidad: "horas", precioUnit: "5000.00", bonif: "0.00", subtotal: "10000.00", ivaId: 5, subtotalConIVA: "12100.00" },
+    { codigo: "2", descripcion: "Desarrollo software", cantidad: "1.50", unidad: "horas", precioUnit: "4000.00", bonif: "0.00", subtotal: "6000.00", ivaId: 5, subtotalConIVA: "7260.00" }
+  ],
+  tributos: [
+    { id: 1, desc: "Per./Ret. de Impuesto a las Ganancias", detalle: "Retención 2025", alic: "2.00", importe: "200.00" },
+    { id: 2, desc: "Per./Ret. de IVA", detalle: "Retención IVA 2025", alic: "3.00", importe: "300.00" },
+    { id: 3, desc: "Impuestos Internos", detalle: "Impuesto 001", alic: "1.50", importe: "150.00" },
+    { id: 4, desc: "Impuestos Municipales", detalle: "Tasa municipal", alic: "5.00", importe: "500.00" },
+    { id: 5, desc: "Contribución provincial", detalle: "Provincia BA", alic: "2.50", importe: "250.00" },
+    { id: 6, desc: "Otros tributos", detalle: "Adicional 2025", alic: "1.00", importe: "100.00" }
+  ]
+};
+
+// Ejemplo 3: Muchos servicios (8) y tributos (5)
+const ejemploDatos3 = {
+  ptoVta: "001",
+  cbteNro: "00000126",
+  fechaEmision: "24/07/2025",
+  periodoDesde: "24/07/2025",
+  periodoHasta: "24/07/2025",
+  fechaVtoPago: "03/08/2025",
+  cuitCliente: "20224107030",
+  condicionVenta: "Efectivo",
+  cae: "12345678901237",
+  caeFchVto: "03/08/2025",
+  servicios: [
+    { codigo: "1", descripcion: "Consultoría estratégica", cantidad: "2.00", unidad: "horas", precioUnit: "5000.00", bonif: "0.00", subtotal: "10000.00", ivaId: 5, subtotalConIVA: "12100.00" },
+    { codigo: "2", descripcion: "Desarrollo software", cantidad: "1.50", unidad: "horas", precioUnit: "4000.00", bonif: "0.00", subtotal: "6000.00", ivaId: 5, subtotalConIVA: "7260.00" },
+    { codigo: "3", descripcion: "Capacitación personal", cantidad: "3.00", unidad: "sesiones", precioUnit: "2000.00", bonif: "0.00", subtotal: "6000.00", ivaId: 4, subtotalConIVA: "6630.00" },
+    { codigo: "4", descripcion: "Soporte técnico", cantidad: "5.00", unidad: "horas", precioUnit: "1500.00", bonif: "0.00", subtotal: "7500.00", ivaId: 5, subtotalConIVA: "9075.00" },
+    { codigo: "5", descripcion: "Licencia software", cantidad: "1.00", unidad: "unidades", precioUnit: "10000.00", bonif: "0.00", subtotal: "10000.00", ivaId: 5, subtotalConIVA: "12100.00" },
+    { codigo: "6", descripcion: "Mantenimiento equipo", cantidad: "2.00", unidad: "unidades", precioUnit: "3000.00", bonif: "0.00", subtotal: "6000.00", ivaId: 4, subtotalConIVA: "6630.00" },
+    { codigo: "7", descripcion: "Diseño gráfico", cantidad: "4.00", unidad: "horas", precioUnit: "1200.00", bonif: "0.00", subtotal: "4800.00", ivaId: 5, subtotalConIVA: "5808.00" },
+    { codigo: "8", descripcion: "Auditoría de sistemas", cantidad: "1.00", unidad: "servicio", precioUnit: "8000.00", bonif: "0.00", subtotal: "8000.00", ivaId: 5, subtotalConIVA: "9680.00" }
+  ],
+  tributos: [
+    { id: 1, desc: "Per./Ret. de Impuesto a las Ganancias", detalle: "Retención 2025", alic: "2.00", importe: "200.00" },
+    { id: 2, desc: "Per./Ret. de IVA", detalle: "Retención IVA 2025", alic: "3.00", importe: "300.00" },
+    { id: 3, desc: "Impuestos Internos", detalle: "Impuesto 001", alic: "1.50", importe: "150.00" },
+    { id: 4, desc: "Impuestos Municipales", detalle: "Tasa municipal", alic: "5.00", importe: "500.00" },
+    { id: 5, desc: "Contribución provincial", detalle: "Provincia BA", alic: "2.50", importe: "250.00" }
+  ]
+};
+
+// Ejecutar cada ejemplo
+generarFactura(ejemploDatos1, 'factura_simulada_1.pdf');
+generarFactura(ejemploDatos2, 'factura_simulada_2.pdf');
+generarFactura(ejemploDatos3, 'factura_simulada_3.pdf');

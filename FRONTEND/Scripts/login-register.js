@@ -86,7 +86,6 @@ formSesion?.addEventListener("submit", async (event) => {
                 localStorage.setItem('jwtToken', data.token);
                 localStorage.setItem('userName', data.nombre_apellido);
                 localStorage.setItem('userRole', data.role);
-                localStorage.setItem('userCuil', data.cuil);
             }
             alert(data.message);
             window.location.href = redirectURL;
