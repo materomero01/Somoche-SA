@@ -1,7 +1,6 @@
 // /FRONTEND/scripts/mi-cuenta-chofer.js
 
-// Importar las nuevas funciones desde api.js
-import { fetchChoferData as apiFetchChoferData, updateChofer } from './api.js';
+import { updateChofer, fetchChoferData, logout } from './apiPublic.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Carga el header
@@ -99,7 +98,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     cancelButton.addEventListener('click', () => {
         setViewMode(); 
     });
-
+    const userNombre = localStorage.getItem('userName');
+    const userCuil = localStorage.getItem('userCuil');
     // --- INICIO: Lógica para enviar los cambios al backend ---
     accountForm.addEventListener('submit', async (event) => {
         event.preventDefault(); 
@@ -122,25 +122,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         console.log('Datos a guardar (frontend):', updatedData);
 
-        const userCuil = localStorage.getItem('userCuil');
-
-        if (!userCuil) {
-            alert('No se pudo guardar: CUIL de usuario faltante.');
-            console.error('CUIL del usuario no encontrado para guardar.');
-            return;
-        }
+        
 
         try {
-            // Usar la función importada de api.js para la actualización
-            const successData = await updateChofer(userCuil, updatedData);
+            const response = await updateChofer(userCuil, updatedData);
+
+            if (response) {
+                
+                // Actualizar los valores iniciales con los nuevos datos guardados
+                inputs.forEach(input => {
+                    initialValues[input.id] = input.value;
+                });
+                alert('Cambios guardados exitosamente!');
+                if (updatedData['nombre_y_apellido'] !== userNombre || updatedData['cuil'] !== userCuil){
+                    alert("Reinicio requerido, vuelve a iniciar sesión por favor");
+                    logout();
+                }
+            }
             
-            console.log('Datos guardados exitosamente:', successData);
-            alert('Cambios guardados exitosamente!');
             
-            // Actualizar los valores iniciales con los nuevos datos guardados
-            inputs.forEach(input => {
-                initialValues[input.id] = input.value;
-            });
             setViewMode(); // Volver al modo de visualización
 
         } catch (error) {
@@ -150,24 +150,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     // --- FIN: Lógica para enviar los cambios al backend ---
 
-    // --- INICIO: Carga de datos del chofer desde el backend ---
-    // La BASE_URL ya no es necesaria aquí, se maneja en api.js
-    // const BASE_URL = 'http://localhost:3000/api'; 
-
-    const userCuil = localStorage.getItem('userCuil');
-
-    if (!userCuil) {
-        console.error('CUIL del usuario no encontrado en localStorage. Redirigiendo al login...');
-        window.location.href = '/FRONTEND/login.html';
-        // Ocultar spinner si no hay CUIL y no se cargará nada
-        if (loadingSpinner) loadingSpinner.style.display = 'none'; 
-        return;
-    }
-
-    async function loadChoferDataAndRender() {
+    async function loadChofer() {
         try {
-            // Usar la función importada de api.js para obtener los datos
-            const choferData = await apiFetchChoferData(userCuil);
+            const {choferData, responseError } = await fetchChoferData(userCuil);
+
+            if (responseError) {
+                // Si hay un error, el spinner se ocultará en el finally, pero el formulario permanecerá oculto.
+                // Podrías mostrar un mensaje de error permanente en el mainContentWrapper aquí si lo deseas.
+                if (loadingSpinner) loadingSpinner.style.display = 'none'; 
+                if (mainContentWrapper) mainContentWrapper.innerHTML = `<p class="error-message">${errorMessage}</p>`;
+                return;
+            }
             
             console.log('Datos del chofer obtenidos:', choferData);
 
@@ -205,6 +198,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Llamar a la función principal que carga los datos y maneja el renderizado
-    loadChoferDataAndRender();
+    // Llamar a la función para cargar los datos al inicio
+    loadChofer();
 });

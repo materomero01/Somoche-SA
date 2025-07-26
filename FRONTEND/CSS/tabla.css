@@ -1,90 +1,377 @@
+/* Estilos generales para la sección de cheques */
+.content {
+    padding-top: 60px;    
+    padding-left: 80px;
+    padding-right: 20px;
+    box-sizing: border-box;
+    overflow: hidden; 
+}
+
+.cheques-section {
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+/* Header de sección con botones */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    position: relative; /* Para posicionar el filtro relativamente */
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
 /* ============================= */
-/* ESTILOS PARA MODO EDICIÓN DE TABLA */
+/* BOTONES DE ACCIÓN */
 /* ============================= */
 
-/* Contenedor de tabla con scroll horizontal controlado */
-.tabla-dinamica {
-    width: 100%;
-    overflow-x: auto;
+.action-icons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.1rem;
+}
+
+.action-icons i {
+    cursor: pointer;
+    color: #555;
+    transition: color 0.2s ease;
+}
+
+.action-icons i:hover {
+    color: #007bff;
+}
+
+/* Contenedor de botones de filtro (solo si es necesario para el layout de esta sección) */
+.filter-buttons-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     position: relative;
 }
 
-/* Tabla principal - mantener ancho fijo */
+/* Botones de acción en modo edición */
+.btn-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    margin: 0 3px;
+    padding: 4px;
+    border-radius: 50%;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.btn-action.btn-upload {
+    color: #dd830e;
+}
+
+.btn-action.btn-upload:hover {
+    background-color: #fdf1da;
+}
+
+.btn-action.save-btn {
+    color: #28a745;
+}
+
+.btn-action.save-btn:hover {
+    background-color: #e6f7e6;
+}
+
+.btn-action.cancel-btn {
+    color: #dc3545;
+}
+
+.btn-action.cancel-btn:hover {
+    background-color: #fde6e8;
+}
+
+/* Estilos para botones de acción normales */
+.btn-action.edit-btn {
+    color: #007bff;
+}
+
+.btn-action.edit-btn:hover {
+    background-color: #e6f2ff;
+}
+
+.btn-action.delete-btn {
+    color: #dc3545;
+}
+
+.btn-action.delete-btn:hover {
+    background-color: #fde6e8;
+}
+
+.btn-action.navigate-btn {
+    color: #28a745;
+}
+
+.btn-action.navigate-btn:hover {
+    background-color: #e6fae8;
+}
+
+/* Estilo para la tabla de viajes y pagos*/
+.table-header-with-button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-boxes {
+    display: flex;
+    justify-content: space-around;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.summary-box {
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    flex: 1;
+    min-width: 150px; /* Minimum width for each box */
+}
+
+.summary-box.subtotal {
+    background-color: #ffc107; /* Yellow */
+    color: #343a40;
+}
+
+.summary-box.iva {
+    background-color: #fd7e14; /* Orange */
+    
+}
+
+.summary-box.total-viajes {
+    background-color: #28a745; /* Green */
+}
+
+.summary-box.subtotal.gray {
+    background-color: #d3d3d3; /* Light Gray */
+    color: #343a40;
+}
+
+.summary-box.iva.gray {
+    background-color: #a9a9a9; /* Medium Gray */
+}
+
+.summary-box.total-viajes.gray {
+    background-color: #808080; /* Dark Gray */
+}
+
+.total-pagar-box.gray {
+    background-color: #4b4b4b; /* Very Dark Gray */
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.total-pagar-box {
+    background-color: #007bff; /* Blue */
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.close-account-btn {
+    background-color: #dc3545; /* Red */
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+}
+
+.close-account-btn:hover {
+    background-color: #c82333; /* Darker red for hover */
+}
+
+/* Estilo para la tabla de cheques */
+.tabla-dinamica {
+    overflow-x: auto; 
+    margin-bottom: 10px;
+}
+
+.tabla-scrollable {
+    max-height: 160px; /* Aproximado para 5 filas de ~40px cada una */
+    overflow-y: auto;
+    width: 100%;
+    box-sizing: border-box;
+    display: block; /* Ensure proper block context */
+}
+
+/* ============================= */
+/* SCROLL HORIZONTAL MEJORADO */
+/* ============================= */
+
+.tabla-dinamica::-webkit-scrollbar {
+    height: 8px;
+}
+
+.tabla-dinamica::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 5px;
+}
+
+.tabla-dinamica::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 5px;
+}
+
+.tabla-dinamica::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
 .tabla-dinamica table {
     width: 100%;
-    min-width: 800px; /* Ancho mínimo para evitar que se comprima demasiado */
-    max-width: 100%;
     border-collapse: collapse;
-    table-layout: fixed; /* Importante: hace que las columnas respeten los anchos definidos */
-    background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    table-layout: auto;
 }
 
-/* Definir anchos específicos para columnas */
-.tabla-dinamica th:nth-child(1),
-.tabla-dinamica td:nth-child(1) {
-    width: 18%; /* Nombre */
-}
-
-.tabla-dinamica th:nth-child(2),
-.tabla-dinamica td:nth-child(2) {
-    width: 15%; /* CUIL/CUIT */
-}
-
-.tabla-dinamica th:nth-child(3),
-.tabla-dinamica td:nth-child(3) {
-    width: 12%; /* Trabajador */
-}
-
-.tabla-dinamica th:nth-child(4),
-.tabla-dinamica td:nth-child(4) {
-    width: 10%; /* Chasis */
-}
-
-.tabla-dinamica th:nth-child(5),
-.tabla-dinamica td:nth-child(5) {
-    width: 10%; /* Acoplado */
-}
-
-.tabla-dinamica th:nth-child(6),
-.tabla-dinamica td:nth-child(6) {
-    width: 12%; /* Teléfono */
-}
-
-.tabla-dinamica th:nth-child(7),
-.tabla-dinamica td:nth-child(7) {
-    width: 15%; /* Email */
-}
-
-.tabla-dinamica th:nth-child(8),
-.tabla-dinamica td:nth-child(8) {
-    width: 8%; /* Acciones */
-}
-
-/* Estilos para celdas */
 .tabla-dinamica th,
 .tabla-dinamica td {
-    padding: 8px 10px;
     border: 1px solid #ddd;
+    padding: 6px;
     text-align: left;
-    font-size: 0.9rem;
-    word-wrap: break-word;       /* Asegura que palabras largas no se desborden */
-    word-break: break-word;      /* Rompe palabras si es necesario */
-    white-space: normal;         /* Permite múltiples líneas */
-    overflow-wrap: anywhere;     /* Moderno: evita desborde en cualquier punto */
+    white-space: normal;
+    word-break: break-word;
+    font-size: 0.9em;
 }
 
-
 .tabla-dinamica th {
-    background-color: #f9f9f9;
-    font-weight: 600;
+    background-color: #e7e7e7;
+    opacity: 1;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+    font-weight: bold;
     position: sticky;
     top: 0;
     z-index: 10;
 }
 
-.tabla-dinamica tbody tr:nth-child(even) {
-    background-color: #f6f6f6;
+.tabla-dinamica td {
+    background-color: #ffffff;
+}
+
+.tabla-dinamica td:last-child {
+    text-align: center;
+}
+
+/* CONTROLES DE SELECCIÓN DE CHEQUES */
+.cheques-selected-summary {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 10px;
+    text-align: right;
+}
+
+.cheques-actions {
+    display: flex;
+    gap: 10px;
+}
+
+#cheques-selection-controls {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    width: 100% - 15px;
+}
+
+/* PAGINACIÓN */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+    gap: 5px;
+    padding-bottom: 0;
+}
+
+.pagination-button {
+    background-color: #f0f0f0;
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    min-width: 30px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.pagination-button:hover:not([disabled]):not(.active) {
+    background-color: #e0e0e0;
+}
+
+.pagination-button.active {
+    background-color: #333;
+    color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.pagination-button[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    font-size: 15px;
+    color: #666;
+    padding: 0 5px;
+}
+
+/* Total a cobrar */
+#total-a-cobrar {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    font-weight: bold;
+    font-size: 0.95rem;
+    color: #333;
+    width: 100%;
+}
+
+/* Clase para ocultar contenido */
+.hidden {
+    display: none !important;
+}
+
+/* Para alineación a la derecha de celdas específicas */
+.tabla-dinamica .text-right {
+    text-align: right;
 }
 
 /* ============================= */
@@ -99,6 +386,7 @@
 
 .tabla-dinamica .editing-row td {
     padding: 6px 8px; /* Reducir padding aún más en modo edición */
+    min-width: 5vw;
 }
 
 /* Inputs editables */
@@ -144,203 +432,31 @@
     box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
 }
 
-/* ============================= */
-/* BOTONES DE ACCIÓN */
-/* ============================= */
-
-.action-icons {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    font-size: 1.1rem;
-}
-
-.action-icons i {
-    cursor: pointer;
-    color: #555;
-    transition: color 0.2s ease;
-}
-
-.action-icons i:hover {
-    color: #007bff;
-}
-
-/* Botones de acción en modo edición */
-.btn-action {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    margin: 0 3px;
-    padding: 4px;
-    border-radius: 50%;
-    transition: background-color 0.2s ease, color 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-}
-
-.btn-action.save-btn {
-    color: #28a745;
-}
-
-.btn-action.save-btn:hover {
-    background-color: #e6f7e6;
-}
-
-.btn-action.cancel-btn {
-    color: #dc3545;
-}
-
-.btn-action.cancel-btn:hover {
-    background-color: #fde6e8;
-}
-
-/* Estilos para botones de acción normales */
-.btn-action.edit-btn {
-    color: #007bff;
-}
-
-.btn-action.edit-btn:hover {
-    background-color: #e6f2ff;
-}
-
-.btn-action.delete-btn {
-    color: #dc3545;
-}
-
-.btn-action.delete-btn:hover {
-    background-color: #fde6e8;
-}
-
-.btn-action.navigate-btn {
-    color: #28a745;
-}
-
-.btn-action.navigate-btn:hover {
-    background-color: #e6fae8;
-}
-
-/* ============================= */
-/* RESPONSIVIDAD */
-/* ============================= */
-
-/* Para pantallas pequeñas */
-@media (max-width: 1200px) {
-    .tabla-dinamica table {
-        min-width: 900px; /* Aumentar un poco el ancho mínimo */
-    }
-    
-    .tabla-dinamica th,
-    .tabla-dinamica td {
-        padding: 6px 8px;
-        font-size: 0.85rem;
-    }
-    
-    .editable-input,
-    .editable-select {
-        font-size: 0.8rem;
-        padding: 3px 5px;
-    }
-}
-
+/* RESPONSIVE */
 @media (max-width: 768px) {
-    .tabla-dinamica table {
-        min-width: 700px;
+    /* Las reglas de media query para .filter-card fueron movidas a filter-component.css */
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
     }
     
-    .tabla-dinamica th,
-    .tabla-dinamica td {
-        padding: 4px 6px;
-        font-size: 0.8rem;
+    .filter-buttons-container {
+        align-self: flex-end;
     }
     
-    .editable-input,
-    .editable-select {
-        font-size: 0.75rem;
-        padding: 2px 4px;
+    .cheques-selected-summary {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
     }
     
-    .btn-action {
-        width: 24px;
-        height: 24px;
-        font-size: 0.9rem;
+    .cheques-actions {
+        width: 100%;
     }
-}
-
-/* ============================= */
-/* ESTILOS ESPECÍFICOS PARA TABLA DE CLIENTES */
-/* ============================= */
-
-/* Para tabla de clientes que tiene menos columnas */
-.tabla-dinamica.tabla-clientes th:nth-child(1),
-.tabla-dinamica.tabla-clientes td:nth-child(1) {
-    width: 40%; /* Nombre/Razón Social */
-}
-
-
-.tabla-dinamica.tabla-clientes th:nth-child(2),
-.tabla-dinamica.tabla-clientes td:nth-child(2) {
-    width: 35%; /* CUIL/CUIT */
-}
-
-.tabla-dinamica.tabla-clientes th:nth-child(3),
-.tabla-dinamica.tabla-clientes td:nth-child(3) {
-    width: 25%; /* Acciones */
-}
-
-/* ============================= */
-/* SCROLL HORIZONTAL MEJORADO */
-/* ============================= */
-
-.tabla-dinamica::-webkit-scrollbar {
-    height: 8px;
-}
-
-.tabla-dinamica::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-}
-
-.tabla-dinamica::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 10px;
-}
-
-.tabla-dinamica::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-/* Estilo específico para la columna de acciones (última columna) */
-.tabla-dinamica th:last-child,
-.tabla-dinamica td:last-child {
-    width: 120px;
-    min-width: 120px;
-    max-width: 120px;
-    text-align: center;
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-/* Asegura que los íconos no se deformen */
-.tabla-dinamica .action-icons {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: nowrap;
-}
-
-.tabla-dinamica .action-icons i {
-    font-size: 18px;
-    color: #444;
-    cursor: pointer;
-    transition: color 0.2s ease;
-}
-
-.tabla-dinamica .action-icons i:hover {
-    color: #007bff;
+    
+    .cheques-actions button {
+        flex: 1;
+    }
 }

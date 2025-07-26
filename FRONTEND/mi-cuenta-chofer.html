@@ -10,31 +10,7 @@
   <link rel="stylesheet" href="/FRONTEND/css/sidebar.css" />
   <link rel="stylesheet" href="/FRONTEND/css/button.css">
   <link rel="stylesheet" href="/FRONTEND/css/mi-cuenta.css" />
-  <style>
-    /* Estilos básicos para el spinner de carga */
-    #loading-spinner {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: calc(100vh - 60px); /* Ajusta si tu header/sidebar ocupan más espacio */
-        font-size: 1.2em;
-        color: #555;
-        flex-direction: column;
-        gap: 15px;
-    }
-    #loading-spinner .spinner {
-        border: 4px solid rgba(0, 0, 0, 0.1);
-        border-left: 4px solid #007bff; /* Color del spinner */
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-  </style>
+  <link rel="stylesheet" href="/FRONTEND/css/loading-spinner.css" />
 </head>
 <body>
   <div id="header-container"></div>

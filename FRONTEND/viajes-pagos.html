@@ -1,0 +1,230 @@
+<div class="modal-content tables" id="contentModalViajes">
+    <span id= "closeBtnViaje" class="close-button">&times;</span>
+    <div class="modal-header-content">
+        <div style="display: flex; gap: 7px; align-items: center;">
+            <div class="person-info">
+                <i class="bi bi-person-circle"></i>
+                <span>Nombre de la Persona</span>
+            </div>
+            <button class="btn btn-gray btn-circle" id="historial">
+                <i class="bi bi-clock-history"></i>
+            </button>
+            <div id="back-historial" class="hidden">
+                <button class="btn btn-sm btn-gray" id="back-historialBtn">
+                    <i class="bi bi-arrow-left"></i>
+                    Atras
+                </button>
+                <select id="selectResumenes" class="select-format">
+                    <option value=5> 5 </option>
+                    <option value=10> 10 </option>
+                    <option value=15> 15 </option>
+                    <option value=20> 20 </option>
+                </select>
+            </div>
+        </div>
+        <h2 id="headerModal">Viajes y Pagos</h2>
+    </div>
+
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        Cargando datos...
+    </div>
+    <div id="content-viajes" class="hidden">
+        <div class="table-section">
+            <div class="table-header-with-button">
+                <h3>Viajes</h3>
+                <div class="add-wrapper" id="chofer-wrapper">
+                    <button id="agregar-viaje" class="btn btn-success btn-plus"> + </button>
+                    <div id="addViajeCard" class="add-card chofer hidden" style="top:45px; padding: 0;">
+                        <form class="form-grid" id="form-viaje">
+                            <div class="form-group">
+                                <label for="nuevoFecha">Fecha *</label>
+                                <input type="date" id="nuevoFecha" name = "fecha" required>
+                            </div>
+                            <div class="form-group autocomplete-container">
+                                <label for="nuevoCliente" class="cuil">Cliente *</label>
+                                <input type="text" id="nuevoCliente" name="cliente" placeholder="Razon Social" required>
+                                <div class="suggestions-list" id="nuevoCliente-suggestions"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="nuevoComprobante">Comprobante *</label>
+                                <input type="text" id="nuevoComprobante" name="comprobante" placeholder="Nro. Comprobante" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="nuevoCampo">Campo *</label>
+                                <input type="text" id="nuevoCampo" name = "campo" placeholder="Campo" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="nuevoKm" class="cuil">Kilometros *</label>
+                                <input type="number" id="nuevoKm" name="kilometro" placeholder="Cantidad de kilómetros" required>
+                            </div>
+                            <div class="form-group autocomplete-container">
+                                <label for="tarifa" class="cuil">Tarifa *</label>
+                                <input type="text" id="tarifa" name="tarifa" placeholder="Tarifa" required>
+                                <div id="tarifa-suggestions" class="suggestions-list"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="nuevoVariacion" class="cuil">Variación *</label>
+                                <input type="number" id="nuevoVariacion" name="variacion" placeholder="Variación" value=0.1 step="0.01" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="nuevoToneladas" class="cuil">Toneladas *</label>
+                                <input type="number" id="nuevoToneladas" name="toneladas" placeholder="Cantidad de toneladas" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="nuevoCargado" class="cuil">Cargado</label>
+                                <input type="number" id="nuevoCargado" name="cargado" placeholder="Cantidad de toneladas">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="nuevoDescargado" class="cuil">Descargado</label>
+                                <input type="number" id="nuevoDescargado" name="descargado" placeholder="Cantidad de toneladas">
+                            </div>
+                        </form>
+                        <button class="btn btn-success btn-sm" id="addViajeBtn" style="max-width: 50%; height: 30px; align-self: center; width: 40vw; margin-bottom: 15px;">
+                            Cargar viaje
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="viajes-table" class="tabla-dinamica tabla-viajes"></div>
+        </div>
+
+        <div class="summary-boxes">
+            <div id ="subtotal"class="summary-box subtotal">
+                Subtotal: $0.00
+            </div>
+            <div id="iva" class="summary-box iva">
+                IVA (21%): $0.00
+            </div>
+            <div id="total-viajes" class="summary-box total-viajes">
+                Total Viajes: $0.00
+            </div>
+        </div>
+
+        <div class="table-section">
+            <div class="table-header-with-button">
+                <h3>Pagos</h3>
+                <div class="add-wrapper" id="chofer-wrapper">
+                    <button id="agregar-pago" class="btn btn-success btn-plus"> + </button>
+                    <div id="addPagoCard" class="add-card chofer hidden" style="top:45px; padding: 0; max-width: 60vw;">
+                        <div class="form-grid" style="padding-bottom: 5px;">
+                            <div class="form-group">
+                                <label for="fechaPago" style="font-weight: bold;">Fecha de Pago</label>
+                                <input type="date" id="fechaPago">
+                            </div>
+                            <div class="form-group">
+                                <label for="tipoPago" style="font-weight: bold;">Tipo de Pago</label>
+                                <select id="tipoPago">
+                                    <option value="cheque">Cheque</option>
+                                    <option value="gasoil">Gasoil</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="chequeFields" class="payment-type-fields">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="fechaCheque">Fecha del Cheque</label>
+                                    <input type="date" id="fechaCheque">
+                                </div>
+                                <div class="form-group">
+                                    <label for="nroCheque">Nro. de Cheque</label>
+                                    <input type="number" id="nroCheque" placeholder="Número de Cheque">
+                                </div>
+                                <div class="form-group">
+                                    <label for="terceroCheque">Tercero</label>
+                                    <input type="text" id="terceroCheque" placeholder="Nombre del Tercero">
+                                </div>
+                                <div class="form-group">
+                                    <label for="destinatarioCheque">Destinatario</label>
+                                    <input type="text" id="destinatarioCheque" placeholder="Nombre del Destinatario">
+                                </div>
+                                <div class="form-group">
+                                    <label for="importeCheque">Importe</label>
+                                    <input type="number" id="importeCheque" placeholder="Importe">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="gasoilFields" class="payment-type-fields hidden">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="precioGasoil">Precio Gasoil</label>
+                                    <input type="number" id="precioGasoil" placeholder="Precio por Litro">
+                                </div>
+                                <div class="form-group">
+                                    <label for="litrosGasoil">Litros</label>
+                                    <input type="number" id="litrosGasoil" placeholder="Cantidad de Litros">
+                                </div>
+                                <div class="form-group">
+                                    <label for="importeGasoil">Importe</label>
+                                    <input type="number" id="importeGasoil" placeholder="Importe Total" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="otroFields" class="payment-type-fields hidden">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="detalleOtro">Detalle</label>
+                                    <input type="text" id="detalleOtro" placeholder="Descripción del pago">
+                                </div>
+                                <div class="form-group">
+                                    <label for="importeOtro">Importe</label>
+                                    <input type="number" id="importeOtro" placeholder="Importe">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-success btn-sm" id="addPagoBtn" style="max-width: 50%; height: 30px; align-self: center; width: 40vw; margin-bottom: 15px;">
+                            Cargar pago
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="pagos-table" class="tabla-dinamica tabla-pagos"></div>
+            <div class="summary-boxes">
+                <div id="total-pagar" class="total-pagar-box" style="width: 80%;">
+                    Total a Pagar: $ 0.00
+                </div>
+                <button id="cerrarCuenta" class="btn close-account-btn" style="width: 15%;">
+                    Cerrar Cuenta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="content-resumenes" class="hidden">
+        <div class="table-section">
+            <h3 style="text-align: left;">Viajes</h3>
+            <div id="viajes-table-resumenes" class="tabla-dinamica tabla-viajes"></div>
+        </div>
+
+        <div class="summary-boxes">
+            <div id ="subtotal-resumen"class="summary-box subtotal gray">
+                Subtotal: $0.00
+            </div>
+            <div id="iva-resumen" class="summary-box iva gray">
+                IVA (21%): $0.00
+            </div>
+            <div id="total-viajes-resumen" class="summary-box total-viajes gray">
+                Total Viajes: $0.00
+            </div>
+        </div>
+
+        <div class="table-section">
+            <h3 style="text-align: left;">Pagos</h3>
+            <div id="pagos-table-resumenes" class="tabla-dinamica tabla-pagos"></div>
+            <div id="total-resumen" class="total-pagar-box gray">
+                Saldo del Resumen: $ 0.00
+            </div>
+        </div>
+
+        <div id="paginacion-resumenes" class="pagination-controls"></div>
+    </div>
+</div>

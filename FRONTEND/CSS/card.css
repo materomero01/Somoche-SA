@@ -1,0 +1,62 @@
+/* Formulario flotante */
+.add-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+
+.add-card {
+    position: absolute;
+    top: 50px; /* Más distancia para evitar que tape el botón */
+    right: 0;
+    z-index: 100;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+}
+
+.add-card.chofer {
+    width: 80vw; 
+    max-width: 80vw;
+}
+
+/* ===================== */
+/* Grilla del formulario */
+/* ===================== */
+.form-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+ gap: 10px;
+ padding: 15px;
+}
+
+.form-group {
+ display: flex;
+ position: relative;
+ flex-direction: column;
+ margin-bottom: 0px;
+}
+
+.form-group label {
+    text-align: left;
+    margin-bottom: 2px;
+}
+
+.form-group input {
+    padding: 4px 6px;
+}
+
+.form-group select {
+    padding: 4px 6px;
+}
+
+
+/* Clase para ocultar contenido */
+.hidden {
+    display: none !important;
+}

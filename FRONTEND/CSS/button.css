@@ -78,3 +78,24 @@
 .btn-dark:hover {
     background-color: #333333;
 }
+
+.btn-gray {
+    background-color:#6B7280;
+    color: white;
+    border: 1px solid #6B7280;
+}
+
+.btn-gray:hover {
+    background-color: #595f6b;
+}
+
+.btn-circle {
+    align-items: center;
+    border-radius: 50%;
+    padding: 8px 10px;
+}
+
+.btn-plus {
+    font-size: 100%;
+    padding: 7px 14px;
+}

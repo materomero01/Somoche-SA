@@ -9,19 +9,18 @@
   <link rel="stylesheet" href="/FRONTEND/css/header.css" />
   <link rel="stylesheet" href="/FRONTEND/css/sidebar.css" />
   <link rel="stylesheet" href="/FRONTEND/css/tab-selector.css" />
-  <link rel="stylesheet" href="/FRONTEND/css/cheques.css" />
+  <link rel="stylesheet" href="/FRONTEND/css/tabla.css" />
 </head>
 <body>
   <div id="header-container"></div>
   <div id="sidebar-container"></div>
 
   <main class="content">
-    <section class="cheques-section">
-      <div class="tab-selector" id="chequesSelector">
+    <div class="tab-selector" id="chequesSelector">
         <div class="tab-item active" data-tab="proximos">Próximos</div>
         <div class="tab-item" data-tab="pagos">Pagos</div>
       </div>
-
+    <section class="cheques-section">
       <div id="content-proximos">
         <h2>Cheques próximos</h2>
         <div id="tabla-proximos" class="tabla-dinamica"></div>

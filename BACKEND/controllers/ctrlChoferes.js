@@ -52,6 +52,9 @@ exports.getChoferesAllData = async (req, res) => {
 }
 
 exports.updateChofer = async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.cuil !== req.params.cuilOriginal) {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
     const editingData = req.body;
     const cuilOriginal = req.params.cuilOriginal;
 
@@ -183,10 +186,11 @@ exports.deleteChofer = async (req, res) => {
 }
 
 exports.getChoferByCuil = async (req, res) => {
-    if (req.user.role !== 'chofer' && req.user.cuil !== req.params.cuil) {
+    if (req.user.role !== 'admin' && req.user.cuil !== req.params.cuil) {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
-    const { cuil } = req.params;
+    const cuil = req.params.cuil;
+    console.log(cuil);
     try {
         const result = await pool.query(
             `SELECT u.nombre_apellido AS nombre, c.cuil, tipo_trabajador AS trabajador, patente_chasis, patente_acoplado, telefono, email FROM usuario u 

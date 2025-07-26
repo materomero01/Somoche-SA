@@ -86,7 +86,12 @@ formSesion?.addEventListener("submit", async (event) => {
                 localStorage.setItem('jwtToken', data.token);
                 localStorage.setItem('userName', data.nombre_apellido);
                 localStorage.setItem('userRole', data.role);
+                localStorage.setItem('userCuil', data.cuil);
+                if (data.trabajador)
+                    localStorage.setItem('userTrabajador', data.trabajador);
             }
+            if (data.role === "chofer")
+                redirectURL = "home-chofer.html";
             alert(data.message);
             window.location.href = redirectURL;
         } else {

@@ -5,73 +5,107 @@ const parseCurrency = (value) => {
     return parseFloat(cleanValue);
 };
 
-const validateViaje = (data) => {
+// Función para validar si es una fecha válida
+const isValidDate = (value) => {
+    if (typeof value !== 'string') return false;
+    const date = Date.parse(value);
+    return !isNaN(date); // Verifica si la fecha es parseable
+};
+
+const validateViaje = (data, partial = false) => {
     const errors = [];
     const validatedData = {};
 
-    // Campos requeridos y sus tipos esperados
-    const requiredFields = {
-        cuil: { type: 'string', required: true },
-        nombre: { type: 'string', required: true },
-        fecha: { type: 'string', required: true },
-        comprobante: { type: 'string', required: true, regex: /^(\d{4}-\d{8}|\d{11})$/ },
-        campo: { type: 'string', required: true },
-        kilometro: { type: 'number', required: true, min: 0 },
-        tarifa: { type: 'string', required: true }, // Se valida como cadena, luego se parsea
-        toneladas: { type: 'number', required: true, min: 0 },
-        cargado: { type: 'number', required: true, min: 0 },
-        descargado: { type: 'number', required: true, min: 0 },
-        pagado: { type: 'boolean', required: false, default: false },
-        variacion: { type: 'number', required: false, default: 0.1 }
+    // Campos y sus reglas de validación
+    const fields = {
+        cuil: { type: 'string', required: true, error: 'El CUIL es obligatorio.' },
+        cuit_cliente: { type: 'string', required: true, error: 'El CUIT del cliente es obligatorio.' },
+        nombre: { type: 'string', required: true, error: 'El nombre es obligatorio.' },
+        fecha: { type: 'string', required: true, error: 'La fecha es obligatoria.', validate: isValidDate },
+        comprobante: { type: 'string', required: true, regex: /^(\d{4}-\d{8}|\d{11})$/, error: 'El comprobante debe cumplir con el formato XXXX-XXXXXXXX o 11 dígitos.' },
+        campo: { type: 'string', required: true, error: 'El campo es obligatorio.' },
+        kilometros: { type: 'number', required: true, min: 0, error: 'El kilómetro debe ser un número mayor a 0.' },
+        tarifa: { type: 'number', required: true, error: 'La tarifa debe ser un número mayor a 0.' },
+        toneladas: { type: 'number', required: true, min: 0, error: 'Las toneladas deben ser un número mayor a 0.' },
+        cargado: { type: 'number', required: true, min: 0, error: 'El cargado debe ser un número mayor a 0.' },
+        descargado: { type: 'number', required: true, min: 0, error: 'El descargado debe ser un número mayor a 0.' },
+        pagado: { type: 'boolean', required: false, default: false, error: 'El pagado debe ser un booleano.' },
+        variacion: { type: 'number', required: false, default: 0.1, min: 0, max: 1, error: 'La variación debe ser un número mayor o igual a 0.' },
+        group: { type: 'date', required: false, error: 'El grupo debe ser una fecha válida.', validate: isValidDate }
     };
 
     // Validar cada campo
-    for (const [key, rules] of Object.entries(requiredFields)) {
+    for (const [key, rules] of Object.entries(fields)) {
         const value = data[key];
-        
-        // Verificar si el campo requerido está presente
-        if (rules.required && (value === undefined || value === null || (typeof value === 'string' && value.trim() === ''))) {
-            errors.push(`El campo ${key} es obligatorio.`);
+
+        // Para validación completa (insert), los campos requeridos deben estar presentes
+        if (!partial && rules.required && (value === undefined || value === null || (typeof value === 'string' && value.trim() === ''))) {
+            errors.push(rules.error);
             continue;
         }
 
-        // Aplicar valor por defecto si no está presente
-        if (value === undefined && !rules.required && rules.default !== undefined) {
-            validatedData[key] = rules.default;
+        // Para validación parcial (update), ignorar campos no proporcionados
+        if ((partial || !rules.required) && (value === undefined || value === null)) {
             continue;
         }
 
         // Validar tipo
-        if (value !== undefined) {
-            if (rules.type === 'string' && typeof value !== 'string') {
-                errors.push(`El campo ${key} debe ser una cadena.`);
-            } else if (rules.type === 'number' && (isNaN(value) || typeof value !== 'number')) {
-                errors.push(`El campo ${key} debe ser un número.`);
-            } else if (rules.type === 'boolean' && typeof value !== 'boolean') {
-                errors.push(`El campo ${key} debe ser un booleano.`);
-            }
+        if (rules.type === 'string' && typeof value !== 'string') {
+            errors.push(`El campo ${key} debe ser una cadena.`);
+        } else if (rules.type === 'number' && key !== 'tarifa' && (isNaN(value) || typeof value !== 'number')) {
+            errors.push(`El campo ${key} debe ser un número.`);
+        } else if (rules.type === 'boolean' && typeof value !== 'boolean') {
+            errors.push(`El campo ${key} debe ser un booleano.`);
+        } else if (rules.type === 'date' && !rules.validate(value)) {
+            errors.push(rules.error);
+        }
 
-            // Validar regex para comprobante
-            if (rules.regex && !rules.regex.test(value)) {
-                errors.push(`El campo ${key} no cumple con el formato esperado (XXXX-XXXXXXXX o 11 dígitos).`);
-            }
-
-            // Validar valores mínimos para números
-            if (rules.min !== undefined && !isNaN(value) && value <= rules.min) {
-                errors.push(`El campo ${key} debe ser mayor a ${rules.min}.`);
-            }
-
-            // Parsear tarifa
-            if (key === 'tarifa') {
-                const parsedTarifa = parseCurrency(value);
-                if (isNaN(parsedTarifa) || parsedTarifa <= 0) {
-                    errors.push('La tarifa debe ser un número mayor a 0.');
-                } else {
-                    validatedData[key] = parsedTarifa;
-                }
+        // Validar tarifa (acepta string o number)
+        if (key === 'tarifa' && value !== undefined) {
+            let parsedTarifa;
+            if (typeof value === 'string') {
+                parsedTarifa = parseCurrency(value);
+            } else if (typeof value === 'number') {
+                parsedTarifa = value;
             } else {
-                validatedData[key] = value;
+                errors.push(rules.error);
+                continue;
             }
+            if (isNaN(parsedTarifa) || parsedTarifa <= 0) {
+                errors.push(rules.error);
+            } else {
+                validatedData[key] = parsedTarifa;
+            }
+        }
+
+        // Validar regex para comprobante
+        if (rules.regex && !rules.regex.test(value)) {
+            errors.push(rules.error);
+        }
+
+        // Validar valores mínimos para números
+        if (rules.min !== undefined && !isNaN(value) && value <= rules.min) {
+            errors.push(rules.error);
+        }
+
+        // Validar valores maximos para numeros
+        if (rules.max !== undefined && !isNaN(value) && value > rules.max) {
+            errors.push(rules.error);
+        }
+
+        // Validar fecha para group y fecha
+        if (rules.validate && value !== undefined && !rules.validate(value)) {
+            errors.push(rules.error);
+        }
+
+        // Guardar valor en validatedData si no es tarifa (tarifa ya se manejó arriba)
+        if (key !== 'tarifa' && value !== undefined) {
+            validatedData[key] = value;
+        }
+
+        // Aplicar valor por defecto si no está presente y no es requerido
+        if (value === undefined && !rules.required && rules.default !== undefined) {
+            validatedData[key] = rules.default;
         }
     }
 

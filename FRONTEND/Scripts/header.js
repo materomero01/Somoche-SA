@@ -30,14 +30,13 @@ function setupHeaderDynamicContent() {
     }
     const storedName = localStorage.getItem('userName');
     const storedRole = localStorage.getItem('userRole');
-    //if (storedName === null || storedRole === null)
-    //    logout();
-    //if (userNameElement) {
-    //    userNameElement.textContent = storedName;
-    //}
-    //if (userRoleElement) {
-    //    userRoleElement.textContent = storedRole.toUpperCase();
-    //}
+       
+    if (userNameElement && storedName) {
+       userNameElement.textContent = storedName;
+    }
+    if (userRoleElement && storedRole) {
+       userRoleElement.textContent = storedRole.toUpperCase();
+    }
 }
 
 function setupHeaderInteractions() {

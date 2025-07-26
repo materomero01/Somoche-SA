@@ -27,10 +27,13 @@
  padding: 15px;
 }
 
-/* Regla para que el chofer ocupe todo el ancho */
-.full-width {
-    grid-column: 1 / -1; /* Esto lo hace abarcar desde la primera línea de columna hasta la última */
-    max-width: 40%;
+.form-row {
+    display: flex;
+    grid-template-columns: 1fr 1fr; /* Dos columnas de igual ancho */
+    padding-left: 15px;
+    padding-right: 15px;
+    justify-content: space-between;
+    align-items: start; /* Alinea los elementos al inicio verticalmente */
 }
 
 /* ===================== */
@@ -73,6 +76,10 @@
   grid-template-columns: 1fr;
  }
 
+ .form-row {
+    grid-template-columns: 1fr; /* En pantallas pequeñas, una columna */
+}
+
  .form-actions {
   flex-direction: column;
   align-items: center;
@@ -85,7 +92,7 @@
 
 .autocomplete-container {
     position: relative; /* Importante para posicionar las sugerencias */
-    max-width: 400px;
+    width: 100%;
     margin-bottom: 15px;
 }
 
@@ -94,8 +101,9 @@
     top: 100%; /* Justo debajo del input */
     left: 0;
     right: 0;
+    width: 100%;
     border: 1px solid #ddd;
-    border-top: none;
+    border-top: none !important;
     background-color: white;
     z-index: 1000; /* Asegura que esté sobre otros elementos */
     max-height: 200px; /* Para que sea scrollable si hay muchas sugerencias */

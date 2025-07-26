@@ -1,7 +1,8 @@
-import { fetchAllChoferes, fetchTarifas, addViaje, logout, addPagos } from './api.js';
+import { fetchAllChoferes, fetchTarifas, addViaje, logout, addPagos, fetchClientes } from './api.js';
 
 // Global variables
 let allChoferes = [];
+let allClientes = [];
 let tarifasCatac = [];
 let token;
 
@@ -57,6 +58,7 @@ const handleTabContentDisplay = (selectedTab) => {
         setupChoferAutocomplete('choferPago');
     } else if (selectedTab === 'viajes') {
         setupChoferAutocomplete('chofer');
+        setupClienteAutocomplete('cliente');
         setupTarifaAutocomplete();
         setupCargaDescargaAutocomplete();
     }
@@ -89,14 +91,21 @@ const setupAddViajeBtn = () => {
     const btn = document.getElementById('addViajeBtn');
     btn?.addEventListener('click', async () => {
         const choferInput = document.getElementById('chofer');
+        const clienteInput = document.getElementById('cliente');
         const fechaInput = document.getElementById('fecha');
         const payload = {
             cuil: choferInput?.dataset.selectedChoferCuil,
-            nombre: choferInput?.dataset.selectedChoferNombre
+            nombre: choferInput?.dataset.selectedChoferNombre,
+            cuit_cliente: clienteInput?.dataset.selectedClienteCuit
         };
 
         if (!payload.cuil) {
             alert('Por favor, selecciona un chofer de la lista de sugerencias.');
+            return;
+        }
+
+        if (!payload.cuit_cliente) {
+            alert('Por favor, selecciona un cliente de la lista de sugerencias.');
             return;
         }
 
@@ -107,7 +116,7 @@ const setupAddViajeBtn = () => {
             fecha: fechaISO,
             comprobante: formData.comprobante?.trim(),
             campo: formData.campo?.trim(),
-            kilometro: parseFloat(formData.kilometro),
+            kilometros: parseFloat(formData.kilometro),
             tarifa: formData.tarifa,
             variacion: parseFloat(formData.variacion) || 0.1,
             toneladas: parseFloat(formData.toneladas),
@@ -120,7 +129,7 @@ const setupAddViajeBtn = () => {
         if (!validateInputs(payload, {
             comprobante: 'Comprobante',
             campo: 'Campo',
-            kilometro: 'Kilómetro',
+            kilometros: 'Kilómetro',
             tarifa: 'Tarifa',
             toneladas: 'Toneladas',
             cargado: 'Cargado',
@@ -135,7 +144,7 @@ const setupAddViajeBtn = () => {
 
         // Validate numeric fields
         const numericFields = {
-            kilometro: 'Kilómetro',
+            kilometros: 'Kilómetro',
             toneladas: 'Toneladas',
             cargado: 'Cargado',
             descargado: 'Descargado'
@@ -148,11 +157,9 @@ const setupAddViajeBtn = () => {
         }
 
         try {
-            const data = await addViaje(payload);
+            const response = await addViaje(payload);
+            const data = await response.json();
             form.reset();
-            choferInput.value = payload.nombre;
-            choferInput.dataset.selectedChoferCuil = payload.cuil;
-            choferInput.dataset.selectedChoferNombre = payload.nombre;
             setTodayDate();
             alert(data.message);
         } catch (error) {
@@ -292,7 +299,8 @@ const setupAddPagoBtn = () => {
         }
         
         try {
-            const data = await addPagos(payload);
+            const response = await addPagos(payload);
+            const data = await response.json();
             alert(data.message);
             
         } catch (error) {
@@ -417,10 +425,20 @@ const setupChoferAutocomplete = inputId => setupAutocomplete({
     }
 });
 
+const setupClienteAutocomplete = inputId => setupAutocomplete({
+    inputId,
+    filterSuggestions: query => query.length < 2 ? [] : allClientes.filter(cliente => cliente.nombre.toLowerCase().includes(query.toLowerCase())),
+    renderSuggestion: cliente => `${cliente.nombre} (${cliente.cuit})`,
+    onSelect: (input, cliente) => {
+        input.value = cliente.nombre;
+        input.dataset.selectedClienteNombre = cliente.nombre;
+        input.dataset.selectedClienteCuit = cliente.cuit;
+    }
+})
+
 // Setup tarifa autocomplete
 const setupTarifaAutocomplete = () => {
     const tarifaAutodescargableBase = 0;
-    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac') || '[]');
 
     setupAutocomplete({
         inputId: 'tarifa',
@@ -476,15 +494,16 @@ const setupCargaDescargaAutocomplete = () => {
 
 // DOMContentLoaded initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    allChoferes = await fetchAllChoferes();
-    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac')) || await fetchTarifas();
+    
 
     if (typeof loadHeader === 'function') await loadHeader();
     else console.error("loadHeader no está definido. Asegúrate de cargar /FRONTEND/scripts/header.js.");
 
     if (typeof loadSidebar === 'function') await loadSidebar(localStorage.getItem('userRole') || 'admin');
     else console.error("loadSidebar no está definido. Asegúrate de cargar /FRONTEND/scripts/sidebar.js.");
-
+    allChoferes = await fetchAllChoferes();
+    allClientes = await fetchClientes();
+    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac')) || await fetchTarifas();
     const sidebarItems = document.querySelectorAll('.sidebar-item');
     sidebarItems.forEach(item => {
         if (item.dataset.targetPage && window.location.pathname.includes(item.dataset.targetPage)) {
