@@ -16,7 +16,7 @@ var pagosRouter = require('./routes/pagos');
 var catacRouter = require('./routes/catac');
 var clientesRouter = require('./routes/clientes');
 var resumenesRouter = require('./routes/resumenes');
-var facturaRoutes = require('./routes/facturas');
+
 
 
 var app = express();
@@ -63,8 +63,7 @@ app.use('/api/pagos', pagosRouter);
 app.use('/api/catac', catacRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/resumenes', resumenesRouter);
-app.use('/api/facturas', facturaRoutes);
-
+app.use('/api/facturas', require('./routes/facturas'));
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { emitirFacturaA } = require('../controllers/ctrlFacturas');
+const { generarFactura } = require('../controllers/ctrlFacturas');
 
-router.post('/emitir', emitirFacturaA);
+router.post('/generar-factura', generarFactura);
 
 module.exports = router;

@@ -9,7 +9,7 @@ export function renderTabla({
     editingRowId = null, 
     onEdit = null,
     tableType = 'default',
-    onPageChange = null, // Callback para notificar cambios de página
+    onPageChange = null,
     checkboxColumn = false,
     checkboxColumnPosition = 'start',
     onCheckboxChange = null,
@@ -76,9 +76,17 @@ export function renderTabla({
         const th = document.createElement("th");
         if (datos.length > 0 && datos[0].facturaSubida != null) {
             const facturaButton = document.createElement("button");
-            facturaButton.classList.add("btn-action", "btn-upload");
+            facturaButton.classList.add("btn-action");
             facturaButton.innerHTML = '<i class="bi bi-file-earmark-arrow-up"></i>';
-            facturaButton.title = "Subir Factura";
+            // Change button for viajesCliente table
+            if (tableType === 'viajesCliente') {
+                facturaButton.classList.add("btn-generate-invoice");
+                facturaButton.title = "Generar Factura";
+                facturaButton.addEventListener('click', () => handleGenerateInvoice(datos));
+            } else {
+                facturaButton.classList.add("btn-upload");
+                facturaButton.title = "Subir Factura";
+            }
             th.classList.add("checkbox-cell", "factura-cell");
             th.style.textAlign = "center";
             th.appendChild(facturaButton);
@@ -126,13 +134,11 @@ export function renderTabla({
                 const checkbox = document.createElement("input");
                 checkbox.type = "checkbox";
                 checkbox.setAttribute('data-id', item.id);
-                checkbox.checked = false;
-                if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
-                    checkbox.checked = true;
-                }
+                checkbox.checked = item.selected || false;
                 checkbox.addEventListener('change', (e) => {
+                    item.selected = e.target.checked; // Directly update item
+                    console.log(`Checkbox ${item.id} changed: ${item.selected}`); // Debug
                     if (onCheckboxChange) {
-                        item.selected = !item.selected;
                         onCheckboxChange(item.id, e.target.checked);
                     }
                 });
@@ -157,13 +163,11 @@ export function renderTabla({
                         const checkbox = document.createElement("input");
                         checkbox.type = "checkbox";
                         checkbox.setAttribute('data-id', item.id);
-                        checkbox.checked = false;
-                        if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
-                            checkbox.checked = true;
-                        }
+                        checkbox.checked = item.selected || false;
                         checkbox.addEventListener('change', (e) => {
+                            item.selected = e.target.checked; // Directly update item
+                            console.log(`FacturaSubida checkbox ${item.id} changed: ${item.selected}`); // Debug
                             if (onCheckboxChange) {
-                                item.selected = !item.selected;
                                 onCheckboxChange(item.id, e.target.checked);
                             }
                         });
@@ -174,7 +178,7 @@ export function renderTabla({
                     td.appendChild(input);
                 } else {
                     td.textContent = item[col.key] !== undefined ? item[col.key] : '';
-                    td.title = item[col.key] || ''; /* Tooltip for full text */
+                    td.title = item[col.key] || '';
                 }
                 
                 if (col.class) {
@@ -210,7 +214,6 @@ export function renderTabla({
                 } else {
                     const actionContainer = document.createElement("div");
                     actionContainer.classList.add("action-icons");
-                    
                     actions.forEach(action => {
                         const button = document.createElement("button");
                         button.className = "btn-action";
@@ -262,13 +265,11 @@ export function renderTabla({
                     const checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkbox.setAttribute('data-id', item.id);
-                    checkbox.checked = false;
-                    if (item.selected) { // Si el cheque ya está seleccionado, marcar el checkbox
-                        checkbox.checked = true;
-                    }
+                    checkbox.checked = item.selected || false;
                     checkbox.addEventListener('change', (e) => {
+                        item.selected = e.target.checked; // Directly update item
+                        console.log(`End checkbox ${item.id} changed: ${item.selected}`); // Debug
                         if (onCheckboxChange) {
-                            item.selected = !item.selected;
                             onCheckboxChange(item.id, e.target.checked);
                         }
                     });
@@ -450,13 +451,119 @@ export function renderTabla({
         container.dataset.currentPage = nuevaPagina;
         renderBody(nuevaPagina);
         renderPaginacion(nuevaPagina);
-        // Notificar el cambio de página al componente padre
         if (onPageChange) {
             onPageChange(nuevaPagina);
         }
     }
 
-    
+    // Handler for Generate Invoice button
+    function handleGenerateInvoice(data) {
+        const selectedRows = data.filter(item => item.selected);
+        console.log('Selected rows:', JSON.stringify(selectedRows, null, 2));
+        if (selectedRows.length === 0) {
+            showConfirmModal('Por favor, seleccione al menos un viaje para generar la factura.');
+            return;
+        }
+
+        // Get client CUIT from localStorage
+        const selectedClientCUIT = localStorage.getItem('selectedClientCUIT');
+        console.log('Selected client CUIT:', selectedClientCUIT);
+
+        if (!selectedClientCUIT || selectedClientCUIT.replace(/[^0-9]/g, '').length !== 11) {
+            showConfirmModal('Error: CUIT del cliente no disponible o inválido. Por favor, seleccione un cliente en la tabla de clientes.');
+            return;
+        }
+
+        // Validate and clean fields
+        for (const row of selectedRows) {
+            const tarifa = parseFloat(row.tarifa?.replace(/[^0-9.]/g, '')); // Clean tarifa
+            const importe = parseFloat(row.importe?.replace(/[^0-9.]/g, '')); // Clean importe
+            const iva = parseFloat(row.iva?.replace(/[^0-9.]/g, '')); // Clean iva
+            if (isNaN(tarifa)) {
+                showConfirmModal(`Error: Tarifa inválida en viaje: ${row.campo || 'Sin campo'}`);
+                return;
+            }
+            if (isNaN(importe)) {
+                showConfirmModal(`Error: Importe inválido en viaje: ${row.campo || 'Sin campo'}`);
+                return;
+            }
+            if (isNaN(iva)) {
+                showConfirmModal(`Error: IVA inválido en viaje: ${row.campo || 'Sin campo'}`);
+                return;
+            }
+        }
+
+        const servicios = selectedRows.map((row, index) => {
+            const importe = parseFloat(row.importe.replace(/[^0-9.]/g, '')); // Clean importe
+            const iva = parseFloat(row.iva.replace(/[^0-9.]/g, '')); // Clean iva
+            const subtotal = importe; // Importe is the subtotal
+            const subtotalConIVA = (importe + iva).toFixed(2); // Subtotal + IVA
+            return {
+                codigo: `V${index + 1}`,
+                descripcion: `Transporte - ${row.campo || 'Sin campo'} (${row.fecha})`,
+                cantidad: row.toneladas, // Per trip; change to row.cargado if billing by tonnage
+                unidad: 'Toneladas',
+                precioUnit: importe.toFixed(2),
+                bonif: '0.00',
+                subtotal: subtotal.toFixed(2),
+                ivaId: 5, // 21% IVA
+                subtotalConIVA: subtotalConIVA
+            };
+        });
+
+        const invoiceData = {
+            ptoVta: 12,
+            docNro: selectedClientCUIT,
+            servicios,
+            tributos: [],
+            fechaEmision: formatDate(new Date()), // AAAAMMDD
+            periodoDesde: formatDate(new Date(), '/'), // DD/MM/YYYY
+            periodoHasta: formatDate(new Date(), '/'), // DD/MM/YYYY
+            fechaVtoPago: formatDate(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), '/'), // 10 days
+            condicionVenta: 'Efectivo'
+        };
+
+        console.log('Invoice data to send:', JSON.stringify(invoiceData, null, 2));
+
+        const token = localStorage.getItem('jwtToken');
+        if (!token) {
+            showConfirmModal('Error: No se encontró token de autenticación. Por favor, inicia sesión nuevamente.');
+            return;
+        }
+
+        fetch('http://localhost:3000/api/facturas/generar-factura', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(invoiceData)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.error || 'Error al generar factura');
+                    });
+                }
+                return response.json(); // Expect JSON response
+            })
+            .then(data => {
+                console.log('Invoice generation response:', data);
+                showConfirmModal(`Factura generada y guardada en el servidor: ${data.pdfPath}`);
+            })
+            .catch(error => {
+                console.error('Error:', error.message);
+                showConfirmModal('Error al generar la factura: ' + error.message);
+            });
+    }
+
+    // Date formatting helper
+    function formatDate(date, separator = '') {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return separator ? `${day}${separator}${month}${separator}${year}` : `${year}${month}${day}`;
+    }
 
     // Inicializa el cuerpo y la paginación con la página actual
     renderBody(currentPage);
@@ -467,16 +574,30 @@ export function renderTabla({
     newTableWrapper.appendChild(tabla);
     container.appendChild(newTableWrapper);
 
-    // Restore scroll position to edited row if applicable
     if (useScrollable && editingRowId && newTableWrapper) {
         const editedRow = document.getElementById(`row-${editingRowId}`);
         if (editedRow) {
             const rowOffset = editedRow.offsetTop;
             const containerHeight = newTableWrapper.clientHeight;
-            const scrollOffset = rowOffset - (containerHeight / 2); // Center the row
+            const scrollOffset = rowOffset - (containerHeight / 2);
             newTableWrapper.scrollTop = scrollOffset > 0 ? scrollOffset : 0;
         } else {
-            newTableWrapper.scrollTop = scrollPosition; // Fallback to previous position
+            newTableWrapper.scrollTop = scrollPosition;
         }
+    }
+}
+
+// SweetAlert modal for notifications (requires <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>)
+// Fallback to alert if SweetAlert is not loaded
+function showConfirmModal(message) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Notificación',
+            text: message,
+            icon: message.includes('Error') ? 'error' : 'success',
+            confirmButtonText: 'OK'
+        });
+    } else {
+        alert(message);
     }
 }

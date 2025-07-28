@@ -81,7 +81,16 @@ const clientesActions = [
         icon: 'bi bi-send',
         tooltip: 'Ver Viajes',
         handler: (rowData) => {
-            verViajesModal(rowData, "cliente");
+            // Store CUIT before opening modal
+            const cleanCUIT = rowData.cuit.replace(/[^0-9]/g, '');
+            if (cleanCUIT.length === 11) {
+                localStorage.setItem('selectedClientCUIT', cleanCUIT);
+                console.log('Stored CUIT:', cleanCUIT);
+                verViajesModal(rowData, "cliente");
+            } else {
+                console.error('Invalid CUIT:', rowData.cuit);
+                showConfirmModal('Error: CUIT inválido en la fila seleccionada.');
+            }
         }
     }
 ];
@@ -119,6 +128,20 @@ function renderClientesTable(data, currentPage = 1) {
         currentPage: currentPage,
         onPageChange: (page) => { currentClientesPage = page; }
     });
+}
+
+// --- Función para renderizar la tabla actual ---
+export function renderCurrentTable() {
+    console.log(currentEditingTableType);
+    if (currentEditingTableType === 'choferes') {
+        renderChoferesTable(mockChoferes, currentChoferesPage);
+    } else if (currentEditingTableType === 'clientes') {
+        renderClientesTable(mockClientes, currentClientesPage);
+    } else if (currentEditingTableType === 'viajes') {
+        renderizarTablas();
+    } else if (currentEditingTableType === "viajesCliente") {
+        renderizarTablaVC();
+    }
 }
 
 // --- Lógica de Pestañas ---
@@ -168,7 +191,7 @@ async function verViajesModal(choferData, tipo) {
                 console.log(error.message);
             }
         }
-    } else if (tipo === "cliente"){
+    } else if (tipo === "cliente") {
         const modalViajesClientes = document.getElementById("viajesClientesModal");
         if (modalViajesClientes) {
             try {
@@ -454,7 +477,7 @@ export async function handleSaveEdit() {
             }
         } else if (currentEditingTableType === 'viajes') {
             await handleSaveEditViajes();
-        } else if (currentEditingTableType === 'viajesCliente'){
+        } else if (currentEditingTableType === 'viajesCliente') {
             await handleSaveEditViajesCliente();
         }
     } catch (error) {
@@ -473,19 +496,6 @@ export function handleCancelEdit() {
 export function exitEditMode() {
     resetEditingState();
     renderCurrentTable();
-}
-
-function renderCurrentTable() {
-    console.log(currentEditingTableType);
-    if (currentEditingTableType === 'choferes') {
-        renderChoferesTable(mockChoferes, currentChoferesPage);
-    } else if (currentEditingTableType === 'clientes') {
-        renderClientesTable(mockClientes, currentClientesPage);
-    } else if (currentEditingTableType === 'viajes') {
-        renderizarTablas();
-    } else if (currentEditingTableType === "viajesCliente"){
-        renderizarTablaVC();
-    }
 }
 
 export function resetEditingState() {
@@ -581,6 +591,22 @@ document.addEventListener('DOMContentLoaded', async function () {
     setupSearchBar('clientesSearchBar', 'clientes');
     setupAddButtons();
 
+    // Add CUIT capture for navigate-btn
+    document.querySelectorAll('.navigate-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const row = e.target.closest('tr');
+            const cuit = row.querySelector('td:nth-child(2)').getAttribute('title');
+            const cleanCUIT = cuit.replace(/[^0-9]/g, '');
+            if (cleanCUIT.length === 11) {
+                localStorage.setItem('selectedClientCUIT', cleanCUIT);
+                console.log('Stored CUIT:', cleanCUIT);
+            } else {
+                console.error('Invalid CUIT:', cuit);
+                showConfirmModal('Error: CUIT inválido en la fila seleccionada.');
+            }
+        });
+    });
+
     document.addEventListener('click', function (event) {
         const confirmModalElement = document.getElementById('confirmModal');
         const modalContent = confirmModalElement ? confirmModalElement.querySelector('.modal-content') : null;
@@ -592,18 +618,18 @@ document.addEventListener('DOMContentLoaded', async function () {
         const addChoferCard = document.getElementById('addChoferCard');
         const viajesPagosModal = document.getElementById('viajesPagosModal');
 
-        const isClickInsideModal = modalContent && modalContent.contains(event.target);
+        const isClickOutsideModal = modalContent && !modalContent.contains(event.target);
         const isClickInsideHeader = headerContainer && headerContainer.contains(event.target);
         const isClickInsideSidebar = sidebarContainer && sidebarContainer.contains(event.target);
         const isClickInsideAddCliente = addClienteWrapper && addClienteWrapper.contains(event.target);
         const isClickInsideAddChofer = addChoferWrapper && addChoferWrapper.contains(event.target);
         const isClickInsideViajesModal = viajesPagosModal && viajesPagosModal.contains(event.target);
 
-        if (addChoferCard && !isClickInsideAddChofer) {
+        if (addChoferCard && !isClickInsideAddChofer && !isClickInsideHeader && !isClickInsideSidebar) {
             addChoferCard.classList.add('hidden');
         }
 
-        if (addClienteCard && !isClickInsideAddCliente) {
+        if (addClienteCard && !isClickInsideAddCliente && !isClickInsideHeader && !isClickInsideSidebar) {
             addClienteCard.classList.add('hidden');
         }
 
@@ -620,7 +646,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         if (
             isClickInsideEditingRow ||
-            isClickInsideModal ||
+            !isClickOutsideModal ||
             isActionButton ||
             isInputInTable ||
             isTableHeader ||
@@ -635,7 +661,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         if (hasChanges(originalEditingData, stagedEditingData)) {
             showConfirmModal(
-                "Hay cambios sin guardar. ¿Deseas guardar los cambios?", 
+                "Hay cambios sin guardar. ¿Deseas guardar los cambios?",
                 "confirm",
                 handleSaveEdit,
                 handleCancelEdit

@@ -363,14 +363,14 @@ async function consultarCUIT(cuit) {
 }
 
 async function generarEnlaceQR(datos, impTotal) {
-  // Convertir fechaEmision de YYYYMMDD a DD/MM/YYYY
+  // Convertir fechaEmision de YYYYMMDD a YYYY-MM-DD
   const fechaISO = datos.fechaEmision;
   const [year, month, day] = [fechaISO.slice(0, 4), fechaISO.slice(4, 6), fechaISO.slice(6, 8)];
-  const fechaFormatted = `${day}/${month}/${year}`;
+  const fechaFormatted = `${year}-${month}-${day}`;
   
   const qrData = {
     ver: 1,
-    fecha: `${year}-${month}-${day}`,
+    fecha: fechaFormatted,
     cuit: 20433059221,
     ptoVta: parseInt(datos.ptoVta, 10),
     tipoCmp: 1,
@@ -384,12 +384,32 @@ async function generarEnlaceQR(datos, impTotal) {
   const qrJson = JSON.stringify(qrData);
   const qrBase64 = Buffer.from(qrJson).toString('base64');
   const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${qrBase64}`;
+  
+  // Imprimir datos decodificados para facilitar la constatación
+  console.log('Datos del QR (decodificados):');
+  console.log(`  Versión: ${qrData.ver}`);
+  console.log(`  Fecha: ${qrData.fecha}`);
+  console.log(`  CUIT Emisor: ${qrData.cuit}`);
+  console.log(`  Punto de Venta: ${qrData.ptoVta}`);
+  console.log(`  Tipo de Comprobante: ${qrData.tipoCmp}`);
+  console.log(`  Número de Comprobante: ${qrData.nroCmp}`);
+  console.log(`  Importe: ${qrData.importe}`);
+  console.log(`  Moneda: ${qrData.moneda}`);
+  console.log(`  Cotización: ${qrData.ctz}`);
+  console.log(`  Tipo de Código de Autorización: ${qrData.tipoCodAut}`);
+  console.log(`  CAE: ${qrData.codAut}`);
   console.log('QR JSON:', qrJson);
   console.log('QR Base64:', qrBase64);
-  return qrUrl;
+  console.log('QR URL:', qrUrl);
+
+  // Generar enlace de constatación directa
+  const constatacionUrl = `https://servicioscf.afip.gob.ar/publico/comprobantes/cae.aspx?cuit=${qrData.cuit}&cae=${qrData.codAut}&fchEmi=${fechaFormatted.replace(/-/g, '')}`;
+  console.log('Enlace de constatación directa:', constatacionUrl);
+
+  return { qrUrl, constatacionUrl };
 }
 
-async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaEmision, periodoDesde, periodoHasta, fechaVtoPago, condicionVenta }, outputPath = 'factura_completa.pdf') {
+async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaEmision, periodoDesde, periodoHasta, fechaVtoPago, condicionVenta }, outputPath = './facturas/factura_completa.pdf') {
   const requiredFields = ['ptoVta', 'docNro', 'servicios', 'fechaEmision', 'periodoDesde', 'periodoHasta', 'fechaVtoPago', 'condicionVenta'];
   for (const field of requiredFields) {
     if (!arguments[0][field]) {
@@ -628,7 +648,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   const footerBoxWidth = PAGE_WIDTH - (2 * PADDING_X);
   const tributosTableWidth = footerBoxWidth * 0.55;
   const totalesBoxWidth = footerBoxWidth * 0.40;
-  let gapBetweenTributosAndTotales = footerBoxWidth - tributosTableWidth - totalesBoxWidth - 10;
+  const gapBetweenTributosAndTotales = footerBoxWidth - tributosTableWidth - totalesBoxWidth - 10;
 
   const tributosHeaderHeight = 25;
   const tributosRowHeight = 18;
@@ -739,15 +759,11 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
 
   // Generar e insertar el QR
   try {
-    const qrUrl = await generarEnlaceQR(datosFactura, impTotal);
-    console.log('QR URL:', qrUrl);
-    const timestamp = Date.now();
-    const qrFilePath = path.join(certDir, `qr-test-${timestamp}.png`);
-    await QRCode.toFile(qrFilePath, qrUrl, { width: 120, margin: 6, errorCorrectionLevel: 'M', scale: 8 });
+    const { qrUrl, constatacionUrl } = await generarEnlaceQR(datosFactura, impTotal);
+    console.log('QR guardado en:', path.join(certDir, `qr-test-${Date.now()}.png`));
     const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 120, margin: 6, errorCorrectionLevel: 'M', scale: 8 });
-    console.log(`QR guardado en: ${qrFilePath}, tamaño del buffer: ${qrBuffer.length} bytes`);
     doc.image(qrBuffer, PADDING_X + 5, bottomSectionStartY + 5, { width: 120 });
-    console.log('QR insertado en el PDF');
+    
   } catch (e) {
     console.warn('Error al generar el QR:', e.message || e);
   }
@@ -783,73 +799,4 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   return { ...facturaResult, ...clienteDatos };
 }
 
-// Ejemplo de uso
-const config = {
-  ptoVta: 12,
-  docNro: '20111111112', // Reemplazá con un CUIT válido para pruebas
-  servicios: [
-    {
-      codigo: '1',
-      descripcion: 'Consultoría estratégica',
-      cantidad: '2.00',
-      unidad: 'horas',
-      precioUnit: '5000.00',
-      bonif: '0.00',
-      subtotal: '10000.00',
-      ivaId: 5,
-      subtotalConIVA: '12100.00'
-    },
-    {
-      codigo: '2',
-      descripcion: 'Desarrollo software',
-      cantidad: '1.50',
-      unidad: 'horas',
-      precioUnit: '4000.00',
-      bonif: '0.00',
-      subtotal: '6000.00',
-      ivaId: 5,
-      subtotalConIVA: '7260.00'
-    },
-    {
-      codigo: '3',
-      descripcion: 'Capacitación personal',
-      cantidad: '3.00',
-      unidad: 'sesiones',
-      precioUnit: '2000.00',
-      bonif: '0.00',
-      subtotal: '6000.00',
-      ivaId: 4,
-      subtotalConIVA: '6630.00'
-    }
-  ],
-  tributos: [
-    {
-      id: 99,
-      desc: 'Impuesto Municipal Matanza',
-      baseImp: 230,
-      alic: 5.2,
-      importe: 100.00
-    }
-  ],
-  fechaEmision: '20250725', // Formato AAAAMMDD
-  periodoDesde: '25/07/2025',
-  periodoHasta: '25/07/2025',
-  fechaVtoPago: '04/08/2025',
-  condicionVenta: 'Efectivo'
-};
-
-generarFactura(config)
-  .then(result => {
-    console.log('Factura generada con éxito:', {
-      cae: result.cae,
-      caeFchVto: result.caeFchVto,
-      cbteNro: result.cbteNro,
-      cuitCliente: result.cuitCliente,
-      razonSocialCliente: result.razonSocialCliente,
-      domicilioCliente: result.domicilioCliente,
-      condicionIVACliente: result.condicionIVACliente,
-      errors: result.errors,
-      observations: result.observations
-    });
-  })
-  .catch(error => console.error('Error:', error.message));
+module.exports = { generarFactura, emitirFacturaA, consultarCUIT };
