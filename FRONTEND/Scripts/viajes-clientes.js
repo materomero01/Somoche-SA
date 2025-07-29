@@ -1,7 +1,7 @@
-import { cargarNombreChofer, deleteModal, actualizarTotales } from "./viajes-pagos.js";
+import { cargarNombreChofer, deleteModal, actualizarTotales, generatedUrls } from "./viajes-pagos.js";
 import { editingRowId, enterEditMode, handleEdit } from "./choferes-clientes.js";
-import { getViajesCliente } from "./api.js";
-import { showConfirmModal } from "./apiPublic.js";
+import { generarFactura, getViajesCliente } from "./api.js";
+import { getFactura, showConfirmModal } from "./apiPublic.js";
 import { renderTabla } from "./tabla.js";
 import { actualizarValores, columnasViajes, formatFecha, parseViaje } from "./resumenes.js";
 
@@ -85,7 +85,7 @@ export function renderizarTablaVC(viajesDataRender = viajesData, currentPage = 1
                         importe: `$${v.importe.toFixed(2)}`,
                         comision: `$${v.comision.toFixed(2)}`,
                         iva: `$${v.iva.toFixed(2)}`,
-                        facturaSubida: v.facturaSubida
+                        factura_id: v.factura_id,
     })),
         columnas: columnas,
         itemsPorPagina: 10,
@@ -95,6 +95,8 @@ export function renderizarTablaVC(viajesDataRender = viajesData, currentPage = 1
         tableType: 'viajesCliente',
         checkboxColumn: true,
         checkboxColumnPosition: "end",
+        generateFactura: handleGenerateInvoice,
+        descargarFactura: descargarFactura,
         currentPage: currentPage,
         onPageChange: (page) => { currentViajesClientesPage = page; }
     });
@@ -121,6 +123,160 @@ async function cargarTablaCliente(){
     }
     renderizarTablaVC(viajesData);
 }
+
+// Handler for Generate Invoice button
+async function handleGenerateInvoice(data) {
+    const selectedRows = data;
+    console.log('Selected rows:', JSON.stringify(selectedRows, null, 2));
+    if (selectedRows.length === 0) {
+        showConfirmModal('Por favor, seleccione al menos un viaje para generar la factura.');
+        return;
+    }
+
+    // Get client CUIT from localStorage
+    const selectedClientCUIT = clienteData.cuit;
+    console.log('Selected client CUIT:', selectedClientCUIT);
+
+    if (!selectedClientCUIT || selectedClientCUIT.replace(/[^0-9]/g, '').length !== 11) {
+        showConfirmModal('Error: CUIT del cliente no disponible o inválido. Por favor, seleccione un cliente en la tabla de clientes.');
+        return;
+    }
+
+    // Validate and clean fields
+    for (const row of selectedRows) {
+        const tarifa = parseFloat(row.tarifa?.replace(/[^0-9.]/g, '')); // Clean tarifa
+        const importe = parseFloat(row.importe?.replace(/[^0-9.]/g, '')); // Clean importe
+        const iva = parseFloat(row.iva?.replace(/[^0-9.]/g, '')); // Clean iva
+        if (isNaN(tarifa)) {
+            showConfirmModal(`Error: Tarifa inválida en viaje: ${row.campo || 'Sin campo'}`);
+            return;
+        }
+        if (isNaN(importe)) {
+            showConfirmModal(`Error: Importe inválido en viaje: ${row.campo || 'Sin campo'}`);
+            return;
+        }
+        if (isNaN(iva)) {
+            showConfirmModal(`Error: IVA inválido en viaje: ${row.campo || 'Sin campo'}`);
+            return;
+        }
+    }
+
+    const servicios = selectedRows.map((row, index) => {
+        const importe = parseFloat(row.importe.replace(/[^0-9.]/g, '')); // Clean importe
+        const iva = parseFloat(row.iva.replace(/[^0-9.]/g, '')); // Clean iva
+        const subtotal = importe; // Importe is the subtotal
+        const subtotalConIVA = (importe + iva).toFixed(2); // Subtotal + IVA
+        return {
+            codigo: `V${index + 1}`,
+            descripcion: `Transporte - ${row.campo || 'Sin campo'} (${row.fecha})`,
+            cantidad: row.toneladas, // Per trip; change to row.cargado if billing by tonnage
+            unidad: 'Toneladas',
+            precioUnit: importe.toFixed(2),
+            bonif: '0.00',
+            subtotal: subtotal.toFixed(2),
+            ivaId: 5, // 21% IVA
+            subtotalConIVA: subtotalConIVA
+        };
+    });
+
+    const invoiceData = {
+        ptoVta: 12,
+        docNro: selectedClientCUIT,
+        comprobante: selectedRows.map(r => ({ id: r.id })),
+        servicios,
+        tributos: [],
+        fechaEmision: formatDate(new Date()), // AAAAMMDD
+        periodoDesde: formatDate(new Date(), '/'), // DD/MM/YYYY
+        periodoHasta: formatDate(new Date(), '/'), // DD/MM/YYYY
+        fechaVtoPago: formatDate(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), '/'), // 10 days
+        condicionVenta: 'Efectivo'
+    };
+
+    console.log('Invoice data to send:', JSON.stringify(invoiceData, null, 2));
+
+    const token = localStorage.getItem('jwtToken');
+    if (!token) {
+        showConfirmModal('Error: No se encontró token de autenticación. Por favor, inicia sesión nuevamente.');
+        return;
+    }
+
+    try {
+        const response = await generarFactura(invoiceData);
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Error al generar factura');
+        }
+        console.log('Encabezados recibidos:', Object.fromEntries(response.headers));
+        // Obtener el facturaId desde el encabezado
+        const facturaId = response.headers.get('X-Factura-Id');
+        if (!facturaId) {
+            console.warn('No se recibió el facturaId en los encabezados');
+        } else {
+            console.log('Factura ID:', facturaId);
+        }
+
+        viajesData.forEach(v => {
+            if (selectedRows.some(row => row.id === v.id)) {
+                v.factura_id = facturaId;
+            }
+        });
+        renderizarTablaVC(viajesData, currentViajesClientesPage);
+        const data = await response.blob();
+
+        const url = window.URL.createObjectURL(data);
+
+        // Abrir el PDF en una nueva pestaña
+        const pdfWindow = window.open(url, '_blank');
+
+        
+        
+        // Liberar la URL del blob después de abrir la pestaña
+        if (!pdfWindow) {
+            console.error('No se pudo abrir la ventana del navegador');
+            // Opcional: Mostrar un mensaje al usuario
+            showConfirmModal('No se pudo abrir la pestaña para mostrar el PDF');
+        }
+    } catch (error) {
+        console.error('Error:', error.message);
+        showConfirmModal('Error al generar la factura: ' + error.message);
+        // No realizar ninguna acción que cause un refresco
+    }
+}
+
+// Date formatting helper
+function formatDate(date, separator = '') {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return separator ? `${day}${separator}${month}${separator}${year}` : `${year}${month}${day}`;
+}
+
+// Función para descargar factura
+async function descargarFactura(viaje) {
+    if (viaje && viaje.factura_id) {
+        try {
+            const response = await getFactura(clienteData.cuit, viaje.factura_id);
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Error al obtener la factura');
+            }
+
+            const data = await response.blob();
+
+            const url = window.URL.createObjectURL(data);
+
+            generatedUrls.push(url);
+
+            // Abrir el PDF en una nueva pestaña
+            const pdfWindow = window.open(url, '_blank');
+        } catch (error){
+            console.log(error.message);
+            showConfirmModal("No se pudo obtener la factura para descargar");
+        }
+    }
+}
+
 
 export async function handleSaveEditViajesCliente() {
     showConfirmModal("Viaje editado con exito");

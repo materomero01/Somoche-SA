@@ -250,3 +250,52 @@ export async function getResumenCuil(cuil, cantidad) {
         console.log(error.message);
     }
 }
+
+export async function getFactura(cuil, id) {
+    try{
+        const token = getToken();
+        const response = await fetch(`${apiURL}/facturas/descargar-factura?cuil=${encodeURIComponent(cuil)}&id=${encodeURIComponent(id)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+
+        if(response.status === 403) {
+            const data = response.json();
+            handleAuthError(data.message);
+            return;
+        }
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+export async function uploadFactura(viajeId, file, cuil) {
+    try{
+        const token = getToken();
+        const formData = new FormData();
+        formData.append('viajeIds', JSON.stringify(viajeId)); // ID del viaje o viajes
+        formData.append('factura', file); // Archivo PDF
+        formData.append('cuil', cuil);
+        const response = await fetch(`${apiURL}/facturas/upload-factura`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            body: formData
+        });
+
+        if(response.status === 403) {
+            const data = response.json();
+            handleAuthError(data.message);
+            return;
+        }
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}

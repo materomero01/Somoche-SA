@@ -141,7 +141,8 @@ exports.getResumenCuil = async (req, res) => {
                            'variacion', variacion,
                            'toneladas', toneladas,
                            'cargado', cargado,
-                           'descargado', descargado
+                           'descargado', descargado,
+                           'factura_id', factura_id
                        )
                    ) as viajes
             FROM viaje

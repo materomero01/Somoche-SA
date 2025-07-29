@@ -3,6 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+const multer = require('multer');
 require('dotenv').config(); 
 var cors = require('cors');
 const jwt = require('jsonwebtoken');
@@ -16,7 +17,7 @@ var pagosRouter = require('./routes/pagos');
 var catacRouter = require('./routes/catac');
 var clientesRouter = require('./routes/clientes');
 var resumenesRouter = require('./routes/resumenes');
-
+var facturasRouter = require('./routes/facturas');
 
 
 var app = express();
@@ -30,9 +31,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Configurar almacenamiento en memoria para multer
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('El archivo debe ser PDF, JPG o PNG'), false);
+        }
+    },
+    limits: { fileSize: 10 * 1024 * 1024 } // Límite de 10 MB
+});
+
 // Habilitar CORS para permitir peticiones desde frontend
 app.use(cors({
-    origin: 'http://127.0.0.1:5500'
+    origin: 'http://127.0.0.1:5500',
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Factura-Id', 'Content-Disposition'],
+    exposedHeaders: ['X-Factura-Id', 'Content-Disposition']
 }));
 
 // Middleware para verificar el token (protege rutas)
@@ -63,7 +82,8 @@ app.use('/api/pagos', pagosRouter);
 app.use('/api/catac', catacRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/resumenes', resumenesRouter);
-app.use('/api/facturas', require('./routes/facturas'));
+app.use('/api/facturas', upload.fields([{ name: 'factura', maxCount: 1 }]), facturasRouter);
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));

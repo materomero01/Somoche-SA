@@ -7,6 +7,7 @@ const axios = require('axios');
 const xml2js = require('xml2js');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
+const { Writable } = require('stream');
 
 // Configuración para parsear XML
 const parser = new xml2js.Parser({ explicitArray: false, trim: true });
@@ -223,7 +224,7 @@ function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servi
             <ar:FECAEDetRequest>
               <ar:Concepto>1</ar:Concepto>
               <ar:DocTipo>80</ar:DocTipo>
-              <ar:DocNro>${docNro}</ar:DocNro>
+              <ar:DocNro>${docNro.replace(/-| /g, '')}</ar:DocNro>
               <ar:CbteDesde>${cbteNro}</ar:CbteDesde>
               <ar:CbteHasta>${cbteNro}</ar:CbteHasta>
               <ar:CbteFch>20250725</ar:CbteFch>
@@ -261,6 +262,7 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
     
     // Generar XML
     const xml = generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servicios, tributos });
+    console.log(xml);
     
     // Enviar solicitud SOAP
     const response = await fetch('https://wswhomo.afip.gov.ar/wsfev1/service.asmx', {
@@ -271,8 +273,9 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
       },
       body: xml
     });
-
+    console.log(response);
     if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+    console.log("paso");
 
     text = await response.text();
     
@@ -409,7 +412,7 @@ async function generarEnlaceQR(datos, impTotal) {
   return { qrUrl, constatacionUrl };
 }
 
-async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaEmision, periodoDesde, periodoHasta, fechaVtoPago, condicionVenta }, outputPath = './facturas/factura_completa.pdf') {
+async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaEmision, periodoDesde, periodoHasta, fechaVtoPago, condicionVenta }) {
   const requiredFields = ['ptoVta', 'docNro', 'servicios', 'fechaEmision', 'periodoDesde', 'periodoHasta', 'fechaVtoPago', 'condicionVenta'];
   for (const field of requiredFields) {
     if (!arguments[0][field]) {
@@ -473,9 +476,15 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
     tributos
   };
 
-  // Generar PDF
+  // Generar PDF en un buffer
   const doc = new PDFDocument({ size: 'A4', margin: 0 });
-  const stream = fs.createWriteStream(outputPath);
+  const chunks = [];
+  const stream = new Writable({
+    write(chunk, encoding, callback) {
+      chunks.push(chunk);
+      callback();
+    }
+  });
   doc.pipe(stream);
 
   const PAGE_WIDTH = 595.28;
@@ -760,7 +769,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   // Generar e insertar el QR
   try {
     const { qrUrl, constatacionUrl } = await generarEnlaceQR(datosFactura, impTotal);
-    console.log('QR guardado en:', path.join(certDir, `qr-test-${Date.now()}.png`));
+    console.log('QR generado para el PDF');
     const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 120, margin: 6, errorCorrectionLevel: 'M', scale: 8 });
     doc.image(qrBuffer, PADDING_X + 5, bottomSectionStartY + 5, { width: 120 });
     
@@ -792,11 +801,14 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   doc.font('Helvetica-Bold').fontSize(10).text(`Pág ${pageCount}/${pageCount}`, PADDING_X, PAGE_HEIGHT - PADDING_X - 10, { align: 'center', width: PAGE_WIDTH - (2 * PADDING_X) });
 
   doc.end();
-  stream.on('finish', () => {
-    console.log(`✅ PDF generado: ${outputPath}`);
-  });
 
-  return { ...facturaResult, ...clienteDatos };
+  // Esperar a que el stream termine y devolver el buffer
+  await new Promise((resolve) => stream.on('finish', resolve));
+  const pdfBuffer = Buffer.concat(chunks);
+
+  console.log(`✅ PDF generado en memoria, tamaño: ${pdfBuffer.length} bytes`);
+
+  return { ...facturaResult, ...clienteDatos, pdfBuffer };
 }
 
 module.exports = { generarFactura, emitirFacturaA, consultarCUIT };

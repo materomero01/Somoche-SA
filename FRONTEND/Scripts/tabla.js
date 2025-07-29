@@ -1,3 +1,5 @@
+import { initializeFacturaUpload } from "./subir-factura.js";
+
 export function renderTabla({ 
     containerId, 
     paginacionContainerId, 
@@ -13,6 +15,9 @@ export function renderTabla({
     checkboxColumn = false,
     checkboxColumnPosition = 'start',
     onCheckboxChange = null,
+    generateFactura = null,
+    descargarFactura = null,
+    changeDataFactura = null,
     useScrollable = false
 }) {
     const container = document.getElementById(containerId);
@@ -74,7 +79,7 @@ export function renderTabla({
 
     if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
         const th = document.createElement("th");
-        if (datos.length > 0 && datos[0].facturaSubida != null) {
+        if (datos.length > 0 && datos[0].hasOwnProperty('factura_id')) {
             const facturaButton = document.createElement("button");
             facturaButton.classList.add("btn-action");
             facturaButton.innerHTML = '<i class="bi bi-file-earmark-arrow-up"></i>';
@@ -82,10 +87,17 @@ export function renderTabla({
             if (tableType === 'viajesCliente') {
                 facturaButton.classList.add("btn-generate-invoice");
                 facturaButton.title = "Generar Factura";
-                facturaButton.addEventListener('click', () => handleGenerateInvoice(datos));
+                facturaButton.addEventListener('click', () =>{ 
+                    const selectedRows = datos.filter(item => item.selected);
+                    generateFactura(selectedRows);
+                });
             } else {
                 facturaButton.classList.add("btn-upload");
                 facturaButton.title = "Subir Factura";
+                facturaButton.id = "facturaBtn";
+                facturaButton.addEventListener("click", () =>{
+                    initializeFacturaUpload(changeDataFactura);
+                })
             }
             th.classList.add("checkbox-cell", "factura-cell");
             th.style.textAlign = "center";
@@ -148,32 +160,8 @@ export function renderTabla({
 
             columnas.forEach(col => {
                 const td = document.createElement("td");
-                
-                if (col.key === 'facturaSubida' && !isEditing) {
-                    if (item.facturaSubida) {
-                        const downloadBtn = document.createElement("button");
-                        downloadBtn.className = "btn-action download-btn";
-                        downloadBtn.innerHTML = '<i class="bi bi-download"></i>';
-                        downloadBtn.title = "Descargar factura";
-                        downloadBtn.addEventListener('click', () => {
-                            descargarFactura(item.id);
-                        });
-                        td.appendChild(downloadBtn);
-                    } else {
-                        const checkbox = document.createElement("input");
-                        checkbox.type = "checkbox";
-                        checkbox.setAttribute('data-id', item.id);
-                        checkbox.checked = item.selected || false;
-                        checkbox.addEventListener('change', (e) => {
-                            item.selected = e.target.checked; // Directly update item
-                            console.log(`FacturaSubida checkbox ${item.id} changed: ${item.selected}`); // Debug
-                            if (onCheckboxChange) {
-                                onCheckboxChange(item.id, e.target.checked);
-                            }
-                        });
-                        td.appendChild(checkbox);
-                    }
-                } else if (isEditing) {
+        
+                if (isEditing) {
                     const input = createEditableInput(col, item[col.key], item.id);
                     td.appendChild(input);
                 } else {
@@ -252,13 +240,13 @@ export function renderTabla({
             if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
                 const td = document.createElement("td");
                 td.classList.add("checkbox-cell");
-                if (item.facturaSubida) {
+                if (item.factura_id) {
                     const downloadBtn = document.createElement("button");
                     downloadBtn.className = "btn-action navigate-btn";
                     downloadBtn.innerHTML = '<i class="bi bi-download"></i>';
                     downloadBtn.title = "Descargar factura";
                     downloadBtn.addEventListener('click', () => {
-                        descargarFactura(item.id);
+                        descargarFactura(item);
                     });
                     td.appendChild(downloadBtn);
                 } else {
@@ -454,115 +442,6 @@ export function renderTabla({
         if (onPageChange) {
             onPageChange(nuevaPagina);
         }
-    }
-
-    // Handler for Generate Invoice button
-    function handleGenerateInvoice(data) {
-        const selectedRows = data.filter(item => item.selected);
-        console.log('Selected rows:', JSON.stringify(selectedRows, null, 2));
-        if (selectedRows.length === 0) {
-            showConfirmModal('Por favor, seleccione al menos un viaje para generar la factura.');
-            return;
-        }
-
-        // Get client CUIT from localStorage
-        const selectedClientCUIT = localStorage.getItem('selectedClientCUIT');
-        console.log('Selected client CUIT:', selectedClientCUIT);
-
-        if (!selectedClientCUIT || selectedClientCUIT.replace(/[^0-9]/g, '').length !== 11) {
-            showConfirmModal('Error: CUIT del cliente no disponible o inválido. Por favor, seleccione un cliente en la tabla de clientes.');
-            return;
-        }
-
-        // Validate and clean fields
-        for (const row of selectedRows) {
-            const tarifa = parseFloat(row.tarifa?.replace(/[^0-9.]/g, '')); // Clean tarifa
-            const importe = parseFloat(row.importe?.replace(/[^0-9.]/g, '')); // Clean importe
-            const iva = parseFloat(row.iva?.replace(/[^0-9.]/g, '')); // Clean iva
-            if (isNaN(tarifa)) {
-                showConfirmModal(`Error: Tarifa inválida en viaje: ${row.campo || 'Sin campo'}`);
-                return;
-            }
-            if (isNaN(importe)) {
-                showConfirmModal(`Error: Importe inválido en viaje: ${row.campo || 'Sin campo'}`);
-                return;
-            }
-            if (isNaN(iva)) {
-                showConfirmModal(`Error: IVA inválido en viaje: ${row.campo || 'Sin campo'}`);
-                return;
-            }
-        }
-
-        const servicios = selectedRows.map((row, index) => {
-            const importe = parseFloat(row.importe.replace(/[^0-9.]/g, '')); // Clean importe
-            const iva = parseFloat(row.iva.replace(/[^0-9.]/g, '')); // Clean iva
-            const subtotal = importe; // Importe is the subtotal
-            const subtotalConIVA = (importe + iva).toFixed(2); // Subtotal + IVA
-            return {
-                codigo: `V${index + 1}`,
-                descripcion: `Transporte - ${row.campo || 'Sin campo'} (${row.fecha})`,
-                cantidad: row.toneladas, // Per trip; change to row.cargado if billing by tonnage
-                unidad: 'Toneladas',
-                precioUnit: importe.toFixed(2),
-                bonif: '0.00',
-                subtotal: subtotal.toFixed(2),
-                ivaId: 5, // 21% IVA
-                subtotalConIVA: subtotalConIVA
-            };
-        });
-
-        const invoiceData = {
-            ptoVta: 12,
-            docNro: selectedClientCUIT,
-            servicios,
-            tributos: [],
-            fechaEmision: formatDate(new Date()), // AAAAMMDD
-            periodoDesde: formatDate(new Date(), '/'), // DD/MM/YYYY
-            periodoHasta: formatDate(new Date(), '/'), // DD/MM/YYYY
-            fechaVtoPago: formatDate(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), '/'), // 10 days
-            condicionVenta: 'Efectivo'
-        };
-
-        console.log('Invoice data to send:', JSON.stringify(invoiceData, null, 2));
-
-        const token = localStorage.getItem('jwtToken');
-        if (!token) {
-            showConfirmModal('Error: No se encontró token de autenticación. Por favor, inicia sesión nuevamente.');
-            return;
-        }
-
-        fetch('http://localhost:3000/api/facturas/generar-factura', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(invoiceData)
-        })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(err.error || 'Error al generar factura');
-                    });
-                }
-                return response.json(); // Expect JSON response
-            })
-            .then(data => {
-                console.log('Invoice generation response:', data);
-                showConfirmModal(`Factura generada y guardada en el servidor: ${data.pdfPath}`);
-            })
-            .catch(error => {
-                console.error('Error:', error.message);
-                showConfirmModal('Error al generar la factura: ' + error.message);
-            });
-    }
-
-    // Date formatting helper
-    function formatDate(date, separator = '') {
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        return separator ? `${day}${separator}${month}${separator}${year}` : `${year}${month}${day}`;
     }
 
     // Inicializa el cuerpo y la paginación con la página actual
