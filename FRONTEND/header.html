@@ -1,17 +1,23 @@
 <header class="header">
     <div class="header-left">
-        <!-- Ícono de menú hamburguesa en el header -->
         <div class="menu-toggle">
             <i class="bi bi-list"></i>
         </div>
         <span class="header-logo">@ Somoche S.A.</span>
     </div>
     <div class="header-right">
-        <span class="header-date" id="currentDate"></span>
-        <div class="header-user-info">
+        <span class="header-date">
+            <i class="bi bi-calendar-check"></i>
+            <span id="currentDate"></span>
+        </span>
+        <span class="separator">|</span>
+        <div class="user-info-inline">
             <span class="header-user-name" id="userName">Alejandro Moran</span>
             <span class="header-user-role" id="userRole">Admin</span>
         </div>
-        <i class="header-icon bi bi-box-arrow-right"></i>
+        <span class="separator">|</span>
+        <span class="logout-icon-wrapper">
+            <i class="header-icon bi bi-box-arrow-right"></i>
+        </span>
     </div>
 </header>

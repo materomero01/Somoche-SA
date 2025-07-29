@@ -61,7 +61,7 @@ formSesion?.addEventListener("submit", async (event) => {
         delete payload.trabajador_seleccionado;
     } else {
         apiURL = 'http://localhost:3000/api/users/login';
-        redirectURL = 'layout-prueba.html';
+        redirectURL = 'home-admin.html';
     }
 
     console.log("Payload enviado:", payload);
@@ -92,7 +92,7 @@ formSesion?.addEventListener("submit", async (event) => {
             }
             if (data.role === "chofer")
                 redirectURL = "home-chofer.html";
-            alert(data.message);
+            //alert(data.message);
             window.location.href = redirectURL;
         } else {
             alert(`Error: "${data.message}"`);

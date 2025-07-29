@@ -1,5 +1,3 @@
-// /FRONTEND/js/layout-prueba.js
-
 function setupLayoutPruebaInteractions() {
     console.log("Interacciones específicas de Layout Prueba inicializadas.");
 }
