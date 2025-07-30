@@ -423,3 +423,22 @@ export async function addResumen(cuil, groupId, viajesGroup, pagosGroup, pagoRes
         console.log(error.message);
     }
 }
+
+export async function generarFactura(payload){
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/facturas/generar-factura`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload)
+        });
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}

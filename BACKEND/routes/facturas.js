@@ -1,7 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { generarFactura } = require('../controllers/ctrlFacturas');
+const ctrlFacturas = require('../controllers/ctrlFacturas');
 
-router.post('/generar-factura', generarFactura);
+/* GETs facturas */
+router.get('/descargar-factura', ctrlFacturas.descargarFactura);
+
+/* POSTs facturas */
+router.post('/generar-factura', ctrlFacturas.generarFacturaCtrl);
+router.post('/upload-factura', ctrlFacturas.uploadFactura);
+
 
 module.exports = router;

@@ -83,7 +83,7 @@ exports.getViajeCuil = async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT chofer_cuil AS cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado
+            `SELECT chofer_cuil AS cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, factura_id
             FROM viaje
             WHERE chofer_cuil = $1 AND pagado = $2 AND "group" IS NULL`,
             [cuil, false]
@@ -111,9 +111,10 @@ exports.getViajeCuit = async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT cuit_cliente AS cuit, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado
+            `SELECT cuit_cliente AS cuit, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, factura_id
             FROM viaje
-            WHERE cuit_cliente = $1 AND pagado = $2`,
+            WHERE cuit_cliente = $1 AND pagado = $2
+            ORDER BY 3`,
             [cuit, false]
         );
         return res.status(200).json({ viajes: result.rows });

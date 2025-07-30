@@ -36,7 +36,7 @@ exports.getChoferesAllData = async (req, res) => {
             ORDER BY 1`,
             ['chofer']
         );
-
+        
         // Mapear los resultados para agregar un id basado en el índice
         const choferes = result.rows.map((row, index) => ({
             id: index + 1, // Genera un id comenzando desde 1

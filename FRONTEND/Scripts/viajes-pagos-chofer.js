@@ -1,6 +1,7 @@
-import { getPagosCuil, getViajes, getResumenCuil, showConfirmModal } from "./apiPublic.js";
+import { getPagosCuil, getViajes, getResumenCuil, showConfirmModal, getFactura } from "./apiPublic.js";
 import { parsePagos, parseViaje, columnasPagos } from "./resumenes.js";
 import { renderTabla } from "./tabla.js";
+import { viajesFactura } from "./subir-factura.js";
 
 let mockViajes = [];
 let mockPagos = [];
@@ -73,9 +74,9 @@ function renderTables(tablesTab) {
             toneladas: v.toneladas,
             diferencia: v.diferencia,
             importe: `$${v.importe.toFixed(2)}`,
-            comision: `$${v.comision.toFixed(2)}`,
+            comision: `-$${v.comision.toFixed(2)}`,
             iva: v.iva ? `$${v.iva.toFixed(2)}` : undefined,
-            facturaSubida: v.facturaSubida
+            factura_id: v.factura_id
         })),
         itemsPorPagina: 5,
         actions: [],
@@ -83,7 +84,14 @@ function renderTables(tablesTab) {
         checkboxColumn: true,
         checkboxColumnPosition: "end",
         useScrollable: true,
-        onCheckboxChange: () => {}
+        descargarFactura: descargarFactura,
+        changeDataFactura: changeDataFactura,
+        onCheckboxChange: (itemId, itemChecked) => { 
+            if (itemChecked)
+                viajesFactura.push(itemId); 
+            else
+                viajesFactura.pop(itemId);
+        }
     });
 
     renderTabla({
@@ -118,6 +126,7 @@ function renderTablesResumenes(tablesTab, currentPage = 1){
 
     // Seleccionar el grupo actual según la página
     const grupoActual = grupos[Math.min(currentPage - 1, grupos.length - 1)] || null;
+    currentResumenesPage = currentPage;
 
     // Filtrar viajes y pagos para el grupo actual
     const resumenViajes = viajesResumenes.find(r => r.group === grupoActual) || { viajes: [] };
@@ -139,9 +148,9 @@ function renderTablesResumenes(tablesTab, currentPage = 1){
             toneladas: v.toneladas,
             diferencia: v.diferencia,
             importe: `$${v.importe.toFixed(2)}`,
-            comision: `$${v.comision.toFixed(2)}`,
+            comision: `-$${v.comision.toFixed(2)}`,
             iva: v.iva ? `$${v.iva.toFixed(2)}` : undefined,
-            facturaSubida: v.facturaSubida
+            factura_id: v.factura_id
         })),
         itemsPorPagina: resumenViajes.viajes.length || 1,
         currentPage: currentPage,
@@ -150,7 +159,14 @@ function renderTablesResumenes(tablesTab, currentPage = 1){
         checkboxColumn: true,
         checkboxColumnPosition: "end",
         useScrollable: true,
-        onCheckboxChange: null
+        descargarFactura: descargarFactura,
+        changeDataFactura: changeDataFactura,
+        onCheckboxChange: (itemId, itemChecked) => { 
+            if (itemChecked)
+                viajesFactura.push(itemId); 
+            else
+                viajesFactura.pop(itemId);
+        }
     });
 
     // Renderizar tabla de pagos
@@ -276,7 +292,7 @@ async function setHistorial(chofer) {
                 group: resumen.group,
                 viajes: resumen.viajes.map(v => parseViaje(v))
             }));
-            console.log(data);
+            console.log(viajesResumenes);
             renderTablesResumenes("resumenes");
         } else {
             showConfirmModal(`Error al cargar los últimos ${cantidad} resúmenes`);
@@ -284,6 +300,47 @@ async function setHistorial(chofer) {
     } catch (error) {
         console.error('Error en setHistorial:', error.message);
         showConfirmModal(`Ocurrió un error al obtener los últimos ${cantidad} resúmenes`);
+    }
+}
+
+function changeDataFactura(facturaId){
+    if (!facturaId) {
+        console.warn('No se recibió el facturaId en los encabezados');
+    } else {
+        mockViajes.forEach(v =>{
+            if (viajesFactura.includes(v.id))
+                v.factura_id = facturaId;
+        });
+        
+        viajesResumenes[currentResumenesPage - 1].viajes.forEach(r => {
+            if (viajesFactura.includes(r.id))
+                r.factura_id = facturaId;
+        });
+        renderTables('viajesPagos');
+        renderTablesResumenes("resumenes", currentResumenesPage);
+    }
+}
+
+// Función para descargar factura
+async function descargarFactura(viaje) {
+    if (viaje && viaje.factura_id) {
+        try {
+            const response = await getFactura(localStorage.getItem('userCuil'), viaje.factura_id);
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Error al obtener la factura');
+            }
+
+            const data = await response.blob();
+
+            const url = window.URL.createObjectURL(data);
+
+            // Abrir el PDF en una nueva pestaña
+            const pdfWindow = window.open(url, '_blank');
+        } catch (error){
+            console.log(error.message);
+            showConfirmModal("No se pudo obtener la factura para descargar");
+        }
     }
 }
 
@@ -418,6 +475,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
             if (mainContent) mainContent.classList.remove("hidden");
         })
+
     } catch (error){
         console.error('Error de red o desconocido al obtener datos de los viajes:', error);
         showConfirmModal('Error de conexión al cargar los viajes.');

@@ -1,1 +1,5 @@
+# Ignorar todos los archivos .env
 *.env
+
+# Ignorar la carpeta node_modules del backend
+BACKEND/node_modules/

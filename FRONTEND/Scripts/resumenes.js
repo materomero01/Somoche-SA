@@ -1,10 +1,15 @@
 import { getResumenCuil, showConfirmModal } from './apiPublic.js';
 import { renderTabla } from './tabla.js';
+import { viajesFactura } from './subir-factura.js';
 
 let pagosResumenes = [];
 let viajesResumenes = [];
 
 let choferData = {};
+
+let descargarFactura = null;
+
+let currentResumenesPage = 1;
 
 // Configuración de columnas para la tabla de viajes
 export const columnasViajes = [
@@ -102,7 +107,7 @@ export function parseViaje(viaje) {
         diferencia: processed.diferencia,
         importe: processed.importe,
         comision: processed.comision,
-        facturaSubida: false
+        factura_id: processed.factura_id
     };
     if (choferData.trabajador !== "Monotributista") {
         retornar = {
@@ -139,8 +144,9 @@ export function parsePagos(pago){
     };
 }
 
-export async function setHistorial(chofer) {
+export async function setHistorial(chofer, descargar) {
     choferData = chofer;
+    descargarFactura = descargar;
     const cantidad = document.getElementById("selectResumenes").value;
     if (!cantidad) {
         showConfirmModal("Seleccione una cantidad de resúmenes válida.");
@@ -169,6 +175,16 @@ export async function setHistorial(chofer) {
     }
 }
 
+export function handleFacturaActualization(facturaId){
+    if (viajesResumenes && viajesResumenes.length > 0 && facturaId){
+        viajesResumenes[currentResumenesPage - 1].viajes.forEach(r => {
+            if (viajesFactura.includes(r.id))
+                r.factura_id = facturaId;
+        });
+        renderTablasResumenes(currentResumenesPage);
+    }
+}
+
 // Función para renderizar las tablas de resúmenes
 function renderTablasResumenes(currentPage = 1) {
     // Obtener todos los grupos únicos, ordenados de más reciente a más antiguo
@@ -179,6 +195,7 @@ function renderTablasResumenes(currentPage = 1) {
 
     // Seleccionar el grupo actual según la página (1-based index)
     const grupoActual = grupos[Math.min(currentPage - 1, grupos.length - 1)];
+    currentResumenesPage = currentPage;
 
     // Filtrar viajes y pagos para el grupo actual
     const resumenViajes = viajesResumenes.find(r => r.group === grupoActual) || { viajes: [] };
@@ -207,7 +224,7 @@ function renderTablasResumenes(currentPage = 1) {
             importe: `$${v.importe.toFixed(2)}`,
             comision: `$${v.comision.toFixed(2)}`,
             iva: v.iva ? `$${v.iva.toFixed(2)}` : undefined,
-            facturaSubida: v.facturaSubida
+            factura_id: v.factura_id
         })),
         itemsPorPagina: resumenViajes.viajes.length || 1, // Mostrar todos los viajes del grupo
         currentPage: currentPage,
@@ -216,7 +233,14 @@ function renderTablasResumenes(currentPage = 1) {
         checkboxColumn: true,
         checkboxColumnPosition: "end",
         useScrollable: true,
-        onCheckboxChange: null
+        descargarFactura: descargarFactura,
+        changeDataFactura: handleFacturaActualization,
+        onCheckboxChange: (itemId, itemChecked) => { 
+            if (itemChecked)
+                viajesFactura.push(itemId); 
+            else
+                viajesFactura.pop(itemId);
+        }
     });
 
     // Renderizar tabla de pagos

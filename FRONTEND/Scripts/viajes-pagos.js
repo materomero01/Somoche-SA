@@ -1,18 +1,21 @@
 import { renderTabla } from './tabla.js';
-import { getViajes, getPagosCuil, showConfirmModal } from './apiPublic.js';
+import { getViajes, getPagosCuil, showConfirmModal, getFactura } from './apiPublic.js';
 import { addViaje, addPagos, updateViaje, addResumen } from './api.js';
 import { enterEditMode, handleEdit, editingRowId, originalEditingData, stagedEditingData, mockClientes, tarifasCatac } from './choferes-clientes.js';
 import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos } from './resumenes.js';
+import { viajesFactura } from './subir-factura.js';
 
 let loadingSpinner;
 let mainContent;
 
 // Datos del chofer
-let choferData = {};
+export let choferData = {};
 
 let viajesData = [];
 
 let pagosData = [];
+
+export let generatedUrls = [];
 
 // Regex for input validation
 const regexInputs = {
@@ -108,7 +111,7 @@ export function renderizarTablas() {
                 diferencia: v.diferencia,
                 importe: `$${v.importe.toFixed(2)}`,
                 comision: `$${v.comision.toFixed(2)}`,
-                facturaSubida: v.facturaSubida
+                factura_id: v.factura_id
             };
             if (v.iva) {
                 retornar = {
@@ -126,7 +129,14 @@ export function renderizarTablas() {
         editingRowId: editingRowId,
         onEdit: (id, field, value) => handleEdit(id, field, value, 'viajes'),
         useScrollable: true,
-        onCheckboxChange: handleFacturaCheckbox
+        changeDataFactura: changeDataFactura,
+        descargarFactura: descargarFactura,
+        onCheckboxChange: (itemId, itemChecked) => { 
+            if (itemChecked)
+                viajesFactura.push(itemId); 
+            else
+                viajesFactura.pop(itemId);
+        }
     });
         
     renderTabla({
@@ -148,34 +158,41 @@ export function renderizarTablas() {
     actualizarTotales(viajesData);
 }
 
-// Función para manejar el checkbox de facturación
-function handleFacturaCheckbox(itemId, checked) {
-    const viaje = viajesData.find(v => v.id === itemId);
-    if (viaje) {
-        viaje.facturaSubida = checked;
-    }
-}
+function changeDataFactura(facturaId){
+    if (!facturaId) {
+        console.warn('No se recibió el facturaId en los encabezados');
+    } else {
+        viajesData.forEach(v =>{
+            if (viajesFactura.includes(v.id))
+                v.factura_id = facturaId;
+        });
 
-// Función para subir facturas de viajes seleccionados
-function subirFacturasSeleccionadas() {
-    const selectedViajes = viajesData.filter(v => v.facturaSubida && !v.originalFacturaSubida);
-    if (selectedViajes.length === 0) {
-        showConfirmModal("No hay viajes seleccionados para subir facturas.");
-        return;
+        renderizarTablas();
     }
-    showConfirmModal(`Subiendo facturas para ${selectedViajes.length} viajes seleccionados.`);
-    selectedViajes.forEach(viaje => {
-        viaje.facturaSubida = true;
-        viaje.originalFacturaSubida = true;
-    });
-    renderizarTablas();
 }
 
 // Función para descargar factura
-function descargarFactura(viajeId) {
-    const viaje = viajesData.find(v => v.id === viajeId);
-    if (viaje && viaje.facturaSubida) {
-        showConfirmModal(`Descargando factura para el viaje ${viaje.comprobante}`);
+async function descargarFactura(viaje) {
+    if (viaje && viaje.factura_id) {
+        try {
+            const response = await getFactura(choferData.cuil, viaje.factura_id);
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Error al obtener la factura');
+            }
+
+            const data = await response.blob();
+
+            const url = window.URL.createObjectURL(data);
+
+            generatedUrls.push(url);
+
+            // Abrir el PDF en una nueva pestaña
+            const pdfWindow = window.open(url, '_blank');
+        } catch (error){
+            console.log(error.message);
+            showConfirmModal("No se pudo obtener la factura para descargar");
+        }
     }
 }
 
@@ -793,6 +810,14 @@ export function deleteModal(modalId, modalContentId) {
         showConfirmModal("Guarda o cancela los cambios realizados antes de salir");
         return;
     }
+
+    generatedUrls.forEach(url => {
+        window.URL.revokeObjectURL(url);
+        console.log('URL liberada:', url);
+    });
+
+    generatedUrls = [];
+
     if (modal) {
         modal.classList.toggle("active");
         document.body.classList.remove("no-scroll");
@@ -848,7 +873,7 @@ export async function inicializarModal(data) {
                 loadingSpinner.childNodes[2].textContent = "Cargando resumenes...";
             }
             if (mainContent) mainContent.classList.add("hidden");
-            await setHistorial(choferData);
+            await setHistorial(choferData, descargarFactura);
             if (loadingSpinner) {
                 loadingSpinner.classList.add("hidden");
                 loadingSpinner.childNodes[2].textContent = "Cargando datos...";
