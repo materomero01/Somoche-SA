@@ -27,7 +27,7 @@ const setTodayDate = () => {
     const chequeDate = new Date();
     const fechaCheque = document.getElementById('fechaCheque');
     if (fechaCheque) {
-        chequeDate.setDate(chequeDate.getDate() +40);
+        chequeDate.setDate(chequeDate.getDate() + 40);
         fechaCheque.value = chequeDate.toLocaleDateString('es-AR', {
             year: 'numeric',
             month: '2-digit',
@@ -195,10 +195,19 @@ const setupPaymentTypeSelector = () => {
         gasoil: document.getElementById('gasoilFields'),
         otro: document.getElementById('otroFields')
     };
+    const addChequeBtn = document.getElementById('addChequeBtn');
+    const chequeFieldsContainer = document.getElementById('chequeFieldsContainer');
 
     const showPaymentFields = type => {
         Object.values(fields).forEach(field => field?.classList.add('hidden'));
         fields[type]?.classList.remove('hidden');
+        if (type === 'cheque') {
+            addChequeBtn?.classList.remove('hidden');
+            chequeFieldsContainer?.classList.remove('hidden');
+        } else {
+            addChequeBtn?.classList.add('hidden');
+            chequeFieldsContainer?.classList.add('hidden');
+        }
         setTodayDate();
         if (type === 'gasoil') calculateGasoilImporte();
     };
@@ -222,13 +231,129 @@ const setupPaymentTypeSelector = () => {
     litrosGasoil?.addEventListener('input', calculateGasoilImporte);
 };
 
-// Setup add pago button
+// Setup add cheque button
+const setupAddChequeBtn = () => {
+    const addChequeBtn = document.getElementById('addChequeBtn');
+    const chequeContainer = document.querySelector('#chequeFields .cheques');
+
+    if (!addChequeBtn || !chequeContainer) {
+        console.warn("Elementos del botón de añadir cheque no encontrados.");
+        return;
+    }
+
+    let chequeCounter = 1; // Contador para identificar cada cheque
+
+    addChequeBtn.addEventListener('click', () => {
+        chequeCounter++;
+        
+        // Crear un nuevo contenedor para el cheque duplicado
+        const newChequeDiv = document.createElement('div');
+        newChequeDiv.classList.add('cheque-form');
+        newChequeDiv.setAttribute('data-cheque-id', chequeCounter);
+        
+        // Crear el HTML del nuevo formulario de cheque
+        newChequeDiv.innerHTML = `
+            <div style="background-color: #cccccc; width: auto; height: 1px; margin: 15px 1% 10px 1%;"></div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="fechaCheque_${chequeCounter}">Fecha del Cheque</label>
+                    <input type="date" id="fechaCheque_${chequeCounter}" name="fechaCheque_${chequeCounter}">
+                </div>
+                <div class="form-group">
+                    <label for="nroCheque_${chequeCounter}">Nro. de Cheque</label>
+                    <input type="number" id="nroCheque_${chequeCounter}" name="nroCheque_${chequeCounter}" placeholder="Número de Cheque">
+                </div>
+                <div class="form-group">
+                    <label for="terceroCheque_${chequeCounter}">Tercero</label>
+                    <input type="text" id="terceroCheque_${chequeCounter}" name="terceroCheque_${chequeCounter}" placeholder="Nombre del Tercero">
+                </div>
+                <div class="form-group">
+                    <label for="destinatarioCheque_${chequeCounter}">Destinatario</label>
+                    <input type="text" id="destinatarioCheque_${chequeCounter}" name="destinatarioCheque_${chequeCounter}" placeholder="Nombre del Destinatario">
+                </div>
+                <div class="form-group">
+                    <label for="importeCheque_${chequeCounter}">Importe</label>
+                    <input type="number" id="importeCheque_${chequeCounter}" name="importeCheque_${chequeCounter}" placeholder="Importe">
+                </div>
+            </div>
+            <div style="text-align: center; margin: 10px 0;">
+                <button type="button" class="btn btn-danger btn-sm remove-cheque-btn" data-cheque-id="${chequeCounter}">
+                    <i class="bi bi-trash"></i> Eliminar Cheque
+                </button>
+            </div>
+        `;
+        
+        // Insertar el nuevo cheque antes del botón de añadir
+        const buttonContainer = addChequeBtn.parentElement;
+        buttonContainer.parentNode.insertBefore(newChequeDiv, buttonContainer);
+        
+        // Establecer la fecha por defecto (40 días desde hoy)
+        const fechaChequeInput = document.getElementById(`fechaCheque_${chequeCounter}`);
+        if (fechaChequeInput) {
+            const chequeDate = new Date();
+            chequeDate.setDate(chequeDate.getDate() + 40);
+            fechaChequeInput.value = chequeDate.toLocaleDateString('es-AR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).split('/').reverse().join('-');
+        }
+        
+        // Agregar evento al botón de eliminar
+        const removeBtn = newChequeDiv.querySelector('.remove-cheque-btn');
+        removeBtn.addEventListener('click', () => {
+            newChequeDiv.remove();
+        });
+        
+        console.log(`Cheque ${chequeCounter} añadido`);
+    });
+};
+
+// Función de debug para verificar el payload antes de enviarlo
+const debugPayload = (payload, tipoPago) => {
+    console.log('=== DEBUG PAYLOAD ===');
+    console.log('Tipo de pago:', tipoPago);
+    console.log('Payload completo:', JSON.stringify(payload, null, 2));
+    
+    if (tipoPago === 'cheque') {
+        console.log('Número de cheques:', payload.pagos.length);
+        payload.pagos.forEach((cheque, index) => {
+            console.log(`Cheque ${index + 1}:`, {
+                tipo: cheque.tipo,
+                fechaPago: cheque.fechaPago,
+                fechaCheque: cheque.fechaCheque,
+                nroCheque: cheque.nroCheque,
+                tercero: cheque.tercero,
+                destinatario: cheque.destinatario,
+                importe: cheque.importe
+            });
+        });
+    }
+    console.log('=====================');
+    
+    // Verificar que el payload coincida con lo que espera el backend
+    const backendExpected = {
+        choferCuil: 'string',
+        pagos: tipoPago === 'cheque' ? 'array' : 'object'
+    };
+    
+    console.log('Estructura esperada por backend:', backendExpected);
+    console.log('Estructura enviada:', {
+        choferCuil: typeof payload.choferCuil,
+        pagos: Array.isArray(payload.pagos) ? 'array' : typeof payload.pagos
+    });
+};
+
+// Añadir esta línea justo antes del try-catch en setupAddPagoBtn:
+// debugPayload(payload, tipoPago);
+
+// Setup add pago button - Versión actualizada
 const setupAddPagoBtn = () => {
     const btn = document.getElementById('addPagoBtn');
-    btn?.addEventListener('click', async() => {
+    btn?.addEventListener('click', async () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPago = document.getElementById('fechaPago')?.value;
-        let choferInput = document.getElementById('choferPago');
+        const choferInput = document.getElementById('choferPago');
         let payload = {
             choferCuil: choferInput?.dataset.selectedChoferCuil,
         };
@@ -242,67 +367,182 @@ const setupAddPagoBtn = () => {
             case 'cheque':
                 payload = {
                     ...payload,
-                    pagos: {
-                        tipo: tipoPago,
-                        fechaPago: fechaPago,
-                        fechaCheque: document.getElementById('fechaCheque')?.value,
-                        nroCheque: document.getElementById('nroCheque')?.value,
-                        tercero: document.getElementById('terceroCheque')?.value,
-                        destinatario: document.getElementById('destinatarioCheque')?.value,
-                        importe: document.getElementById('importeCheque')?.value
-                    }
-                };
-
-                if (isNaN(payload.pagos.importe || payload.pagos.importe <= 0)){
-                    alert(`El importe ingresado no es valido`);
-                    return;
-                }
-                break;
-            case 'gasoil':
-                payload = {
-                    ...payload,
-                    pagos: {
-                        tipo: tipoPago,
-                        fechaPago: fechaPago,
-                        precioGasoil: document.getElementById('precioGasoil')?.value,
-                        litros: document.getElementById('litrosGasoil')?.value,
-                        importe: document.getElementById('importeGasoil')?.value
-                    }
+                    pagos: []
                 };
                 
-                ['precioGasoil', 'litros', 'importe'].forEach(id => {
-                    if(isNaN(payload.pagos[id] || payload.pagos[id] <= 0)){
-                        alert(`El valor ingresado para ${id} no es valido`);
+                // Recopilar datos del cheque original
+                const originalChequeData = {
+                    tipo: 'cheque',
+                    fechaPago: fechaPago,
+                    fechaCheque: document.getElementById('fechaCheque')?.value,
+                    nroCheque: document.getElementById('nroCheque')?.value,
+                    tercero: document.getElementById('terceroCheque')?.value,
+                    destinatario: document.getElementById('destinatarioCheque')?.value,
+                    importe: document.getElementById('importeCheque')?.value
+                };
+                
+                // Validar y añadir el cheque original si tiene datos
+                if (originalChequeData.importe && originalChequeData.importe.trim() !== '') {
+                    if (isNaN(originalChequeData.importe) || parseFloat(originalChequeData.importe) <= 0) {
+                        alert('El importe del cheque original no es válido');
                         return;
                     }
+                    payload.pagos.push(originalChequeData);
+                }
+                
+                // Recopilar datos de los cheques duplicados
+                const chequeFormularios = document.querySelectorAll('.cheque-form');
+                chequeFormularios.forEach(formulario => {
+                    const chequeId = formulario.getAttribute('data-cheque-id');
+                    const chequeData = {
+                        tipo: 'cheque',
+                        fechaPago: fechaPago,
+                        fechaCheque: document.getElementById(`fechaCheque_${chequeId}`)?.value,
+                        nroCheque: document.getElementById(`nroCheque_${chequeId}`)?.value,
+                        tercero: document.getElementById(`terceroCheque_${chequeId}`)?.value,
+                        destinatario: document.getElementById(`destinatarioCheque_${chequeId}`)?.value,
+                        importe: document.getElementById(`importeCheque_${chequeId}`)?.value
+                    };
+                    
+                    // Validar y añadir si tiene datos válidos
+                    if (chequeData.importe && chequeData.importe.trim() !== '') {
+                        if (isNaN(chequeData.importe) || parseFloat(chequeData.importe) <= 0) {
+                            alert(`El importe del cheque ${chequeId} no es válido`);
+                            return;
+                        }
+                        payload.pagos.push(chequeData);
+                    }
                 });
+                
+                if (payload.pagos.length === 0) {
+                    alert('Por favor, completa al menos un cheque con todos sus datos.');
+                    return;
+                }
+                
+                // Validar que todos los cheques tengan los campos requeridos
+                for (let i = 0; i < payload.pagos.length; i++) {
+                    const cheque = payload.pagos[i];
+                    const requiredFields = ['fechaCheque', 'nroCheque', 'tercero', 'destinatario', 'importe'];
+                    
+                    for (const field of requiredFields) {
+                        if (!cheque[field] || cheque[field].trim() === '') {
+                            alert(`Por favor, completa todos los campos del cheque ${i + 1}.`);
+                            return;
+                        }
+                    }
+                }
                 break;
-            case 'otro':
+                
+            case 'gasoil':
+                const precioGasoil = document.getElementById('precioGasoil')?.value;
+                const litros = document.getElementById('litrosGasoil')?.value;
+                const importe = document.getElementById('importeGasoil')?.value;
+                
+                if (!precioGasoil || !litros || !importe) {
+                    alert('Por favor, completa todos los campos del gasoil.');
+                    return;
+                }
+                
+                if (isNaN(precioGasoil) || parseFloat(precioGasoil) <= 0 ||
+                    isNaN(litros) || parseFloat(litros) <= 0 ||
+                    isNaN(importe) || parseFloat(importe) <= 0) {
+                    alert('Los valores del gasoil deben ser números válidos mayores a 0.');
+                    return;
+                }
+                
                 payload = {
                     ...payload,
                     pagos: {
                         tipo: tipoPago,
                         fechaPago: fechaPago,
-                        detalle: document.getElementById('detalleOtro')?.value,
-                        importe: document.getElementById('importeOtro')?.value
+                        precioGasoil: precioGasoil,
+                        litros: litros,
+                        importe: importe
                     }
                 };
-
-                if(isNaN(payload.pagos.importe || payload.pagos.importe <= 0)){
-                    alert(`El valor ingresado para el importe no es valido`);
+                break;
+                
+            case 'otro':
+                const detalle = document.getElementById('detalleOtro')?.value;
+                const importeOtro = document.getElementById('importeOtro')?.value;
+                
+                if (!detalle || !importeOtro) {
+                    alert('Por favor, completa todos los campos.');
                     return;
                 }
+                
+                if (isNaN(importeOtro) || parseFloat(importeOtro) <= 0) {
+                    alert('El valor ingresado para el importe no es válido');
+                    return;
+                }
+                
+                payload = {
+                    ...payload,
+                    pagos: {
+                        tipo: tipoPago,
+                        fechaPago: fechaPago,
+                        detalle: detalle,
+                        importe: importeOtro
+                    }
+                };
                 break;
+                
             default:
                 console.warn('Tipo de pago no reconocido:', tipoPago);
                 return;
         }
         
         try {
+            // Debug: Mostrar payload antes de enviar
+            console.log('=== DEBUG PAYLOAD ===');
+            console.log('Tipo de pago:', tipoPago);
+            console.log('Payload completo:', JSON.stringify(payload, null, 2));
+            
+            if (tipoPago === 'cheque') {
+                console.log('Número de cheques:', payload.pagos.length);
+                payload.pagos.forEach((cheque, index) => {
+                    console.log(`Cheque ${index + 1}:`, {
+                        tipo: cheque.tipo,
+                        fechaPago: cheque.fechaPago,
+                        fechaCheque: cheque.fechaCheque,
+                        nroCheque: cheque.nroCheque,
+                        tercero: cheque.tercero,
+                        destinatario: cheque.destinatario,
+                        importe: cheque.importe
+                    });
+                });
+            }
+            console.log('=====================');
+            
             const response = await addPagos(payload);
             const data = await response.json();
-            alert(data.message);
             
+            // Limpiar formularios después del éxito
+            if (tipoPago === 'cheque') {
+                // Limpiar el formulario original
+                ['fechaCheque', 'nroCheque', 'terceroCheque', 'destinatarioCheque', 'importeCheque'].forEach(id => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = '';
+                });
+                
+                // Eliminar todos los formularios duplicados
+                document.querySelectorAll('.cheque-form').forEach(form => form.remove());
+                
+                // Restablecer la fecha por defecto en el cheque original
+                setTodayDate();
+            } else {
+                // Limpiar otros formularios
+                const formFields = tipoPago === 'gasoil' 
+                    ? ['precioGasoil', 'litrosGasoil', 'importeGasoil']
+                    : ['detalleOtro', 'importeOtro'];
+                    
+                formFields.forEach(id => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = '';
+                });
+            }
+            
+            alert(data.message);
         } catch (error) {
             alert(`Error al añadir el pago: ${error.message}`);
             console.error('Error en addPagos:', error.message);
@@ -434,7 +674,7 @@ const setupClienteAutocomplete = inputId => setupAutocomplete({
         input.dataset.selectedClienteNombre = cliente.nombre;
         input.dataset.selectedClienteCuit = cliente.cuit;
     }
-})
+});
 
 // Setup tarifa autocomplete
 const setupTarifaAutocomplete = () => {
@@ -494,8 +734,6 @@ const setupCargaDescargaAutocomplete = () => {
 
 // DOMContentLoaded initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    
-
     if (typeof loadHeader === 'function') await loadHeader();
     else console.error("loadHeader no está definido. Asegúrate de cargar /FRONTEND/scripts/header.js.");
 
@@ -517,4 +755,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupAddViajeBtn();
     setupViajesSearchBar();
     setupAddPagoBtn();
+    setupAddChequeBtn();
 });

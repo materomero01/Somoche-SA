@@ -69,6 +69,21 @@
     display: none !important;
 }
 
+/* Estilos para el botón de añadir cheque */
+#addChequeBtn {
+    margin-top: 20px;
+    padding: 5px 10px;
+    font-size: 1rem;
+}
+
+/* Estilos para el contenedor de cheques adicionales */
+#chequeFieldsContainer .form-row {
+    margin-top: 15px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
 
 /* Ajuste responsive */
 @media (max-width: 600px) {
