@@ -3,7 +3,8 @@ var router = express.Router();
 var ctrlViajes = require('../controllers/ctrlViajes.js');
 
 /* GETs viajes */
-router.get('/viajesCliente/:cuit', ctrlViajes.getViajeCuit);
+router.get('/viajesCliente', ctrlViajes.getViajeCuit);
+router.get('/viajesComprobante/:comprobante', ctrlViajes.getViajeComprobante);
 router.get('/:cuil', ctrlViajes.getViajeCuil);
 
 

@@ -1,6 +1,6 @@
 // /FRONTEND/scripts/cheques.js
 
-import { getCheques } from './apiPublic.js';
+import { getCheques, showConfirmModal } from './apiPublic.js';
 import { renderTabla } from './tabla.js'; // Asegúrate que la ruta sea correcta
 
 // Simulamos datos de cheques próximos y pagos
@@ -164,7 +164,7 @@ async function loadChequesData() {
         }
     } catch (error) {
         console.error('Error al cargar cheques:', error.message);
-        alert(`Error al cargar los datos de cheques: ${error.message}`);
+        showConfirmModal(`Error al cargar los datos de cheques: ${error.message}`);
         datosChequesProximos = [];
         datosChequesPagos = [];
     }

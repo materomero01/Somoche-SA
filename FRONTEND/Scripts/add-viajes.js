@@ -1,4 +1,5 @@
-import { fetchAllChoferes, fetchTarifas, addViaje, logout, addPagos, fetchClientes } from './api.js';
+import { fetchAllChoferes, fetchTarifas, addViaje, logout, addPagos, fetchClientes, getViajeComprobante, updateViaje } from './api.js';
+import { showConfirmModal } from './apiPublic.js';
 
 // Global variables
 let allChoferes = [];
@@ -40,7 +41,7 @@ const setTodayDate = () => {
 const validateInputs = (payload, fields) => {
     for (const [key, label] of Object.entries(fields)) {
         if (!payload[key] || (typeof payload[key] === 'string' && !payload[key].trim())) {
-            alert(`El valor para ${label} no ha sido ingresado.`, 'error');
+            showConfirmModal(`El valor para ${label} no ha sido ingresado.`, 'error');
             return false;
         }
     }
@@ -100,12 +101,12 @@ const setupAddViajeBtn = () => {
         };
 
         if (!payload.cuil) {
-            alert('Por favor, selecciona un chofer de la lista de sugerencias.');
+            showConfirmModal('Por favor, selecciona un chofer de la lista de sugerencias.');
             return;
         }
 
         if (!payload.cuit_cliente) {
-            alert('Por favor, selecciona un cliente de la lista de sugerencias.');
+            showConfirmModal('Por favor, selecciona un cliente de la lista de sugerencias.');
             return;
         }
 
@@ -125,7 +126,23 @@ const setupAddViajeBtn = () => {
             pagado: false
         });
 
-        // Validate required fields
+        if (!validarInputs(payload)) return;
+
+        try {
+            const response = await addViaje(payload);
+            const data = await response.json();
+            form.reset();
+            setTodayDate();
+            showConfirmModal(data.message);
+        } catch (error) {
+            showConfirmModal(`Error al añadir viaje: ${error.message}`);
+            console.error('Error en addViaje:', error.message);
+        }
+    });
+};
+
+function validarInputs(payload){
+    // Validate required fields
         if (!validateInputs(payload, {
             comprobante: 'Comprobante',
             campo: 'Campo',
@@ -134,12 +151,12 @@ const setupAddViajeBtn = () => {
             toneladas: 'Toneladas',
             cargado: 'Cargado',
             descargado: 'Descargado'
-        })) return;
+        })) return false;
 
         // Validate comprobante format
         if (!regexInputs.comprobante.test(payload.comprobante)) {
-            alert('El comprobante debe tener el formato "XXXX-XXXXXXXX" o ser un número de 11 dígitos.');
-            return;
+            showConfirmModal('El comprobante debe tener el formato "XXXX-XXXXXXXX" o ser un número de 11 dígitos.');
+            return false;
         }
 
         // Validate numeric fields
@@ -151,23 +168,12 @@ const setupAddViajeBtn = () => {
         };
         for (const [key, label] of Object.entries(numericFields)) {
             if (isNaN(payload[key]) || payload[key] <= 0) {
-                alert(`${label} debe ser un número mayor a 0.`, 'error');
-                return;
+                showConfirmModal(`${label} debe ser un número mayor a 0.`, 'error');
+                return false;
             }
         }
-
-        try {
-            const response = await addViaje(payload);
-            const data = await response.json();
-            form.reset();
-            setTodayDate();
-            alert(data.message);
-        } catch (error) {
-            alert(`Error al añadir viaje: ${error.message}`);
-            console.error('Error en addViaje:', error.message);
-        }
-    });
-};
+        return true;
+}
 
 // Setup search bar
 const setupViajesSearchBar = () => {
@@ -178,9 +184,136 @@ const setupViajesSearchBar = () => {
         return;
     }
 
-    const handleSearch = () => {
+    const handleSearch = async () => {
         const term = input.value.trim();
-        alert(term ? `Buscar viaje con: "${term}"` : 'Por favor, ingresa un término de búsqueda.', term ? 'info' : 'error');
+        try {
+            if (!regexInputs.comprobante.test(term))
+                return showConfirmModal("El comprobante ingresado no es valido, debe tener la forma XXXX-XXXXXXXX o XXXXXXXXXXX");
+
+            const response = await getViajeComprobante(term);
+            const data = await response.json();
+            if (!response.ok)
+                return showConfirmModal(data.message);
+
+            input.value = '';
+            const buttonsAddViaje = document.getElementById("añadirViaje");
+            const buttonsEditViaje = document.getElementById("editarViaje");
+
+            buttonsAddViaje.classList.add("hidden");
+            buttonsEditViaje.classList.remove("hidden");
+
+
+            const inputChofer = document.getElementById("chofer");
+            const inputCliente = document.getElementById("cliente");
+            const inputKilometro = document.getElementById("kilometro");
+            const inputToneladas = document.getElementById("toneladas");
+            const inputFecha = document.getElementById("fecha");
+            const inputTarifa = document.getElementById("tarifa");
+            const inputCargado = document.getElementById("cargado");
+            const inputComprobante = document.getElementById("comprobante");
+            const inputVariacion = document.getElementById("variacion");
+            const inputDescargado = document.getElementById("descargado");
+            const inputCampo = document.getElementById("campo");
+            console.log(data);
+
+            const chofer = allChoferes.filter(chofer => chofer.cuil === data.cuil)[0];
+            inputChofer.value = chofer.nombre;
+            inputChofer.dataset.selectedChoferNombre = chofer.nombre;
+            inputChofer.dataset.selectedChoferCuil = chofer.cuil;
+
+            const cliente = data.cuit ? allClientes.filter(cliente => cliente.cuit === data.cuit) : null;
+            if (cliente){
+                inputCliente.value = cliente[0].nombre;
+                inputCliente.dataset.selectedClienteNombre = cliente[0].nombre;
+                inputCliente.dataset.selectedClienteCuit = cliente[0].cuit;
+            } else {
+                inputCliente.value = "";
+                inputCliente.removeAttribute('data-selected-cliente-nombre');
+                inputCliente.removeAttribute('data-selected-cliente-cuit');
+            }
+
+            inputKilometro.value = data.kilometros;
+            inputTarifa.value = data.tarifa;
+            inputToneladas.value = data.toneladas;
+            inputFecha.value = data.fecha.split("T")[0];
+            inputCargado.value = data.cargado;
+            inputComprobante.value = data.comprobante;
+            inputVariacion.value = data.variacion;
+            inputDescargado.value = data.descargado;
+            inputCampo.value = data.campo;
+
+            [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach( input => {
+                input.setAttribute('readonly', true);
+            });
+
+            const editViajeBtn = document.getElementById("editViajeBtn");
+            const acceptViajeBtn = document.getElementById("acceptViajeBtn");
+            const cancelViajeBtn = document.getElementById("cancelViajeBtn");
+
+            editViajeBtn.onclick = () => {
+                editViajeBtn.classList.add("hidden");
+                acceptViajeBtn.classList.remove("hidden");
+                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach( input => {
+                    input.removeAttribute('readonly');
+                    input.setAttribute('editing', true);
+                });
+            }
+            acceptViajeBtn.onclick= () => {
+                console.log(inputComprobante.value);
+                const payload = {
+                    [data.comprobante]:{
+                        chofer_cuil: inputChofer.dataset.selectedChoferCuil,
+                        cuit_cliente: inputCliente.dataset.selectedClienteCuit,
+                        kilometros: parseInt(inputKilometro.value),
+                        toneladas: parseFloat(inputToneladas.value),
+                        fecha: `${inputFecha.value}T00:00:00-03:00`,
+                        tarifa: inputTarifa.value,
+                        cargado: parseFloat(inputCargado.value) || parseFloat(inputToneladas.value),
+                        comprobante: inputComprobante.value.trim(),
+                        descargado: parseFloat(inputDescargado.value) || parseFloat(inputToneladas.value),
+                        variacion: parseFloat(inputVariacion.value),
+                        campo: inputCampo.value.trim()
+                    }
+                }
+
+                if (!validarInputs(payload[data.comprobante])) return;
+
+                try {
+                    showConfirmModal(`Esta seguro de que desea editar el viaje con comprobante ${data.comprobante}?`, "confirm", async () => {
+                        const response = await updateViaje(payload);
+                        if (response)
+                            showConfirmModal("El viaje fue editado con exito");
+                        else
+                            showConfirmModal("Ocurrio un error al editar el viaje");
+                        cancelViajeBtn.click();
+                        });
+                } catch (error){
+                    showConfirmModal("Error al editar el viaje");
+                    console.log(error.message);
+                }
+            }
+
+            cancelViajeBtn.onclick = () => {
+                editViajeBtn.classList.remove("hidden");
+                acceptViajeBtn.classList.add("hidden");
+                buttonsAddViaje.classList.remove("hidden");
+                buttonsEditViaje.classList.add("hidden");
+                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach( input => {
+                    input.removeAttribute('readonly');
+                    input.removeAttribute('editing');
+                    input.value = '';
+                    input.removeAttribute('data-selected-chofer-nombre');
+                    input.removeAttribute('data-selected-chofer-cuil');
+                    input.removeAttribute('data-selected-cliente-nombre');
+                    input.removeAttribute('data-selected-cliente-cuit');
+                });
+
+                setTodayDate();
+            }
+                
+        } catch (error){
+            console.log(error.message);
+        }
     };
 
     input.addEventListener('keydown', e => e.key === 'Enter' && handleSearch());
@@ -359,7 +492,7 @@ const setupAddPagoBtn = () => {
         };
 
         if (!payload.choferCuil) {
-            alert('Por favor, selecciona un chofer de la lista de sugerencias.');
+            s('Por favor, selecciona un chofer de la lista de sugerencias.');
             return;
         }
 
@@ -384,7 +517,7 @@ const setupAddPagoBtn = () => {
                 // Validar y añadir el cheque original si tiene datos
                 if (originalChequeData.importe && originalChequeData.importe.trim() !== '') {
                     if (isNaN(originalChequeData.importe) || parseFloat(originalChequeData.importe) <= 0) {
-                        alert('El importe del cheque original no es válido');
+                        showConfirmModal('El importe del cheque original no es válido');
                         return;
                     }
                     payload.pagos.push(originalChequeData);
@@ -407,7 +540,7 @@ const setupAddPagoBtn = () => {
                     // Validar y añadir si tiene datos válidos
                     if (chequeData.importe && chequeData.importe.trim() !== '') {
                         if (isNaN(chequeData.importe) || parseFloat(chequeData.importe) <= 0) {
-                            alert(`El importe del cheque ${chequeId} no es válido`);
+                            showConfirmModal(`El importe del cheque ${chequeId} no es válido`);
                             return;
                         }
                         payload.pagos.push(chequeData);
@@ -415,7 +548,7 @@ const setupAddPagoBtn = () => {
                 });
                 
                 if (payload.pagos.length === 0) {
-                    alert('Por favor, completa al menos un cheque con todos sus datos.');
+                    showConfirmModal('Por favor, completa al menos un cheque con todos sus datos.');
                     return;
                 }
                 
@@ -426,7 +559,7 @@ const setupAddPagoBtn = () => {
                     
                     for (const field of requiredFields) {
                         if (!cheque[field] || cheque[field].trim() === '') {
-                            alert(`Por favor, completa todos los campos del cheque ${i + 1}.`);
+                            showConfirmModal(`Por favor, completa todos los campos del cheque ${i + 1}.`);
                             return;
                         }
                     }
@@ -439,14 +572,14 @@ const setupAddPagoBtn = () => {
                 const importe = document.getElementById('importeGasoil')?.value;
                 
                 if (!precioGasoil || !litros || !importe) {
-                    alert('Por favor, completa todos los campos del gasoil.');
+                    showConfirmModal('Por favor, completa todos los campos del gasoil.');
                     return;
                 }
                 
                 if (isNaN(precioGasoil) || parseFloat(precioGasoil) <= 0 ||
                     isNaN(litros) || parseFloat(litros) <= 0 ||
                     isNaN(importe) || parseFloat(importe) <= 0) {
-                    alert('Los valores del gasoil deben ser números válidos mayores a 0.');
+                    showConfirmModal('Los valores del gasoil deben ser números válidos mayores a 0.');
                     return;
                 }
                 
@@ -467,12 +600,12 @@ const setupAddPagoBtn = () => {
                 const importeOtro = document.getElementById('importeOtro')?.value;
                 
                 if (!detalle || !importeOtro) {
-                    alert('Por favor, completa todos los campos.');
+                    showConfirmModal('Por favor, completa todos los campos.');
                     return;
                 }
                 
                 if (isNaN(importeOtro) || parseFloat(importeOtro) <= 0) {
-                    alert('El valor ingresado para el importe no es válido');
+                    showConfirmModal('El valor ingresado para el importe no es válido');
                     return;
                 }
                 
@@ -542,9 +675,9 @@ const setupAddPagoBtn = () => {
                 });
             }
             
-            alert(data.message);
+            showConfirmModal(data.message);
         } catch (error) {
-            alert(`Error al añadir el pago: ${error.message}`);
+            showConfirmModal(`Error al añadir el pago: ${error.message}`);
             console.error('Error en addPagos:', error.message);
         }
         

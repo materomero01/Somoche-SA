@@ -1,5 +1,6 @@
 // /FRONTEND/catac.js
 import { fetchTarifas, updateTarifas} from './api.js';
+import { showConfirmModal } from './apiPublic.js';
 
 let datosCatac = [];
 let paginaActual = 1;
@@ -141,7 +142,7 @@ function configurarInteraccionesCatac() {
             const textoPorcentaje = inputActualizar.value;
             let porcentaje = parseFloat(textoPorcentaje);
             if (isNaN(porcentaje)) {
-                alert('Por favor, ingresa un porcentaje válido (número).');
+                showConfirmModal('Por favor, ingresa un porcentaje válido (número).');
                 return;
             }
             const factor = porcentaje / 100;
@@ -162,7 +163,7 @@ function configurarInteraccionesCatac() {
             const container = document.getElementById('tabla-catac');
             if (!container) {
                 console.error('Contenedor tabla-catac no encontrado.');
-                alert('Error: No se pudo actualizar la tabla.');
+                showConfirmModal('Error: No se pudo actualizar la tabla.');
                 return;
             }
 
@@ -174,7 +175,7 @@ function configurarInteraccionesCatac() {
                 columnas: 5,
                 pageNum: paginaActual
             });
-            alert(`Valores de la tabla actualizados con un ${porcentaje}% de variación.`);
+            showConfirmModal(`Valores de la tabla actualizados con un ${porcentaje}% de variación.`);
         });
     } else {
         console.error('Elementos de interacción (input o botón) no encontrados.');

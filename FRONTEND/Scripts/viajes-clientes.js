@@ -11,7 +11,10 @@ let mainContent;
 let clienteData = [];
 let viajesData = [];
 
+let viajesHistorialData = [];
+
 let currentViajesClientesPage = 1;
+let currentViajesHistorialPage = 1;
 
 // Acciones para la tabla de viajes
 const accionesViajes = [
@@ -61,15 +64,20 @@ function setupSearchBar(searchBarId) {
     }
 }
 
-export function renderizarTablaVC(viajesDataRender = viajesData, currentPage = 1){
-    currentViajesClientesPage = currentPage;
+export function renderizarTablaVC(viajesDataRender = viajesData, currentPage = 1, tableType = "viajes"){
+    if (tableType === 'viajes')
+        currentViajesClientesPage = currentPage;
+    else
+        currentViajesHistorialPage = currentPage;
+
     let columnas = columnasViajes;
+
     if (editingRowId)
         columnas = columnasViajes.filter(col => !["diferencia", "importe", "comision", "iva"].includes(col.key));
 
     renderTabla({
-        containerId: 'clientesViajes-table',
-        paginacionContainerId: 'paginacion-viajes',
+        containerId: tableType === 'viajes'? 'clientesViajes-table' : 'clientesViajesHistorial-table',
+        paginacionContainerId: tableType === 'viajes'? 'paginacion-viajes' : 'paginacion-viajesHistorial',
         datos: viajesDataRender.map(v => ({
                         id: v.id,
                         fecha: v.fecha,
@@ -88,20 +96,21 @@ export function renderizarTablaVC(viajesDataRender = viajesData, currentPage = 1
                         factura_id: v.factura_id,
     })),
         columnas: columnas,
-        itemsPorPagina: 10,
-        actions: accionesViajes,
-        editingRowId: editingRowId,
-        onEdit: (id, field, value) => handleEdit(id, field, value, 'viajesCliente'),
+        itemsPorPagina: 8,
+        actions: tableType === 'viajes'? accionesViajes : [],
+        editingRowId: tableType === 'viajes'? editingRowId : null,
+        onEdit: tableType === 'viajes'? (id, field, value) => handleEdit(id, field, value, 'viajesCliente') : null,
         tableType: 'viajesCliente',
         checkboxColumn: true,
         checkboxColumnPosition: "end",
         generateFactura: handleGenerateInvoice,
         descargarFactura: descargarFactura,
         currentPage: currentPage,
-        onPageChange: (page) => { currentViajesClientesPage = page; }
+        onPageChange: (page) => { tableType === 'viajes'? currentViajesClientesPage = page : currentViajesHistorialPage = page; }
     });
 
-    actualizarTotales(viajesDataRender);
+    if ( tableType === 'viajes')
+        actualizarTotales(viajesDataRender);
 }
 
 async function cargarTablaCliente(){
@@ -282,6 +291,33 @@ export async function handleSaveEditViajesCliente() {
     showConfirmModal("Viaje editado con exito");
 }
 
+async function setHistorial() {
+    const cantidad = document.getElementById("selectResumenes").value;
+    if (!cantidad) {
+        showConfirmModal("Seleccione una cantidad de resúmenes válida.");
+        return;
+    }
+
+    try {
+        const response = await getViajesCliente(clienteData.cuit, cantidad);
+        const data = await response.json();
+        if (!response.ok) {
+            showConfirmModal(data.message);
+            document.getElementById("back-historialBtn").click();
+        }
+
+        viajesHistorialData = data.viajes.map(c => {
+            return parseViaje(c);
+        });
+
+        console.log(viajesHistorialData);
+        renderizarTablaVC(viajesHistorialData, 1, 'historial');
+    } catch (error) {
+        showConfirmModal(`Ocurrió un error al obtener los últimos ${cantidad} resúmenes`);
+        console.error('Error en setHistorial:', error.message);
+    }
+}
+
 // Inicializar
 export async function inicializarModaCliente(data) {
     document.body.classList.add("no-scroll");
@@ -310,39 +346,39 @@ export async function inicializarModaCliente(data) {
         const backHistorialBtn = document.getElementById("back-historialBtn");
         const headerModal = document.getElementById("headerModal");
         const selectCantidad = document.getElementById("selectResumenes");
-        const contentResumenes = document.getElementById("content-resumenes");
+        const contentResumenes = document.getElementById("content-clientesViajesHistorial");
 
-        // selectCantidad?.addEventListener("change", () => {
-        //     contentResumenes.classList.add("hidden");
-        //     historialBtn.click();
-        // })
+        selectCantidad?.addEventListener("change", () => {
+            contentResumenes.classList.add("hidden");
+            historialBtn.click();
+        })
 
-        // historialBtn?.addEventListener("click", async () =>{
-        //     if (loadingSpinner) {
-        //         loadingSpinner.classList.remove("hidden");
-        //         loadingSpinner.childNodes[2].textContent = "Cargando resumenes...";
-        //     }
-        //     if (mainContent) mainContent.classList.add("hidden");
-        //     await setHistorial(choferData);
-        //     if (loadingSpinner) {
-        //         loadingSpinner.classList.add("hidden");
-        //         loadingSpinner.childNodes[2].textContent = "Cargando datos...";
-        //     }
-        //     if (mainContent) mainContent.classList.remove("hidden");
-        //     document.getElementById("back-historial").classList.remove("hidden");
-        //     headerModal.textContent = "Viajes y Pagos - Resumenes";
-        //     contentResumenes.classList.remove("hidden");
-        //     mainContent.classList.add("hidden");
-        //     historialBtn.classList.add("hidden");
-        // });
+        historialBtn?.addEventListener("click", async () =>{
+            if (loadingSpinner) {
+                loadingSpinner.classList.remove("hidden");
+                loadingSpinner.childNodes[2].textContent = "Cargando resumenes...";
+            }
+            if (mainContent) mainContent.classList.add("hidden");
+            await setHistorial();
+            if (loadingSpinner) {
+                loadingSpinner.classList.add("hidden");
+                loadingSpinner.childNodes[2].textContent = "Cargando datos...";
+            }
+            if (mainContent) mainContent.classList.remove("hidden");
+            document.getElementById("back-historial").classList.remove("hidden");
+            headerModal.textContent = "Viajes - Historial";
+            contentResumenes.classList.remove("hidden");
+            mainContent.classList.add("hidden");
+            historialBtn.classList.add("hidden");
+        });
 
-        // backHistorialBtn?.addEventListener("click", () =>{
-        //     document.getElementById("back-historial").classList.add("hidden");
-        //     headerModal.textContent = "Viajes y Pagos";
-        //     contentResumenes.classList.add("hidden");
-        //     mainContent.classList.remove("hidden");
-        //     historialBtn.classList.remove("hidden");
-        // });
+        backHistorialBtn?.addEventListener("click", () =>{
+            document.getElementById("back-historial").classList.add("hidden");
+            headerModal.textContent = "Viajes";
+            contentResumenes.classList.add("hidden");
+            mainContent.classList.remove("hidden");
+            historialBtn.classList.remove("hidden");
+        });
 
     } catch (error) {
         console.error('Error de red o desconocido al obtener datos de los viajes:', error);

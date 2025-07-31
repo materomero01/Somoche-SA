@@ -42,10 +42,33 @@ input[type="number"]::-webkit-inner-spin-button {
     margin: 0;
 }
 
+/* Estilos para campos de solo lectura */
+.form-group input[readonly] {
+    background-color: #f0f0f0; 
+    cursor: default; 
+    border-color: #e0e0e0;
+}
+
+.form-group input[readonly]:focus {
+    border-color: #e0e0e0;
+    box-shadow: 0 0 3px rgba(103, 103, 104, 0.3);
+}
+
+.form-group input[editing] {
+    background-color: #FFFFFF; 
+    cursor: default; 
+}
+
+.form-group input[editing]:focus {
+    border-color: #ebecb3;
+    box-shadow: 0 0 3px rgba(231, 228, 49, 0.3);
+}
+
+
 .form-group input:focus,
 .form-group select:focus { 
- border-color: #007bff;
- box-shadow: 0 0 3px rgba(0, 123, 255, 0.3);
+    border-color: #007bff;
+    box-shadow: 0 0 3px rgba(0, 123, 255, 0.3);
 }
 
 .icon-wrapper-input {

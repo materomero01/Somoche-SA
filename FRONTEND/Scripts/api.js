@@ -1,4 +1,4 @@
-import {getToken, handleAuthorization, handleAuthError} from './apiPublic.js'
+import {getToken, handleAuthorization, handleAuthError, showConfirmModal} from './apiPublic.js'
 
 const apiURL = 'http://localhost:3000/api';
 
@@ -159,6 +159,24 @@ export async function updateViaje(payload) {
     }
 }
 
+// Obtener viaje por comprobante
+export async function getViajeComprobante(comprobante) {
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/viajesComprobante/${encodeURIComponent(comprobante)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
 // Añadir pagos
 export async function addPagos(payload) {
     try {
@@ -228,12 +246,11 @@ export async function setChequesPagos(cheques) {
             return;
         }
         if (!response.ok) {
-            alert(data.message);
+            showConfirmModal(data.message);
         }
         return response.ok;
     } catch (error) {
         console.log(error.message);
-        alert(error.message);
     }
 }
 
@@ -251,7 +268,7 @@ export async function deleteChofer(cuil){
         
         if (!response.ok){
             const data = await response.json();
-            alert(data.message);
+            showConfirmModal(data.message);
         }
         
         return response.ok;
@@ -275,7 +292,7 @@ export async function insertChofer(payload) {
 
         if (!response.ok){
             const data = await response.json();
-            alert(data.message);
+            showConfirmModal(data.message);
         }
         
         return response.ok;
@@ -329,7 +346,7 @@ export async function updateCliente(cuitOriginal, payload){
         
         if (!response.ok){
             const data = await response.json();
-            alert(data.message);
+            showConfirmModal(data.message);
         }
         
         return response.ok;
@@ -345,7 +362,7 @@ export async function insertCliente(payload){
         handleAuthorization();
         const regexCuil = /^\d{2}-\d{8}-\d{1}$/;
         if (!payload.nombre || payload.nombre === '' || !payload.cuit || !payload.cuit === '' || !regexCuil.test(payload.cuit)){
-            alert("Los datos ingresados para el cliente no son validos");
+            showConfirmModal("Los datos ingresados para el cliente no son validos");
             return;
         }
         const response = await fetch(`${apiURL}/clientes/addCliente`, {
@@ -359,7 +376,7 @@ export async function insertCliente(payload){
         
         if (!response.ok){
             const data = await response.json();
-            alert(data.message);
+            (data.message);
         }
         
         return response.ok;
@@ -369,11 +386,11 @@ export async function insertCliente(payload){
 }
 
 // Obtener viajes cliente
-export async function getViajesCliente(cuit) {
+export async function getViajesCliente(cuit, cantidad) {
     try{
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/viajes/viajesCliente/${encodeURIComponent(cuit)}`, {
+        const response = await fetch(`${apiURL}/viajes/viajesCliente?cuit=${encodeURIComponent(cuit)}&cantidad=${encodeURIComponent(cantidad)}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,

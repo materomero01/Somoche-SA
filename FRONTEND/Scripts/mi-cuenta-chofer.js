@@ -1,6 +1,6 @@
 // /FRONTEND/scripts/mi-cuenta-chofer.js
 
-import { updateChofer, fetchChoferData, logout } from './apiPublic.js';
+import { updateChofer, fetchChoferData, logout, showConfirmModal } from './apiPublic.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Carga el header
@@ -133,9 +133,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 inputs.forEach(input => {
                     initialValues[input.id] = input.value;
                 });
-                alert('Cambios guardados exitosamente!');
+                showConfirmModal('Cambios guardados exitosamente!');
                 if (updatedData['nombre_y_apellido'] !== userNombre || updatedData['cuil'] !== userCuil){
-                    alert("Reinicio requerido, vuelve a iniciar sesión por favor");
+                    showConfirmModal("Reinicio requerido, vuelve a iniciar sesión por favor");
                     logout();
                 }
             }
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error('Error al guardar datos del chofer:', error);
-            alert(`Error al guardar cambios: ${error.message || 'Error desconocido'}`);
+            showConfirmModal(`Error al guardar cambios: ${error.message || 'Error desconocido'}`);
         }
     });
     // --- FIN: Lógica para enviar los cambios al backend ---
@@ -184,12 +184,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             let displayMessage = `Error al cargar los datos: ${error.message || 'Error desconocido'}`;
             // Puedes añadir lógica para redirigir si el error es por autenticación, por ejemplo
             if (error.message.includes('Token inválido o expirado') || error.message.includes('No se encontró token JWT')) {
-                alert('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
+                showConfirmModal('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
                 // Redirigir al login
                 window.location.href = '/FRONTEND/login.html';
                 return; 
             }
-            alert(displayMessage);
+            showConfirmModal(displayMessage);
             if (mainContentWrapper) mainContentWrapper.innerHTML = `<p class="error-message">${displayMessage}</p>`;
         } finally {
             // Ocultar el spinner y mostrar el contenido (o el mensaje de error si lo hay)

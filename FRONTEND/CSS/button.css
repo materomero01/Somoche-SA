@@ -69,6 +69,16 @@
     background-color: #218838;
 }
 
+.btn-yellow {
+    background-color: #ffc107;
+    color: black;
+    border: none;
+}
+
+.btn-yellow:hover {
+    background-color: #e0a800;
+}
+
 .btn-dark {
     background-color: #444444;
     color: white;

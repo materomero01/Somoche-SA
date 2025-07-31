@@ -281,7 +281,7 @@ export async function handleSaveEditViajes() {
         showConfirmModal('Los cambios se realizaron con exito.');
         const viajeIndex = viajesData.findIndex(v => v.comprobante === comprobanteOriginal);
         if (viajeIndex !== -1)
-            viajesData[viajeIndex] = parseViaje(payload[comprobanteOriginal]);
+            viajesData[viajeIndex] = parseViaje({...payload[comprobanteOriginal], factura_id: stagedEditingData.factura_id});
     } else {
         showConfirmModal('Error al guardar los cambios del viaje.');
     }

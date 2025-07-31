@@ -95,8 +95,31 @@ exports.getViajeCuil = async (req, res) => {
     }
 };
 
+
+exports.getViajeComprobante = async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
+    const { comprobante } = req.params;
+
+    try {
+        const response = await pool.query(`SELECT chofer_cuil AS cuil, comprobante, fecha, campo, 
+            kilometros, tarifa, variacion, toneladas, cargado, descargado, cuit_cliente AS cuit
+            FROM viaje WHERE comprobante = $1`,
+        [comprobante]);
+
+        if (response.rows.length === 0)
+            return res.status(405).json({ message:`No se encontro un viaje con comprobante igual a ${comprobante}`});
+
+        res.status(200).json(response.rows[0]);
+    } catch (error) {
+        console.log(error.message);
+        res.status(500).json({ message: 'Error interno del servidor al obtener el viaje.' });
+    }
+}
+
 exports.getViajeCuit = async (req, res) => {
-    const cuit = req.params.cuit;
+    const { cuit, cantidad } = req.query;
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
@@ -109,13 +132,22 @@ exports.getViajeCuit = async (req, res) => {
         if (clientExists.rows.length === 0) {
             return res.status(409).json({ message: 'El cliente no se encuentra registrado.' });
         }
+        let params = [cuit, false];
+        let query = `SELECT cuit_cliente AS cuit, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, factura_id
+            FROM viaje
+            WHERE cuit_cliente = $1 AND pagado = $2`;
+        if (cantidad && cantidad !== "undefined") {
+            query += ` AND factura_id IS NOT NULL
+                ORDER BY 3 DESC
+                LIMIT $3`;
+            params.push(cantidad);
+        }else 
+            query += ` AND factura_id IS NULL
+                ORDER BY 3`;
 
         const result = await pool.query(
-            `SELECT cuit_cliente AS cuit, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, factura_id
-            FROM viaje
-            WHERE cuit_cliente = $1 AND pagado = $2
-            ORDER BY 3`,
-            [cuit, false]
+            query,
+            params
         );
         return res.status(200).json({ viajes: result.rows });
     } catch (error) {

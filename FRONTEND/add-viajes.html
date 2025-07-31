@@ -14,6 +14,7 @@
  <link rel="stylesheet" href="/FRONTEND/css/add-viajes.css" />
  <link rel="stylesheet" href="/FRONTEND/css/input.css" />
  <link rel="stylesheet" href="/FRONTEND/css/searchbar.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/modal.css" />
 </head>
 <body>
 
@@ -85,16 +86,20 @@
       </div>
     </form>
 
-     <div class="form-actions">
-      <button class="btn btn-success btn-lg" id="addViajeBtn" type="submit">Añadir</button>
-
-            <div id="viajesSearchBar" class="search-bar" style="margin-bottom: 15px; border-radius: 5px; height: 45px;">
-       <input type="text" class="search-input" placeholder="Buscar viaje..." />
-       <div class="search-icon">
-        <i class="bi bi-search"></i>
-       </div>
-      </div>
-     </div>
+    <div id="añadirViaje" class="form-actions">
+        <button class="btn btn-success btn-lg" id="addViajeBtn" type="submit">Añadir</button>
+        <div id="viajesSearchBar" class="search-bar" style="margin-bottom: 15px; border-radius: 5px; height: 45px;">
+            <input type="text" class="search-input" placeholder="Buscar viaje por comprobante..." />
+            <div class="search-icon">
+                <i class="bi bi-search"></i>
+            </div>
+        </div>
+    </div>
+    <div id="editarViaje" class="form-actions hidden">
+        <button class="btn btn-success btn-lg hidden" id="acceptViajeBtn">Aceptar</button>
+        <button class="btn btn-yellow btn-lg" id="editViajeBtn">Editar</button>
+        <button class="btn btn-danger btn-lg" id="cancelViajeBtn">Cancelar</button>
+    </div>
     </div>
 
     <div id="pagos" class="tab-content hidden"> 

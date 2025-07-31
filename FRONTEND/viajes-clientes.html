@@ -14,7 +14,7 @@
                     <i class="bi bi-arrow-left"></i>
                     Atras
                 </button>
-                <select id="selectResumenes">
+                <select id="selectResumenes" class="select-format">
                     <option value=10> 10 </option>
                     <option value=20> 20 </option>
                     <option value=30> 30 </option>
@@ -29,6 +29,7 @@
         <div class="spinner"></div>
         Cargando datos...
     </div>
+
     <div id="content-clientesViajes" class="hidden">
         <div class="table-section">
             <div id="clientesViajesSearchBar" class="search-bar">
@@ -51,5 +52,12 @@
         </div>
 
         <div id="paginacion-viajes" class="pagination-controls"></div>
+    </div>
+
+    <div id="content-clientesViajesHistorial" class="hidden">
+        <div class="table-section">
+            <div id="clientesViajesHistorial-table" class="tabla-dinamica" style="margin-top: 15px;"></div>
+        </div>
+        <div id="paginacion-viajesHistorial" class="pagination-controls"></div>
     </div>
 </div>

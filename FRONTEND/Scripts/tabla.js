@@ -465,18 +465,3 @@ export function renderTabla({
         }
     }
 }
-
-// SweetAlert modal for notifications (requires <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>)
-// Fallback to alert if SweetAlert is not loaded
-function showConfirmModal(message) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'Notificación',
-            text: message,
-            icon: message.includes('Error') ? 'error' : 'success',
-            confirmButtonText: 'OK'
-        });
-    } else {
-        alert(message);
-    }
-}

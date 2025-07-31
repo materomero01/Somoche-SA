@@ -2,7 +2,7 @@
 
 import { setChequesPagos } from './api.js';
 import { renderTabla } from './tabla.js';
-import { getCheques } from './apiPublic.js';
+import { getCheques, showConfirmModal } from './apiPublic.js';
 
 // Arrays para almacenar los datos de cheques próximos y pagados
 let datosChequesProximos = [];
@@ -253,7 +253,7 @@ async function mostrarContenidoTabCheques(tab) {
                     cheque.importe = parseImporte(cheque.importe);
                 });
             } catch (error) {
-                alert(error.message);
+                showConfirmModal(error.message);
                 console.error(error.message);
             }
         }
@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (paySelectedBtn) {
         paySelectedBtn.addEventListener('click', async () => {
             if (selectedCheques.size === 0) {
-                alert('No hay cheques seleccionados para pagar.');
+                showConfirmModal('No hay cheques seleccionados para pagar.');
                 return;
             }
             try {
@@ -477,7 +477,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                         cheque => !selectedCheques.has(cheque.nro_cheque)
                     );
                     const chequeIdsToPay = Array.from(selectedCheques.keys()).join(', ');
-                    alert(`Se marcaron como pagos los cheques con número: ${chequeIdsToPay}`);
+                    showConfirmModal(`Se marcaron como pagos los cheques con número: ${chequeIdsToPay}`);
 
                 }
             } catch (error){

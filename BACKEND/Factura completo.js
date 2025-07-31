@@ -87,6 +87,7 @@ async function generarTA(servicioId) {
   try {
     execSync(command, { stdio: 'inherit', cwd: certDir });
     const newFiles = fs.readdirSync(certDir).filter(f => f.endsWith(responseFileSuffix)).sort().reverse();
+    console.log(responseFileSuffix);
     const newResponse = newFiles[0];
     if (!newResponse) {
       throw new Error(`No se encontró el nuevo archivo de respuesta del WSAA para ${servicioId}`);
@@ -227,7 +228,7 @@ function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servi
               <ar:DocNro>${docNro.replace(/-| /g, '')}</ar:DocNro>
               <ar:CbteDesde>${cbteNro}</ar:CbteDesde>
               <ar:CbteHasta>${cbteNro}</ar:CbteHasta>
-              <ar:CbteFch>20250725</ar:CbteFch>
+              <ar:CbteFch>20250731</ar:CbteFch>
               <ar:ImpTotal>${impTotal.toFixed(2)}</ar:ImpTotal>
               <ar:ImpTotConc>0</ar:ImpTotConc>
               <ar:ImpNeto>${impNeto.toFixed(2)}</ar:ImpNeto>
@@ -273,9 +274,7 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
       },
       body: xml
     });
-    console.log(response);
     if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-    console.log("paso");
 
     text = await response.text();
     

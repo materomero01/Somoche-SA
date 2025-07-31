@@ -1,3 +1,5 @@
+import { showConfirmModal } from "./apiPublic.js";
+
 // FRONTEND/scripts/login-register.js
 const formSesion = document.getElementById("formSesion");
 const targetsInputs = document.getElementsByClassName("target-input");
@@ -9,7 +11,7 @@ const regexInputs = {
     'email-input': /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 };
 
-export function seePassword(passwordId) {
+function seePassword(passwordId) {
     const iconoToggle = document.querySelector(".toggle");
     const inputPassword = document.getElementById("password-input");
     iconoToggle.addEventListener("click", (e) =>{
@@ -92,15 +94,15 @@ formSesion?.addEventListener("submit", async (event) => {
             }
             if (data.role === "chofer")
                 redirectURL = "home-chofer.html";
-            //alert(data.message);
+            //showConfirmModal(data.message);
             window.location.href = redirectURL;
         } else {
-            alert(`Error: "${data.message}"`);
+            showConfirmModal(`Error: "${data.message}"`);
             console.error('Error del backend:', data);
         }
     } catch (error) {
         console.error('Error de red al registrar o iniciar sesión:', error);
-        alert('Error de conexión con el servidor.');
+        showConfirmModal('Error de conexión con el servidor.');
     }
 });
 

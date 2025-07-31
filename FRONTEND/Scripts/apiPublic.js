@@ -16,8 +16,27 @@ export function logout() {
 }
 
 // --- Lógica del Modal de Confirmación ---
-export function showConfirmModal(message, type = "", onConfirm = () => {}, onCancel) {
-    const modal = document.getElementById('confirmModal');
+export async function showConfirmModal(message, type = "", onConfirm = () => {}, onCancel) {
+    let modal = document.getElementById('confirmModal');
+    if (!modal){
+        try {
+            modal = document.createElement('div');
+            modal.id = 'confirmModal';
+            modal.className = 'modal';
+            const response = await fetch('/FRONTEND/confirmModal.html');
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            const modalHtml = await response.text();
+            if (modalHtml){
+                modal.innerHTML = modalHtml;
+                document.body.appendChild(modal);
+            } else 
+                return console.log("No se pudo cargar el modal de confirmacion");
+        } catch (error) {
+            console.log(error.message);
+        }
+    }
     const headerModal = document.getElementById('headerConfirm');
     const modalMessage = document.getElementById('modalMessage');
     const acceptBtn = document.getElementById('confirmSuccessBtn');
@@ -92,7 +111,7 @@ export function hideConfirmModal() {
 export function handleAuthorization () {
     const userRole = localStorage.getItem('userRole');
     if (!userRole || userRole !== 'admin'){
-        alert("No tienes autorización para realizar esta acción");
+        showConfirmModal("No tienes autorización para realizar esta acción");
         logout();
     }
 }
@@ -100,7 +119,7 @@ export function handleAuthorization () {
 // Manejar errores de autenticación
 export function handleAuthError(error) {
     console.error(error.message);
-    alert('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
+    showConfirmModal('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
     logout();
     return [];
 }
@@ -129,7 +148,7 @@ export async function fetchChoferData(cuil) {
                     handleAuthError(new Error(errorMessage));
                     return; // Salir de la función para evitar más procesamiento
             }
-            alert(errorMessage);
+            showConfirmModal(errorMessage);
         }
         const choferData = await response.json();
         return  { choferData, errorMessage};
@@ -157,7 +176,7 @@ export async function updateChofer(cuilOriginal, payload){
         }
         if (!response.ok){
             
-            alert(data.message);
+            showConfirmModal(data.message);
         }
         return response.ok;
     } catch (error) {
@@ -181,7 +200,7 @@ export async function getCheques(pagados, choferCuil) {
             return;
         }
         if (!response.ok) {
-            alert(data.message);
+            showConfirmModal(data.message);
         }
         console.log(data);
         return data;

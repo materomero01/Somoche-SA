@@ -1,7 +1,6 @@
 import { renderTabla } from './tabla.js';
 import { fetchAllDataChoferes, deleteChofer, fetchClientes, updateCliente, insertCliente, insertChofer, fetchTarifas } from './api.js';
 import { updateChofer, showConfirmModal } from './apiPublic.js';
-import { seePassword } from './login-register.js';
 import { inicializarModal, renderizarTablas, handleSaveEditViajes } from './viajes-pagos.js';
 import { parseImporte } from './resumenes.js';
 import { handleSaveEditViajesCliente, inicializarModaCliente, renderizarTablaVC } from './viajes-clientes.js';
@@ -94,6 +93,20 @@ const clientesActions = [
         }
     }
 ];
+
+function seePassword(passwordId) {
+    const iconoToggle = document.querySelector(".toggle");
+    const inputPassword = document.getElementById("password-input");
+    iconoToggle.addEventListener("click", (e) =>{
+    if (inputPassword?.type ==="password"){
+        inputPassword.type = "text";
+        e.target.classList.replace("bi-eye-slash", "bi-eye");
+    } else {
+        inputPassword.type = "password";
+        e.target.classList.replace("bi-eye","bi-eye-slash");
+    }
+    });
+}
 
 // --- Funciones de renderizado de tablas ---
 function renderChoferesTable(data, currentPage = 1) {
@@ -293,8 +306,7 @@ function setupAddButtons() {
                     valid = false;
             });
             if (!valid) {
-                showConfirmModal('Por favor completá los campos obligatorios.');
-                return;
+                return showConfirmModal('Por favor completá los campos obligatorios.');;
             }
             const payload = {
                 cuil: choferData['cuil'],
@@ -590,6 +602,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     setupSearchBar('choferesSearchBar', 'choferes');
     setupSearchBar('clientesSearchBar', 'clientes');
     setupAddButtons();
+    seePassword("password-input");
 
     // Add CUIT capture for navigate-btn
     document.querySelectorAll('.navigate-btn').forEach(button => {
@@ -617,12 +630,13 @@ document.addEventListener('DOMContentLoaded', async function () {
         const addChoferWrapper = document.getElementById('chofer-wrapper');
         const addChoferCard = document.getElementById('addChoferCard');
         const viajesPagosModal = document.getElementById('viajesPagosModal');
+        const modalConfirmacion = document.getElementById('confirmModal')
 
         const isClickOutsideModal = modalContent && !modalContent.contains(event.target);
         const isClickInsideHeader = headerContainer && headerContainer.contains(event.target);
         const isClickInsideSidebar = sidebarContainer && sidebarContainer.contains(event.target);
-        const isClickInsideAddCliente = addClienteWrapper && addClienteWrapper.contains(event.target);
-        const isClickInsideAddChofer = addChoferWrapper && addChoferWrapper.contains(event.target);
+        const isClickInsideAddCliente = (addClienteWrapper && addClienteWrapper.contains(event.target)) || (modalConfirmacion && modalConfirmacion.contains(event.target));
+        const isClickInsideAddChofer = (addChoferWrapper && addChoferWrapper.contains(event.target)) || (modalConfirmacion && modalConfirmacion.contains(event.target));
         const isClickInsideViajesModal = viajesPagosModal && viajesPagosModal.contains(event.target);
 
         if (addChoferCard && !isClickInsideAddChofer && !isClickInsideHeader && !isClickInsideSidebar) {
