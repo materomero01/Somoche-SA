@@ -107,6 +107,9 @@
 }
 
 /* Modal Viajes / Pagos */
+.hidden {
+    display: none !important;
+}
 
 .modal-content.tables {
     max-width: 90%;

@@ -45,11 +45,11 @@ exports.insertResumen = async(req, res) => {
 
             values = [groupStamp, index.split('-')[0]];
             if (tipo.toLowerCase() === 'cheque') {
-                query = `UPDATE pagos_cheque SET "group" = $1 WHERE nro = $2`;
+                query = `UPDATE pagos_cheque SET "group_r" = $1 WHERE nro = $2`;
             } else if (tipo.toLowerCase() === 'gasoil') {
-                query = `UPDATE pagos_gasoil SET "group" = $1 WHERE id = $2`;
+                query = `UPDATE pagos_gasoil SET "group_r" = $1 WHERE comprobante = $2`;
             } else if (tipo.toLowerCase() === 'otro') {
-                query = `UPDATE pagos_otros SET "group" = $1 WHERE id = $2`;
+                query = `UPDATE pagos_otro SET "group_r" = $1 WHERE comprobante = $2`;
             } else {
                 await client.query('ROLLBACK');
                 client.release();
@@ -61,7 +61,7 @@ exports.insertResumen = async(req, res) => {
 
         for (const [index, viaje] of Object.entries(viajes)) {
             // Ejecutar la actualización
-            const result = await client.query(` UPDATE viaje SET "group" = $1 WHERE comprobante = $2`, 
+            const result = await client.query(` UPDATE viaje SET "group_r" = $1 WHERE comprobante = $2`, 
                 [groupStamp, index]);
         }
 
@@ -79,7 +79,7 @@ exports.insertResumen = async(req, res) => {
                 client.release();
                 return res.status(405).json({ message:`El importe del pago para el saldo restante no es valido`});
             }
-            const response = await client.query("INSERT INTO pagos_otros(detalle, importe, chofer_cuil_o, fecha_pago) VALUES ($1,$2,$3,$4) RETURNING id",
+            const response = await client.query("INSERT INTO pagos_otro(detalle, importe, chofer_cuil, fecha_pago) VALUES ($1,$2,$3,$4) RETURNING id",
                 [pagoAdicional.detalle, pagoAdicional.importe, choferCuil, groupStamp]
             );
             idPagoAdicional = response.rows[0];
@@ -130,7 +130,7 @@ exports.getResumenCuil = async (req, res) => {
 
         // Obtener los últimos n grupos de viajes
         const viajesQuery = `
-            SELECT "group", 
+            SELECT "group_r", 
                    ARRAY_AGG(
                        JSON_BUILD_OBJECT(
                            'comprobante', comprobante,
@@ -141,21 +141,20 @@ exports.getResumenCuil = async (req, res) => {
                            'variacion', variacion,
                            'toneladas', toneladas,
                            'cargado', cargado,
-                           'descargado', descargado,
-                           'factura_id', factura_id
+                           'descargado', descargado
                        )
                    ) as viajes
             FROM viaje
-            WHERE chofer_cuil = $1 AND "group" IS NOT NULL
-            GROUP BY "group"
-            ORDER BY "group" DESC
+            WHERE chofer_cuil = $1 AND "group_r" IS NOT NULL
+            GROUP BY "group_r"
+            ORDER BY "group_r" DESC
             LIMIT $2
         `;
         const viajesResult = await client.query(viajesQuery, [cuil, cantidad]);
 
         // Obtener los últimos n grupos de pagos (unificados)
         const pagosQuery = `
-            SELECT "group",
+            SELECT "group_r",
                    ARRAY_AGG(
                        JSON_BUILD_OBJECT(
                            'tipo', tipo,
@@ -170,23 +169,23 @@ exports.getResumenCuil = async (req, res) => {
                    ) as pagos
             FROM (
                 SELECT 'Cheque' AS tipo, nro AS id, fecha_pago, 
-                       fecha_c AS fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros, "group"
+                       fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros, "group_r"
                 FROM pagos_cheque
-                WHERE chofer_cuil_c = $1 AND "group" IS NOT NULL
+                WHERE chofer_cuil = $1 AND "group_r" IS NOT NULL
                 UNION ALL
-                SELECT 'Gasoil' AS tipo, g.id AS id, fecha_pago, 
+                SELECT 'Gasoil' AS tipo, g.comprobante AS id, fecha_pago, 
                        NULL AS fecha_cheque, NULL AS tercero, NULL AS descripcion, precio * litros AS importe,
-                       litros, "group"
+                       litros, "group_r"
                 FROM pagos_gasoil g
-                WHERE chofer_cuil_g = $1 AND "group" IS NOT NULL
+                WHERE chofer_cuil = $1 AND "group_r" IS NOT NULL
                 UNION ALL
-                SELECT 'Otro' AS tipo, o.id AS id, fecha_pago, 
-                       NULL AS fecha_cheque, NULL AS tercero, detalle AS descripcion, importe, NULL AS litros, "group"
-                FROM pagos_otros o
-                WHERE chofer_cuil_o = $1 AND "group" IS NOT NULL
+                SELECT 'Otro' AS tipo, o.comprobante AS id, fecha_pago, 
+                       NULL AS fecha_cheque, NULL AS tercero, detalle AS descripcion, importe, NULL AS litros, "group_r"
+                FROM pagos_otro o
+                WHERE chofer_cuil = $1 AND "group_r" IS NOT NULL
             ) AS unified_pagos
-            GROUP BY "group"
-            ORDER BY "group" DESC
+            GROUP BY "group_r"
+            ORDER BY "group_r" DESC
             LIMIT $2
         `;
         const pagosResult = await client.query(pagosQuery, [cuil, cantidad]);

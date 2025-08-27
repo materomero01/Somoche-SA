@@ -33,10 +33,11 @@ exports.insertPagos = async (req, res) => {
         // Procesar cada pago
         for (const [index, pago] of validatedData.entries()) {
             // Insertar según el tipo de pago
+            console.log(pago);
             if (pago.tipo.toLowerCase() === 'cheque') {
                 const result = await client.query(
                     `INSERT INTO pagos_cheque (
-                        chofer_cuil_c, fecha_pago, fecha_c, nro, tercero, destinatario, importe, pagado
+                        chofer_cuil, fecha_pago, fecha_cheque, nro, tercero, destinatario, importe, pagado
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING nro AS id`,
                     [
                         choferCuil,
@@ -53,9 +54,10 @@ exports.insertPagos = async (req, res) => {
             } else if (pago.tipo.toLowerCase() === 'gasoil') {
                 const result = await client.query(
                     `INSERT INTO pagos_gasoil (
-                        chofer_cuil_g, fecha_pago, precio, litros
-                    ) VALUES ($1, $2, $3, $4) RETURNING id`,
+                        comprobante, chofer_cuil, fecha_pago, precio, litros
+                    ) VALUES ($1, $2, $3, $4, $5) RETURNING comprobante AS id`,
                     [
+                        pago.comprobante,
                         choferCuil,
                         pago.fechaPago,
                         pago.precioGasoil,
@@ -65,10 +67,11 @@ exports.insertPagos = async (req, res) => {
                 pagoId = result.rows[0];
             } else if (pago.tipo.toLowerCase() === 'otro') {
                 const result = await client.query(
-                    `INSERT INTO pagos_otros (
-                        chofer_cuil_o, fecha_pago, detalle, importe
-                    ) VALUES ($1, $2, $3, $4) RETURNING id`,
+                    `INSERT INTO pagos_otro (
+                        comprobante, chofer_cuil, fecha_pago, detalle, importe
+                    ) VALUES ($1, $2, $3, $4, $5) RETURNING comprobante AS id`,
                     [
+                        pago.comprobante,
                         choferCuil,
                         pago.fechaPago,
                         pago.detalle,
@@ -101,20 +104,20 @@ exports.getAllPagos = async (req, res) => {
     try {
         let query = `
             SELECT 'Cheque' AS tipo, nro AS id, fecha_pago, 
-                   fecha_c AS fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros
+                   fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros
             FROM pagos_cheque
-            WHERE chofer_cuil_c = $1 AND "group" IS NULL
+            WHERE chofer_cuil = $1 AND "group_r" IS NULL
             UNION ALL
-            SELECT 'Gasoil' AS tipo, g.id AS id, fecha_pago, 
+            SELECT 'Gasoil' AS tipo, g.comprobante AS id, fecha_pago, 
                    NULL AS fecha_cheque, NULL AS tercero, NULL AS descripcion, precio * litros AS importe,
                    litros
             FROM pagos_gasoil g
-            WHERE chofer_cuil_g = $1 AND "group" IS NULL
+            WHERE chofer_cuil = $1 AND "group_r" IS NULL
             UNION ALL
-            SELECT 'Otro' AS tipo, o.id AS id, fecha_pago, 
+            SELECT 'Otro' AS tipo, o.comprobante AS id, fecha_pago, 
                    NULL AS fecha_cheque, NULL AS tercero, detalle AS descripcion, importe, NULL AS litros
-            FROM pagos_otros o
-            WHERE chofer_cuil_o = $1 AND "group" IS NULL
+            FROM pagos_otro o
+            WHERE chofer_cuil = $1 AND "group_r" IS NULL
         `;
         const params = [];
         if (cuil)
@@ -151,16 +154,16 @@ exports.getPagosCheque = async (req, res) => {
     try {
         
         let query = `
-            SELECT nro AS nro_cheque, chofer_cuil_c AS chofer_cuil, fecha_pago, 
-                   fecha_c AS fecha_cheque, tercero, destinatario, nombre_apellido AS nombre, importe
+            SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
+                   fecha_cheque, tercero, destinatario, nombre_apellido AS nombre, importe
             FROM pagos_cheque c
-            INNER JOIN (SELECT nombre_apellido, cuil FROM usuario) u ON c.chofer_cuil_c = u.cuil
+            INNER JOIN (SELECT nombre_apellido, cuil FROM usuario) u ON c.chofer_cuil = u.cuil
         `;
         const params = [];
         let conditions = [];
 
         if (choferCuil) {
-            conditions.push(`chofer_cuil_c = $${params.length + 1}`);
+            conditions.push(`chofer_cuil = $${params.length + 1}`);
             params.push(choferCuil);
         }
         if (pagado !== null) {
@@ -228,12 +231,12 @@ exports.getPagosGasoil = async (req, res) => {
     try {
         const choferCuil = req.query.choferCuil || null;
         let query = `
-            SELECT id_gasoil AS id, chofer_cuil_g AS chofer_cuil, fecha_pago, precio, litros
+            SELECT comprobante AS id, chofer_cuil, fecha_pago, precio, litros
             FROM pagos_gasoil
         `;
         const params = [];
         if (choferCuil) {
-            query += ` WHERE chofer_cuil_g = $1`;
+            query += ` WHERE chofer_cuil = $1`;
             params.push(choferCuil);
         }
         query += ` ORDER BY fecha_pago DESC`;
@@ -256,12 +259,12 @@ exports.getPagosOtros = async (req, res) => {
         client = await pool.connect();
         const choferCuil = req.query.choferCuil || null;
         let query = `
-            SELECT id_otros AS id, chofer_cuil_o AS chofer_cuil, fecha_pago, detalle, importe
-            FROM pagos_otros
+            SELECT comprobante AS id, chofer_cuil, fecha_pago, detalle, importe
+            FROM pagos_otro
         `;
         const params = [];
         if (choferCuil) {
-            query += ` WHERE chofer_cuil_o = $1`;
+            query += ` WHERE chofer_cuil = $1`;
             params.push(choferCuil);
         }
         query += ` ORDER BY fecha_pago DESC`;
@@ -269,8 +272,8 @@ exports.getPagosOtros = async (req, res) => {
         const result = await client.query(query, params);
         res.status(200).json(result.rows);
     } catch (error) {
-        console.error('Error en getPagosOtros:', error);
-        res.status(500).json({ message: 'Error interno del servidor al obtener los pagos de otros.' });
+        console.error('Error en getPagosOtro:', error);
+        res.status(500).json({ message: 'Error interno del servidor al obtener los pagos de otro.' });
     } finally {
         client?.release();
     }
@@ -361,7 +364,7 @@ exports.updatePagos = async (req, res) => {
                 values = queryValues;
             } else if (tipo.toLowerCase() === 'gasoil') {
                 table = 'pagos_gasoil';
-                idColumn = 'id';
+                idColumn = 'comprobante';
                 const allowedFields = {
                     chofer_cuil_g: choferCuil,
                     fecha_pago: validatedData[0].fechaPago,
@@ -390,8 +393,8 @@ exports.updatePagos = async (req, res) => {
                 query = `UPDATE ${table} SET ${setClauses.join(', ')} WHERE ${idColumn} = $${paramCount}`;
                 values = queryValues;
             } else if (tipo.toLowerCase() === 'otro') {
-                table = 'pagos_otros';
-                idColumn = 'id';
+                table = 'pagos_otro';
+                idColumn = 'comprobante';
                 const allowedFields = {
                     chofer_cuil_o: choferCuil,
                     fecha_pago: validatedData[0].fechaPago,

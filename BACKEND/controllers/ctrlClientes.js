@@ -1,9 +1,14 @@
 const pool = require('../db');
 
 const regexCuit = /^\d{2}-\d{8}-\d{1}$/;
+const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validatecuit(cuit){
     return cuit && cuit !== '' && regexCuit.test(cuit);
+}
+
+function validateEmail(email){
+    return email && email !== '' && regexEmail.test(email);
 }
 
 exports.getClientes = async (req, res) => {
@@ -15,7 +20,7 @@ exports.getClientes = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(
-            'SELECT razon_social AS nombre, cuit FROM cliente ORDER BY razon_social ASC'
+            'SELECT razon_social AS nombre, cuit, email FROM cliente ORDER BY razon_social ASC'
         );
 
         // Mapear los resultados para agregar un id basado en el índice
@@ -40,6 +45,8 @@ exports.insertCliente = async (req, res) => {
         return res.status(404).json({ message: 'El CUIT no cumple con el formato requerido XX-XXXXXXXX-X'});
     if (!data.nombre || data.nombre === '')
         return res.status(405).json({ message: 'El cliente debe llevar el Nombre / Razon Social'});
+    if (data.email && data.email !== '' && !validateEmail(data.email))
+        return res.status(405).json({ message: 'El email ingresado no es una dirección de email valida'})
     try {
         // Consulta a la base de datos (PostgreSQL ejemplo)
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
@@ -54,8 +61,8 @@ exports.insertCliente = async (req, res) => {
         }
         
         const result = await pool.query(
-            'INSERT INTO cliente(cuit, razon_social) VALUES($1, $2)',
-            [data.cuit, data.nombre]
+            'INSERT INTO cliente(cuit, razon_social, email) VALUES($1, $2, $3)',
+            [data.cuit, data.nombre, data.email]
         );
 
         res.status(208).json({ message: "El cliente fue registrado con exito"});
@@ -93,9 +100,9 @@ exports.updateClientes = async (req, res) => {
 
         await pool.query(
             `UPDATE cliente 
-            SET cuit = $1, razon_social = $2
-            WHERE cuit = $3`,
-            [data.cuit, data.nombre, cuitOriginal]
+            SET cuit = $1, razon_social = $2, email = $3
+            WHERE cuit = $4`,
+            [data.cuit, data.nombre, data.email, cuitOriginal]
         );
 
         res.status(207).json({ message: "Cliente modificado con exito"});

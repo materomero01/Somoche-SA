@@ -23,12 +23,14 @@ const pagoChequeSchema = {
 
 const pagoGasoilSchema = {
     ...pagoSchema,
+    comprobante: { type: 'string', required: true, error: 'El comprobante de la orden de gasoil no fue ingresado o no es válido'},
     precioGasoil: { type: 'number', required: true, min: 0, error: 'El precioGasoil debe ser un número mayor o igual a 0.' },
     litros: { type: 'number', required: true, min: 0, error: 'Los litros deben ser un número mayor o igual a 0.' }
 };
 
 const pagoOtroSchema = {
     ...pagoSchema,
+    comprobante: { type: 'string', required: true, error: 'El comprobante del pago no fue ingresado o no es válido'},
     detalle: { type: 'string', required: true, error: 'El detalle es obligatorio.' },
     importe: { type: 'number', required: true, min: 0, error: 'El importe debe ser un número mayor o igual a 0.' }
 };

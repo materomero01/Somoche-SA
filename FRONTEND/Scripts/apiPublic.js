@@ -119,8 +119,7 @@ export function handleAuthorization () {
 // Manejar errores de autenticación
 export function handleAuthError(error) {
     console.error(error.message);
-    showConfirmModal('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
-    logout();
+    showConfirmModal('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.','aviso', () => logout());
     return [];
 }
 

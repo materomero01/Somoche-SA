@@ -1,11 +1,10 @@
-import { fetchAllChoferes, fetchTarifas, addViaje, logout, addPagos, fetchClientes, getViajeComprobante, updateViaje } from './api.js';
+import { fetchAllChoferes, fetchTarifas, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje } from './api.js';
 import { showConfirmModal } from './apiPublic.js';
 
 // Global variables
 let allChoferes = [];
 let allClientes = [];
 let tarifasCatac = [];
-let token;
 
 // Regex for input validation
 const regexInputs = {
@@ -263,7 +262,7 @@ const setupViajesSearchBar = () => {
                 const payload = {
                     [data.comprobante]:{
                         chofer_cuil: inputChofer.dataset.selectedChoferCuil,
-                        cuit_cliente: inputCliente.dataset.selectedClienteCuit,
+                        cliente_cuit: inputCliente.dataset.selectedClienteCuit,
                         kilometros: parseInt(inputKilometro.value),
                         toneladas: parseFloat(inputToneladas.value),
                         fecha: `${inputFecha.value}T00:00:00-03:00`,
@@ -492,7 +491,7 @@ const setupAddPagoBtn = () => {
         };
 
         if (!payload.choferCuil) {
-            s('Por favor, selecciona un chofer de la lista de sugerencias.');
+            showConfirmModal('Por favor, selecciona un chofer de la lista de sugerencias.');
             return;
         }
 
@@ -567,11 +566,12 @@ const setupAddPagoBtn = () => {
                 break;
                 
             case 'gasoil':
+                const comprobanteGasoil = document.getElementById('comprobanteGasoil')?.value;
                 const precioGasoil = document.getElementById('precioGasoil')?.value;
                 const litros = document.getElementById('litrosGasoil')?.value;
                 const importe = document.getElementById('importeGasoil')?.value;
                 
-                if (!precioGasoil || !litros || !importe) {
+                if (!comprobanteGasoil || !precioGasoil || !litros || !importe) {
                     showConfirmModal('Por favor, completa todos los campos del gasoil.');
                     return;
                 }
@@ -588,6 +588,7 @@ const setupAddPagoBtn = () => {
                     pagos: {
                         tipo: tipoPago,
                         fechaPago: fechaPago,
+                        comprobante: comprobanteGasoil,
                         precioGasoil: precioGasoil,
                         litros: litros,
                         importe: importe
@@ -596,10 +597,11 @@ const setupAddPagoBtn = () => {
                 break;
                 
             case 'otro':
+                const comprobanteOtro = document.getElementById('comprobanteOtro')?.value;
                 const detalle = document.getElementById('detalleOtro')?.value;
                 const importeOtro = document.getElementById('importeOtro')?.value;
                 
-                if (!detalle || !importeOtro) {
+                if (!comprobanteOtro || !detalle || !importeOtro) {
                     showConfirmModal('Por favor, completa todos los campos.');
                     return;
                 }
@@ -614,6 +616,7 @@ const setupAddPagoBtn = () => {
                     pagos: {
                         tipo: tipoPago,
                         fechaPago: fechaPago,
+                        comprobante: comprobanteOtro,
                         detalle: detalle,
                         importe: importeOtro
                     }
@@ -666,8 +669,8 @@ const setupAddPagoBtn = () => {
             } else {
                 // Limpiar otros formularios
                 const formFields = tipoPago === 'gasoil' 
-                    ? ['precioGasoil', 'litrosGasoil', 'importeGasoil']
-                    : ['detalleOtro', 'importeOtro'];
+                    ? ['comprobanteGasoil','precioGasoil', 'litrosGasoil', 'importeGasoil']
+                    : ['comprobanteOtro','detalleOtro', 'importeOtro'];
                     
                 formFields.forEach(id => {
                     const input = document.getElementById(id);

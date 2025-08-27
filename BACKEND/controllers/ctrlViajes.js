@@ -42,8 +42,8 @@ exports.insertViaje = async (req, res) => {
         // Insertar el viaje
         await pool.query(
             `INSERT INTO viaje (
-                chofer_cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, pagado, cuit_cliente
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                chofer_cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, cliente_cuit
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
                 validatedData.cuil,
                 validatedData.comprobante,
@@ -55,7 +55,6 @@ exports.insertViaje = async (req, res) => {
                 validatedData.toneladas,
                 validatedData.cargado,
                 validatedData.descargado,
-                validatedData.pagado,
                 validatedData.cuit_cliente
             ]
         );
@@ -83,10 +82,10 @@ exports.getViajeCuil = async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT chofer_cuil AS cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, factura_id
+            `SELECT chofer_cuil AS cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado
             FROM viaje
-            WHERE chofer_cuil = $1 AND pagado = $2 AND "group" IS NULL`,
-            [cuil, false]
+            WHERE chofer_cuil = $1 AND "group_r" IS NULL`,
+            [cuil]
         );
         return res.status(200).json({ viajes: result.rows });
     } catch (error) {
@@ -104,7 +103,7 @@ exports.getViajeComprobante = async (req, res) => {
 
     try {
         const response = await pool.query(`SELECT chofer_cuil AS cuil, comprobante, fecha, campo, 
-            kilometros, tarifa, variacion, toneladas, cargado, descargado, cuit_cliente AS cuit
+            kilometros, tarifa, variacion, toneladas, cargado, descargado, cliente_cuit AS cuit
             FROM viaje WHERE comprobante = $1`,
         [comprobante]);
 
@@ -132,17 +131,19 @@ exports.getViajeCuit = async (req, res) => {
         if (clientExists.rows.length === 0) {
             return res.status(409).json({ message: 'El cliente no se encuentra registrado.' });
         }
-        let params = [cuit, false];
-        let query = `SELECT cuit_cliente AS cuit, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, factura_id
-            FROM viaje
-            WHERE cuit_cliente = $1 AND pagado = $2`;
+        let params = [cuit];
+        let query = `SELECT vc.cliente_cuit AS cuit, v.comprobante, v.fecha, v.campo, vc.kilometros, vc.tarifa, vc.variacion, vc.toneladas, v.cargado, v.descargado
+            FROM viaje_cliente vc
+            INNER JOIN (SELECT comprobante, fecha, campo, cargado, descargado FROM viaje
+                        WHERE cliente_cuit = $1 AND valid = true) v ON vc.viaje_comprobante = v.comprobante
+            WHERE cliente_cuit = $1 AND valid = true`;
         if (cantidad && cantidad !== "undefined") {
-            query += ` AND factura_id IS NOT NULL
+            query += `
                 ORDER BY 3 DESC
-                LIMIT $3`;
+                LIMIT $2`;
             params.push(cantidad);
         }else 
-            query += ` AND factura_id IS NULL
+            query += `
                 ORDER BY 3`;
 
         const result = await pool.query(

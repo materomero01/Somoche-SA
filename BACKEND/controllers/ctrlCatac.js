@@ -3,7 +3,7 @@ const pool = require('../db');
 async function fetchAllTarifas(client = null) {
     const queryRunner = client || pool;
     const result = await queryRunner.query(
-        'SELECT km, valor FROM tarifacatac ORDER BY km ASC'
+        'SELECT km, valor FROM catac ORDER BY km ASC'
     );
     return result.rows;
 }
@@ -24,9 +24,10 @@ exports.updateTarifas = async (req, res) => {
     }
 
     const { porcentaje } = req.body;
+    console.log(req.body);
 
-    if (typeof porcentaje !== 'number' || porcentaje < -0.5 || porcentaje > 100) {
-        return res.status(400).json({ message: 'El porcentaje debe ser un número entre -0.5 y 100.' });
+    if (typeof porcentaje !== 'number' || porcentaje < -1 || porcentaje > 1) {
+        return res.status(400).json({ message: 'El porcentaje debe ser un número entre -100 y 100.' });
     }
 
     let client;
@@ -35,7 +36,7 @@ exports.updateTarifas = async (req, res) => {
         await client.query('BEGIN');
 
         const updateResult = await client.query(
-            'UPDATE tarifacatac SET valor = valor * (1 + $1)',
+            'UPDATE catac SET valor = valor * (1.0 + $1)',
             [porcentaje]
         );
 

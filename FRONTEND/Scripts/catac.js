@@ -147,35 +147,37 @@ function configurarInteraccionesCatac() {
             }
             const factor = porcentaje / 100;
             const payload = {
-                factor: factor
+                porcentaje: factor
             }
-            if (confirm(`Estas seguro de que desea actualizar las tarifas de Catac en un ${textoPorcentaje}%?`)){
+
+            showConfirmModal(`Estas seguro de que desea actualizar las tarifas de Catac en un ${textoPorcentaje}%?`, 'confirm', async () => {
                 try {
                     const data = await updateTarifas(payload);
                     datosCatac = data.tarifas;
-                    updateInput.value = null;
+                    const updateInput = document.getElementById('catac-update');
+                    updateInput.value = '';
+                    const container = document.getElementById('tabla-catac');
+                    if (!container) {
+                        console.error('Contenedor tabla-catac no encontrado.');
+                        showConfirmModal('Error: No se pudo actualizar la tabla.');
+                        return;
+                    }
+
+                    paginaActual = parseInt(container.dataset.currentPage) || 1;
+                    renderTabla({
+                        containerId: 'tabla-catac',
+                        datos: datosCatac,
+                        filas: 10,
+                        columnas: 5,
+                        pageNum: paginaActual
+                    });
+                    showConfirmModal(`Valores de la tabla actualizados con un ${porcentaje}% de variación.`);
                 } catch (error) {
                     console.error('Error en tarifasCatac:', error.message);
                     return [];
-                }
-            } else 
-                return;
-            const container = document.getElementById('tabla-catac');
-            if (!container) {
-                console.error('Contenedor tabla-catac no encontrado.');
-                showConfirmModal('Error: No se pudo actualizar la tabla.');
-                return;
-            }
+                }}
+            );
 
-            paginaActual = parseInt(container.dataset.currentPage) || 1;
-            renderTabla({
-                containerId: 'tabla-catac',
-                datos: datosCatac,
-                filas: 10,
-                columnas: 5,
-                pageNum: paginaActual
-            });
-            showConfirmModal(`Valores de la tabla actualizados con un ${porcentaje}% de variación.`);
         });
     } else {
         console.error('Elementos de interacción (input o botón) no encontrados.');
@@ -201,8 +203,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (sidebar) sidebar.innerHTML = '<p>Error al cargar la barra lateral.</p>';
         }
 
-        datosCatac = JSON.parse(localStorage.getItem('tarifasCatac'));
-        if (!datosCatac)
+        datosCatac = localStorage.getItem('tarifasCatac');
+        if (datosCatac && datosCatac !== "undefined" && datosCatac.length > 0)
+            datosCatac = JSON.parse(datosCatac);
+        else
             datosCatac = await fetchTarifas();
 
         const currentPath = window.location.pathname;

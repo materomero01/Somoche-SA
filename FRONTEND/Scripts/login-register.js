@@ -97,12 +97,12 @@ formSesion?.addEventListener("submit", async (event) => {
             //showConfirmModal(data.message);
             window.location.href = redirectURL;
         } else {
-            showConfirmModal(`Error: "${data.message}"`);
+            showConfirmModal(data.message);
             console.error('Error del backend:', data);
         }
     } catch (error) {
         console.error('Error de red al registrar o iniciar sesión:', error);
-        showConfirmModal('Error de conexión con el servidor.');
+        console.error('Error de conexión con el servidor.');
     }
 });
 

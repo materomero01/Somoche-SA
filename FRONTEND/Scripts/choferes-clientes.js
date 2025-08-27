@@ -33,7 +33,8 @@ const choferesColumns = [
 
 const clientesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social' },
-    { key: 'cuit', label: 'CUIL/CUIT' }
+    { key: 'cuit', label: 'CUIL/CUIT' },
+    { key: 'email', label: 'Email'}
 ];
 
 // --- Acciones para las tablas ---
@@ -352,6 +353,7 @@ function setupAddButtons() {
         btnGuardar.addEventListener('click', async () => {
             const nombre = document.getElementById('nuevoClienteNombre').value.trim();
             const cuit = document.getElementById('nuevoClienteCuit').value.trim();
+            const email = document.getElementById('nuevoClienteEmail').value.trim();
 
             if (!nombre || !cuit) {
                 showConfirmModal('Por favor completá los campos obligatorios.');
@@ -359,19 +361,22 @@ function setupAddButtons() {
             }
             const payload = {
                 cuit: cuit,
-                nombre: nombre
+                nombre: nombre,
+                email: email !== ''? email : null
             };
             const response = await insertCliente(payload);
             if (response) {
                 const nuevoCliente = {
                     id: mockClientes.length + 1,
                     nombre,
-                    cuit
+                    cuit,
+                    email
                 };
                 mockClientes.push(nuevoCliente);
                 renderClientesTable(mockClientes);
                 document.getElementById('nuevoClienteNombre').value = '';
                 document.getElementById('nuevoClienteCuit').value = '';
+                document.getElementById('nuevoClienteEmail').value = '';
                 formCard.classList.add('hidden');
                 showConfirmModal('Nuevo cliente añadido exitosamente.');
             }
@@ -480,7 +485,8 @@ export async function handleSaveEdit() {
             const index = mockClientes.findIndex(c => c.id === editingRowId);
             const payload = {
                 cuit: stagedEditingData.cuit || null,
-                nombre: stagedEditingData.nombre || null
+                nombre: stagedEditingData.nombre || null,
+                email: stagedEditingData.email || null
             };
             const response = await updateCliente(originalEditingData.cuit, payload);
             if (response && index !== -1) {

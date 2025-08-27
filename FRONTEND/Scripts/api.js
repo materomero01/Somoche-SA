@@ -75,7 +75,8 @@ export async function fetchTarifas() {
         }
 
         const data = await response.json();
-        localStorage.setItem('tarifasCatac', JSON.stringify(data.tarifas));
+        if (data.tarifas.length > 0)
+            localStorage.setItem('tarifasCatac', JSON.stringify(data.tarifas));
         return data.tarifas;
     } catch (error) {
         console.error('Error al buscar las tarifas en el backend:', error.message);
@@ -97,15 +98,19 @@ export async function updateTarifas(payload) {
             body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-            throw new Error('Autenticación fallida o token inválido/expirado al actualizar las tarifas');
-        }
         const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 403)
+                handleAuthError(data.message);
+            else
+                console.log(data.message);
+        }
+        
         localStorage.setItem('tarifasCatac', JSON.stringify(data.tarifas));
 
         return data;
     } catch (error) {
-        handleAuthError(error);
+        console.error(error.message);
         throw error;
     }
 }
