@@ -228,7 +228,7 @@ function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servi
               <ar:DocNro>${docNro.replace(/-| /g, '')}</ar:DocNro>
               <ar:CbteDesde>${cbteNro}</ar:CbteDesde>
               <ar:CbteHasta>${cbteNro}</ar:CbteHasta>
-              <ar:CbteFch>20250731</ar:CbteFch>
+              <ar:CbteFch>${new Date().toISOString().split('T')[0].replaceAll('-','')}</ar:CbteFch>
               <ar:ImpTotal>${impTotal.toFixed(2)}</ar:ImpTotal>
               <ar:ImpTotConc>0</ar:ImpTotConc>
               <ar:ImpNeto>${impNeto.toFixed(2)}</ar:ImpNeto>
@@ -284,7 +284,7 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
       ?.FECAESolicitarResponse?.FECAESolicitarResult;
     
     if (!result) throw new Error('No se encontró FECAESolicitarResult en la respuesta');
-
+    console.log(result);
     const feDetResp = result.FeDetResp?.FECAEDetResponse;
     const cae = feDetResp?.CAE;
     const caeFchVto = feDetResp?.CAEFchVto;

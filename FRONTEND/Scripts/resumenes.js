@@ -1,40 +1,76 @@
 import { getResumenCuil, showConfirmModal } from './apiPublic.js';
 import { renderTabla } from './tabla.js';
-import { viajesFactura } from './subir-factura.js';
+import { viajesFactura, viaje, initializeFacturaUpload } from './subir-factura.js';
 
 let pagosResumenes = [];
-let viajesResumenes = [];
+export let viajesResumenes = [];
 
 let choferData = {};
 
-let descargarFactura = null;
+export let currentResumenesPage = 1;
 
-let currentResumenesPage = 1;
+let cartaPorteFunc;
+let deleteFactura;
+
+const accionesViajes = [
+    {
+        icon: "bi bi-download",
+        tooltip:"Descargar archivos",
+        classList: ['navigate-btn'],
+        id: null,
+        handler: (item) => {
+            viaje.push(item); // Establece el viaje actual
+            initializeFacturaUpload(
+                handleFacturaActualization,
+                cartaPorteFunc? (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, () => renderizarTablasResumenes(currentResumenesPage), changeDataDocuments) : null,
+                deleteFactura? (facturaId) => deleteFactura(facturaId, () => renderizarTablasResumenes(currentResumenesPage), changeDataDocuments) : null,
+                "resumenes"
+            );
+        }
+    }
+];
 
 // Configuración de columnas para la tabla de viajes
 export const columnasViajes = [
-    { label: "Fecha", key: "fecha" },
-    { label: "Comprobante", key: "comprobante" },
-    { label: "Campo", key: "campo" },
-    { label: "KM", key: "km" },
-    { label: "Tarifa", key: "tarifa" },
-    { label: "Variación", key: "variacion" },
-    { label: "Toneladas", key: "toneladas" },
+    { label: "Fecha", key: "fecha", class: [] },
+    { label: "Comprobante", key: "comprobante", class: [] },
+    { label: "Campo", key: "campo", class: [] },
+    { label: "KM", key: "km", class: [] },
+    { label: "Tarifa", key: "tarifa", class: [] },
+    { label: "Variación", key: "variacion", class: [] },
+    { label: "Toneladas", key: "toneladas", class: [] },
+    { label: "Faltante", key: "faltante", class: [] },
     { label: "Cargado", key: "cargado" },
     { label: "Descargado", key: "descargado" },
-    { label: "Diferencia", key: "diferencia" },
-    { label: "Importe", key: "importe", class: "text-right" },
-    { label: "Comisión", key: "comision", class: "text-right" },
-    { label: "IVA", key: "iva", class: "text-right" },
+    { label: "Importe", key: "importe", class: ['text-right'] },
+    { label: "Comisión", key: "comision", class: ['text-right'] },
+    { label: "Saldo", key: "saldo", class: ['text-right', 'bold']},
+    { label: "IVA", key: "iva", class: ['text-right'] },
 ];
 
 // Configuración de columnas para la tabla de pagos
 export const columnasPagos = [
-    { label: "Fecha de Pago", key: "fechaPago" },
-    { label: "Tipo", key: "tipo" },
-    { label: "Descripción", key: "descripcion" },
-    { label: "Importe", key: "importe", class: "text-right" }
+    { label: "Fecha de Pago", key: "fechaPago", class: [] },
+    { label: "Tipo", key: "tipo", class: [] },
+    { label: "Comprobante", key: "id", class: []},
+    { label: "Descripción", key: "descripcion", class: [] },
+    { label: "Importe", key: "importe", class: ['text-right'] }
 ];
+
+const checkboxHeaderActionUpload = {
+    icon: 'bi bi-file-earmark-arrow-up',
+    tooltip: 'Subir factura para los viajes seleccionados',
+    id: 'facturaBtn',
+    classList: ['btn-upload', 'checkbox-cell', 'factura-cell'],
+    handler: selectedRows => {
+        if (selectedRows.length === 0) {
+            showConfirmModal('Por favor, seleccione al menos un viaje para subir la factura.');
+            return;
+        }
+
+        initializeFacturaUpload(handleFacturaActualization, null, null, "resumenes", selectedRows.map( r =>  r.comprobante));
+    }
+}
 
 // Función para formatear fechas ISO a YYYY-MM-DD
 export function formatFecha(fecha) {
@@ -73,12 +109,23 @@ export function actualizarValores(resumenViajes, resumenPagos){
     }
 }
 
+function changeDataDocuments(){
+    if (viajesResumenes.length > 0){
+        viajesResumenes[currentResumenesPage - 1].viajes.forEach( v => {
+            if (v.comprobante === viaje[0].comprobante){
+                v.carta_porte = viaje[0].carta_porte;
+                v.factura_id = viaje[0].factura_id? viaje[0].factura_id : null;
+            }
+        });
+    }
+}
+
 // Función para calcular valores derivados en los viajes
 function calcularValoresViaje(viaje) {
-    viaje.diferencia = parseFloat((viaje.descargado - viaje.cargado).toFixed(2));
+    viaje.faltante = parseFloat((viaje.descargado - viaje.cargado).toFixed(3));
     viaje.importe = (parseImporte(viaje.tarifa) - (parseImporte(viaje.tarifa) * viaje.variacion)) * viaje.toneladas;
-    viaje.comision = viaje.importe * 0.1;
-    viaje.iva = (viaje.importe - viaje.comision) * 0.21;
+    viaje.comision = - (viaje.importe * 0.1);
+    viaje.iva = (viaje.importe + viaje.comision) * 0.21;
     return viaje;
 }
 
@@ -104,10 +151,13 @@ export function parseViaje(viaje) {
         toneladas: processed.toneladas,
         cargado: processed.cargado,
         descargado: processed.descargado,
-        diferencia: processed.diferencia,
+        faltante: processed.faltante,
         importe: processed.importe,
         comision: processed.comision,
-        factura_id: processed.factura_id
+        saldo: processed.importe + processed.comision,
+        factura_id: processed.factura_id,
+        cuil: processed.cuil,
+        carta_porte: processed.carta_porte
     };
     if (choferData.trabajador !== "Monotributista") {
         retornar = {
@@ -123,7 +173,7 @@ export function parsePagos(pago){
     switch (pago.tipo) {
         case "Cheque":
             const fechaCheque = formatFecha(pago.fecha_cheque);
-            descripcion = `Cobro: ${fechaCheque} / nro ${pago.id} ${pago.tercero}`;
+            descripcion = `${pago.tercero} - Fecha de Cobro: ${fechaCheque} `;
             break;
         case "Gasoil":
             const precio = parseImporte(pago.importe) / pago.litros;
@@ -144,10 +194,19 @@ export function parsePagos(pago){
     };
 }
 
-export async function setHistorial(chofer, descargar) {
+export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null) {
     choferData = chofer;
-    descargarFactura = descargar;
-    const cantidad = document.getElementById("selectResumenes").value;
+    cartaPorteFunc = cartaPorte;
+    deleteFactura = deleteFunc;
+    const selectCantidad = document.getElementById("selectResumenes");
+    // const inputCantResumenes = document.getElementById('inputSelectResumenes');
+
+    // inputCantResumenes?.addEventListener("change", () => {
+    //     if (inputCantResumenes.value > 0)
+    //         handleTabContentDisplay('resumenes');
+    // })
+
+    const cantidad = selectCantidad.value !== "Otro"? selectCantidad.value : document.getElementById("inputSelectResumenes").value;
     if (!cantidad) {
         showConfirmModal("Seleccione una cantidad de resúmenes válida.");
         return;
@@ -162,31 +221,28 @@ export async function setHistorial(chofer, descargar) {
             pagos: resumen.pagos.map(p => parsePagos(p))
         }));
 
-        console.log(pagosResumenes);
         viajesResumenes = data.viajes.map(resumen => ({
             group: resumen.group,
             viajes: resumen.viajes.map(v => parseViaje(v))
         }));
-        console.log(viajesResumenes);
-        renderTablasResumenes();
+        renderizarTablasResumenes();
     } catch (error) {
-        showConfirmModal(`Ocurrió un error al obtener los últimos ${cantidad} resúmenes`);
         console.error('Error en setHistorial:', error.message);
     }
 }
 
-export function handleFacturaActualization(facturaId){
+export function handleFacturaActualization(facturaId, selectedRows){
     if (viajesResumenes && viajesResumenes.length > 0 && facturaId){
         viajesResumenes[currentResumenesPage - 1].viajes.forEach(r => {
-            if (viajesFactura.includes(r.id))
+            if (selectedRows.includes(r.id))
                 r.factura_id = facturaId;
         });
-        renderTablasResumenes(currentResumenesPage);
+        renderizarTablasResumenes(currentResumenesPage);
     }
 }
 
 // Función para renderizar las tablas de resúmenes
-function renderTablasResumenes(currentPage = 1) {
+function renderizarTablasResumenes(currentPage = 1) {
     // Obtener todos los grupos únicos, ordenados de más reciente a más antiguo
     const grupos = [...new Set([
         ...viajesResumenes.map(v => v.group),
@@ -208,9 +264,10 @@ function renderTablasResumenes(currentPage = 1) {
 
     renderTabla({
         containerId: "viajes-table-resumenes",
-        columnas: columnasViajesResumen,
+        columnas: columnasViajesResumen.filter(col => !["cargado", "descargado"].includes(col.key)),
         datos: resumenViajes.viajes.map(v => ({
             id: v.id,
+            cuil: v.cuil,
             fecha: v.fecha,
             comprobante: v.comprobante,
             campo: v.campo,
@@ -220,21 +277,23 @@ function renderTablasResumenes(currentPage = 1) {
             toneladas: v.toneladas,
             cargado: v.cargado,
             descargado: v.descargado,
-            diferencia: v.diferencia,
+            faltante: v.faltante,
             importe: `$${v.importe.toFixed(2)}`,
-            comision: `$${v.comision.toFixed(2)}`,
+            comision: `$${v.comision.toFixed(2)}`.replace('$-','-$'),
+            saldo: `$${v.saldo.toFixed(2)}`,
             iva: v.iva ? `$${v.iva.toFixed(2)}` : undefined,
-            factura_id: v.factura_id
+            factura_id: v.factura_id,
+            carta_porte: v.carta_porte
         })),
-        itemsPorPagina: resumenViajes.viajes.length || 1, // Mostrar todos los viajes del grupo
+        itemsPorPagina: null, // Mostrar todos los viajes del grupo
         currentPage: currentPage,
-        actions: [], // Sin acciones de edición
+        actions: accionesViajes, // Sin acciones de edición
         tableType: "viajes",
         checkboxColumn: true,
         checkboxColumnPosition: "end",
         useScrollable: true,
-        descargarFactura: descargarFactura,
-        changeDataFactura: handleFacturaActualization,
+        uploadFactura: true,
+        checkboxHeaderAction: checkboxHeaderActionUpload,
         onCheckboxChange: (itemId, itemChecked) => { 
             if (itemChecked)
                 viajesFactura.push(itemId); 
@@ -254,7 +313,7 @@ function renderTablasResumenes(currentPage = 1) {
             descripcion: p.descripcion,
             importe: `$${p.importe.toFixed(2)}`.replace("$-","-$")
         })),
-        itemsPorPagina: resumenPagos.pagos.length || 1, // Mostrar todos los pagos del grupo
+        itemsPorPagina: null, // Mostrar todos los pagos del grupo
         currentPage: currentPage,
         actions: [], // Sin acciones
         tableType: "pagos",
@@ -281,7 +340,7 @@ function renderPaginacionResumenes(currentPage, totalPaginas) {
     btnPrev.textContent = "<";
     btnPrev.classList.add("pagination-button");
     btnPrev.disabled = currentPage === 1;
-    btnPrev.onclick = () => renderTablasResumenes(currentPage - 1);
+    btnPrev.onclick = () => renderizarTablasResumenes(currentPage - 1);
     paginacionContainer.appendChild(btnPrev);
 
     const maxButtonsToShow = 5;
@@ -331,7 +390,7 @@ function renderPaginacionResumenes(currentPage, totalPaginas) {
     btnNext.textContent = ">";
     btnNext.classList.add("pagination-button");
     btnNext.disabled = currentPage === totalPaginas;
-    btnNext.onclick = () => renderTablasResumenes(currentPage + 1);
+    btnNext.onclick = () => renderizarTablasResumenes(currentPage + 1);
     paginacionContainer.appendChild(btnNext);
 }
 
@@ -342,6 +401,6 @@ function botonPaginaResumen(n, currentPage) {
     if (n === currentPage) {
         btn.classList.add("active");
     }
-    btn.onclick = () => renderTablasResumenes(n);
+    btn.onclick = () => renderizarTablasResumenes(n);
     return btn;
 }

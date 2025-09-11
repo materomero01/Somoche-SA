@@ -1,5 +1,6 @@
-import { fetchAllChoferes, fetchTarifas, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje } from './api.js';
+import { fetchAllChoferes, fetchTarifas, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje, setupAutocomplete, setupClienteAutocomplete, setupChoferAutocomplete } from './api.js';
 import { showConfirmModal } from './apiPublic.js';
+// import { mockClientes } from './choferes-clientes.js';
 
 // Global variables
 let allChoferes = [];
@@ -55,10 +56,10 @@ const handleTabContentDisplay = (selectedTab) => {
 
     if (selectedTab === 'pagos') {
         setupPaymentTypeSelector();
-        setupChoferAutocomplete('choferPago');
+        setupChoferAutocomplete('choferPago', allChoferes);
     } else if (selectedTab === 'viajes') {
-        setupChoferAutocomplete('chofer');
-        setupClienteAutocomplete('cliente');
+        setupChoferAutocomplete('chofer', allChoferes);
+        setupClienteAutocomplete('cliente', allClientes);
         setupTarifaAutocomplete();
         setupCargaDescargaAutocomplete();
     }
@@ -130,11 +131,12 @@ const setupAddViajeBtn = () => {
         try {
             const response = await addViaje(payload);
             const data = await response.json();
-            form.reset();
-            setTodayDate();
+            if (response.ok){
+                form.reset();
+                setTodayDate();
+            }
             showConfirmModal(data.message);
         } catch (error) {
-            showConfirmModal(`Error al añadir viaje: ${error.message}`);
             console.error('Error en addViaje:', error.message);
         }
     });
@@ -287,7 +289,6 @@ const setupViajesSearchBar = () => {
                         cancelViajeBtn.click();
                         });
                 } catch (error){
-                    showConfirmModal("Error al editar el viaje");
                     console.log(error.message);
                 }
             }
@@ -407,6 +408,10 @@ const setupAddChequeBtn = () => {
                     <label for="importeCheque_${chequeCounter}">Importe</label>
                     <input type="number" id="importeCheque_${chequeCounter}" name="importeCheque_${chequeCounter}" placeholder="Importe">
                 </div>
+                <div class="form-group autocomplete-container">
+                        <label for="clienteCheque_${chequeCounter}">Asignar Cliente?</label>
+                        <input type="text" id="clienteCheque_${chequeCounter}" name="clienteCheque_${chequeCounter}" placeholder="Razon social">
+                </div>
             </div>
             <div style="text-align: center; margin: 10px 0;">
                 <button type="button" class="btn btn-danger btn-sm remove-cheque-btn" data-cheque-id="${chequeCounter}">
@@ -414,7 +419,6 @@ const setupAddChequeBtn = () => {
                 </button>
             </div>
         `;
-        
         // Insertar el nuevo cheque antes del botón de añadir
         const buttonContainer = addChequeBtn.parentElement;
         buttonContainer.parentNode.insertBefore(newChequeDiv, buttonContainer);
@@ -430,7 +434,7 @@ const setupAddChequeBtn = () => {
                 day: '2-digit'
             }).split('/').reverse().join('-');
         }
-        
+        setupClienteAutocomplete(`clienteCheque_${chequeCounter}`, allClientes);
         // Agregar evento al botón de eliminar
         const removeBtn = newChequeDiv.querySelector('.remove-cheque-btn');
         removeBtn.addEventListener('click', () => {
@@ -482,15 +486,16 @@ const debugPayload = (payload, tipoPago) => {
 // Setup add pago button - Versión actualizada
 const setupAddPagoBtn = () => {
     const btn = document.getElementById('addPagoBtn');
+    setupClienteAutocomplete('clienteCheque', allClientes);
     btn?.addEventListener('click', async () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPago = document.getElementById('fechaPago')?.value;
         const choferInput = document.getElementById('choferPago');
         let payload = {
-            choferCuil: choferInput?.dataset.selectedChoferCuil,
+            chofer_cuil: choferInput?.dataset.selectedChoferCuil,
         };
 
-        if (!payload.choferCuil) {
+        if (!payload.chofer_cuil) {
             showConfirmModal('Por favor, selecciona un chofer de la lista de sugerencias.');
             return;
         }
@@ -510,7 +515,8 @@ const setupAddPagoBtn = () => {
                     nroCheque: document.getElementById('nroCheque')?.value,
                     tercero: document.getElementById('terceroCheque')?.value,
                     destinatario: document.getElementById('destinatarioCheque')?.value,
-                    importe: document.getElementById('importeCheque')?.value
+                    importe: document.getElementById('importeCheque')?.value,
+                    cliente_cuit: document.getElementById('clienteCheque')?.dataset.selectedClienteCuit || null
                 };
                 
                 // Validar y añadir el cheque original si tiene datos
@@ -533,7 +539,8 @@ const setupAddPagoBtn = () => {
                         nroCheque: document.getElementById(`nroCheque_${chequeId}`)?.value,
                         tercero: document.getElementById(`terceroCheque_${chequeId}`)?.value,
                         destinatario: document.getElementById(`destinatarioCheque_${chequeId}`)?.value,
-                        importe: document.getElementById(`importeCheque_${chequeId}`)?.value
+                        importe: document.getElementById(`importeCheque_${chequeId}`)?.value,
+                        cliente_cuit: document.getElementById(`clienteCheque_${chequeId}`)?.dataset.selectedClienteCuit || null
                     };
                     
                     // Validar y añadir si tiene datos válidos
@@ -644,7 +651,8 @@ const setupAddPagoBtn = () => {
                         nroCheque: cheque.nroCheque,
                         tercero: cheque.tercero,
                         destinatario: cheque.destinatario,
-                        importe: cheque.importe
+                        importe: cheque.importe,
+                        cliente_cuit: cheque.cliente_cuit
                     });
                 });
             }
@@ -654,163 +662,39 @@ const setupAddPagoBtn = () => {
             const data = await response.json();
             
             // Limpiar formularios después del éxito
-            if (tipoPago === 'cheque') {
-                // Limpiar el formulario original
-                ['fechaCheque', 'nroCheque', 'terceroCheque', 'destinatarioCheque', 'importeCheque'].forEach(id => {
-                    const input = document.getElementById(id);
-                    if (input) input.value = '';
-                });
-                
-                // Eliminar todos los formularios duplicados
-                document.querySelectorAll('.cheque-form').forEach(form => form.remove());
-                
-                // Restablecer la fecha por defecto en el cheque original
-                setTodayDate();
-            } else {
-                // Limpiar otros formularios
-                const formFields = tipoPago === 'gasoil' 
-                    ? ['comprobanteGasoil','precioGasoil', 'litrosGasoil', 'importeGasoil']
-                    : ['comprobanteOtro','detalleOtro', 'importeOtro'];
+            if (response.ok)
+                if (tipoPago === 'cheque') {
+                    // Limpiar el formulario original
+                    ['fechaCheque', 'nroCheque', 'terceroCheque', 'destinatarioCheque', 'importeCheque', 'clienteCheque'].forEach(id => {
+                        const input = document.getElementById(id);
+                        if (input) input.value = '';
+                    });
                     
-                formFields.forEach(id => {
-                    const input = document.getElementById(id);
-                    if (input) input.value = '';
-                });
-            }
+                    // Eliminar todos los formularios duplicados
+                    document.querySelectorAll('.cheque-form').forEach(form => form.remove());
+                    
+                    // Restablecer la fecha por defecto en el cheque original
+                    setTodayDate();
+                } else {
+                    // Limpiar otros formularios
+                    const formFields = tipoPago === 'gasoil' 
+                        ? ['comprobanteGasoil','precioGasoil', 'litrosGasoil', 'importeGasoil']
+                        : ['comprobanteOtro','detalleOtro', 'importeOtro'];
+                        
+                    formFields.forEach(id => {
+                        const input = document.getElementById(id);
+                        if (input) input.value = '';
+                    });
+                }
             
             showConfirmModal(data.message);
         } catch (error) {
-            showConfirmModal(`Error al añadir el pago: ${error.message}`);
             console.error('Error en addPagos:', error.message);
         }
         
         console.log('[Registrar Pago]', payload);
     });
 };
-
-// Setup autocomplete
-const setupAutocomplete = ({ inputId, suggestionsId = `${inputId}-suggestions`, filterSuggestions, renderSuggestion, onSelect, dependentInputId, onDependentChange }) => {
-    const input = document.getElementById(inputId);
-    let suggestionsDiv = document.getElementById(suggestionsId);
-
-    if (!input) {
-        console.warn(`Input con ID '${inputId}' no encontrado.`);
-        return;
-    }
-
-    if (!suggestionsDiv) {
-        suggestionsDiv = document.createElement('div');
-        suggestionsDiv.id = suggestionsId;
-        suggestionsDiv.classList.add('suggestions-list');
-        input.parentNode.insertBefore(suggestionsDiv, input.nextSibling);
-    }
-
-    let activeSuggestionIndex = -1;
-
-    const displaySuggestions = suggestions => {
-        suggestionsDiv.innerHTML = '';
-        activeSuggestionIndex = -1;
-
-        if (!suggestions?.length) {
-            suggestionsDiv.style.display = 'none';
-            return;
-        }
-
-        suggestions.forEach((suggestion, index) => {
-            const item = document.createElement('div');
-            item.classList.add('suggestion-item');
-            item.textContent = renderSuggestion(suggestion);
-            Object.entries(suggestion).forEach(([key, value]) => item.dataset[key] = value);
-
-            item.addEventListener('click', () => {
-                onSelect(input, suggestion);
-                suggestionsDiv.innerHTML = '';
-                suggestionsDiv.style.display = 'none';
-                input.focus();
-            });
-            suggestionsDiv.appendChild(item);
-        });
-        suggestionsDiv.style.display = 'block';
-    };
-
-    input.addEventListener('input', () => {
-        const query = input.value.trim();
-        Object.keys(input.dataset).forEach(key => delete input.dataset[key]);
-        displaySuggestions(query ? filterSuggestions(query) : []);
-    });
-
-    if (dependentInputId && onDependentChange) {
-        const dependentInput = document.getElementById(dependentInputId);
-        dependentInput?.addEventListener('change', () => onDependentChange(dependentInput, input, suggestionsDiv));
-    }
-
-    document.addEventListener('click', e => {
-        if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-            suggestionsDiv.style.display = 'none';
-            activeSuggestionIndex = -1;
-        }
-    });
-
-    input.addEventListener('keydown', e => {
-        const items = Array.from(suggestionsDiv.children);
-        if (!items.length) return;
-
-        switch (e.key) {
-            case 'ArrowDown':
-                e.preventDefault();
-                activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
-                highlightSuggestion(items[activeSuggestionIndex]);
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
-                highlightSuggestion(items[activeSuggestionIndex]);
-                break;
-            case 'Enter':
-                e.preventDefault();
-                if (activeSuggestionIndex > -1) items[activeSuggestionIndex].click();
-                else if (items.length === 1 && input.value === items[0].dataset.nombre) items[0].click();
-                break;
-            case 'Escape':
-                suggestionsDiv.style.display = 'none';
-                activeSuggestionIndex = -1;
-                break;
-        }
-    });
-
-    suggestionsDiv.addEventListener('mousedown', e => e.preventDefault());
-
-    input.addEventListener('focus', () => displaySuggestions(filterSuggestions(input.value.trim())));
-
-    const highlightSuggestion = item => {
-        Array.from(suggestionsDiv.children).forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
-        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    };
-};
-
-// Setup chofer autocomplete
-const setupChoferAutocomplete = inputId => setupAutocomplete({
-    inputId,
-    filterSuggestions: query => query.length < 2 ? [] : allChoferes.filter(chofer => chofer.nombre.toLowerCase().includes(query.toLowerCase())),
-    renderSuggestion: chofer => `${chofer.nombre} (${chofer.cuil})`,
-    onSelect: (input, chofer) => {
-        input.value = chofer.nombre;
-        input.dataset.selectedChoferNombre = chofer.nombre;
-        input.dataset.selectedChoferCuil = chofer.cuil;
-    }
-});
-
-const setupClienteAutocomplete = inputId => setupAutocomplete({
-    inputId,
-    filterSuggestions: query => query.length < 2 ? [] : allClientes.filter(cliente => cliente.nombre.toLowerCase().includes(query.toLowerCase())),
-    renderSuggestion: cliente => `${cliente.nombre} (${cliente.cuit})`,
-    onSelect: (input, cliente) => {
-        input.value = cliente.nombre;
-        input.dataset.selectedClienteNombre = cliente.nombre;
-        input.dataset.selectedClienteCuit = cliente.cuit;
-    }
-});
 
 // Setup tarifa autocomplete
 const setupTarifaAutocomplete = () => {

@@ -11,4 +11,7 @@ router.post('/addCliente', ctrlClientes.insertCliente);
 /* PUTs clientes */
 router.put('/updateCliente/:cuitOriginal', ctrlClientes.updateClientes);
 
+/* DELETEs clientes*/
+router.delete('/deleteCliente/:cuit', ctrlClientes.deleteClientes);
+
 module.exports = router;

@@ -9,6 +9,12 @@ export function getToken() {
     return token;
 }
 
+export function setToken(token) {
+    if (token){
+        localStorage.setItem('jwtToken', token);
+        console.log("Generado nuevo token");
+    }
+}
 // Función para cerrar sesión
 export function logout() {
     localStorage.clear();
@@ -112,7 +118,6 @@ export function handleAuthorization () {
     const userRole = localStorage.getItem('userRole');
     if (!userRole || userRole !== 'admin'){
         showConfirmModal("No tienes autorización para realizar esta acción");
-        logout();
     }
 }
 
@@ -132,14 +137,19 @@ export async function fetchChoferData(cuil) {
                 'Authorization': `Bearer ${token}`
             }
         });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        const choferData = await response.json();
         let errorMessage = null;
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Error al obtener datos del chofer:', response.status, errorData.message);
+            console.error('Error al obtener datos del chofer:', response.status, choferData.message);
             errorMessage= 'Error desconocido al cargar datos.';
-            if (response.status === 403) {
-                    errorMessage = 'No tienes permiso para ver esta información. (Asegúrate de ser Admin o ver tus propios datos)';
-            } else if (response.status === 404) {
+            if (response.status === 404) {
                     errorMessage = 'Chofer no encontrado.';
             } else if (response.status === 401) {
                     errorMessage = 'Sesión expirada o no autorizada. Por favor, inicia sesión de nuevo.';
@@ -149,7 +159,7 @@ export async function fetchChoferData(cuil) {
             }
             showConfirmModal(errorMessage);
         }
-        const choferData = await response.json();
+        
         return  { choferData, errorMessage};
     } catch (error){
         console.log(error.message);
@@ -168,13 +178,14 @@ export async function updateChofer(cuilOriginal, payload){
             },
             body: JSON.stringify(payload)
         });
+        setToken(response.headers.get('X-New-Token'));
+
         const data = await response.json();
         if(response.status === 403) {
-            handleAuthError(data.message);
+            handleAuthError(data);
             return;
         }
         if (!response.ok){
-            
             showConfirmModal(data.message);
         }
         return response.ok;
@@ -184,22 +195,24 @@ export async function updateChofer(cuilOriginal, payload){
 }
 
 // Get pagos cheques
-export async function getCheques(pagados, choferCuil) {
+export async function getCheques(pagados, choferCuil, cantidad = null) {
     try {
         const token = getToken();
-        const response = await fetch(`${apiURL}/pagos/getPagosCheques?pagado=${encodeURIComponent(pagados)}&choferCuil=${encodeURIComponent(choferCuil)}`, {
+        const response = await fetch(`${apiURL}/pagos/getPagosCheques?pagado=${encodeURIComponent(pagados)}&choferCuil=${encodeURIComponent(choferCuil)}&cantidad=${encodeURIComponent(cantidad)}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
             }
         });
+        setToken(response.headers.get('X-New-Token'));
+
         const data = await response.json();
         if(response.status === 403) {
-            handleAuthError(data.message);
+            handleAuthError(data);
             return;
         }
         if (!response.ok) {
-            showConfirmModal(data.message);
+            showConfirmModal(data.messae);
         }
         console.log(data);
         return data;
@@ -218,6 +231,13 @@ export async function getViajes(cuil) {
                 'Authorization': `Bearer ${token}`,
             }
         });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
 
         return response;
     } catch (error){
@@ -234,12 +254,13 @@ export async function getPagosCuil(cuil) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-
+        
         if(response.status === 403) {
-            const data = response.json();
-            handleAuthError(data.message);
+            const data = await response.json();
+            handleAuthError(data);
             return;
         }
+        setToken(response.headers.get('X-New-Token'));
 
         return response;
     } catch (error){
@@ -256,12 +277,13 @@ export async function getResumenCuil(cuil, cantidad) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-
+        
         if(response.status === 403) {
-            const data = response.json();
-            handleAuthError(data.message);
+            const data = await response.json();
+            handleAuthError(data);
             return;
         }
+        setToken(response.headers.get('X-New-Token'));
 
         return response;
     } catch (error){
@@ -278,12 +300,13 @@ export async function getFactura(cuil, id) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-
+        
         if(response.status === 403) {
-            const data = response.json();
-            handleAuthError(data.message);
+            const data = await response.json();
+            handleAuthError(data);
             return;
         }
+        setToken(response.headers.get('X-New-Token'));
 
         return response;
     } catch (error){
@@ -291,13 +314,37 @@ export async function getFactura(cuil, id) {
     }
 }
 
-export async function uploadFactura(viajeId, file, cuil) {
+export async function getCartaPorte(cuil, comprobante) {
+    try{
+        const token = getToken();
+        const response = await fetch(`${apiURL}/facturas/descargar-factura?cuil=${encodeURIComponent(cuil)}&comprobante=${encodeURIComponent(comprobante)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+export async function uploadFactura(viajeId, file, cuil, type = "viajes") {
     try{
         const token = getToken();
         const formData = new FormData();
         formData.append('viajeIds', JSON.stringify(viajeId)); // ID del viaje o viajes
         formData.append('factura', file); // Archivo PDF
         formData.append('cuil', cuil);
+        formData.append('type',type);
         const response = await fetch(`${apiURL}/facturas/upload-factura`, {
             method: 'POST',
             headers: {
@@ -305,15 +352,55 @@ export async function uploadFactura(viajeId, file, cuil) {
             },
             body: formData
         });
-
+        
         if(response.status === 403) {
-            const data = response.json();
-            handleAuthError(data.message);
+            const data = await response.json();
+            handleAuthError(data);
             return;
         }
+        setToken(response.headers.get('X-New-Token'));
 
         return response;
     } catch (error){
         console.log(error.message);
+    }
+}
+
+export async function requestPasswordReset(cuil) {
+    try {
+        const response = await fetch(`${apiURL}/users/forgot-password?cuil=${encodeURIComponent(cuil)}`, {
+            method: 'PUT'
+        });
+
+        if (!response.ok) {
+            throw new Error(errorData.message || 'Error al solicitar el reinicio de contraseña');
+        }
+
+        return response;
+    } catch (error) {
+        console.error('Error en requestPasswordReset:', error);
+        throw error;
+    }
+}
+
+export async function resetPassword(token, newPassword) {
+    try {
+        const response = await fetch(`${apiURL}/users/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ token, newPassword })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Error al restablecer la contraseña');
+        }
+
+        return response;
+    } catch (error) {
+        console.error('Error en resetPassword:', error);
+        throw error;
     }
 }

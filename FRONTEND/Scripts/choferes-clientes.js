@@ -1,12 +1,12 @@
 import { renderTabla } from './tabla.js';
-import { fetchAllDataChoferes, deleteChofer, fetchClientes, updateCliente, insertCliente, insertChofer, fetchTarifas } from './api.js';
+import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchTarifas, fetchClientes } from './api.js';
 import { updateChofer, showConfirmModal } from './apiPublic.js';
 import { inicializarModal, renderizarTablas, handleSaveEditViajes } from './viajes-pagos.js';
 import { parseImporte } from './resumenes.js';
 import { handleSaveEditViajesCliente, inicializarModaCliente, renderizarTablaVC } from './viajes-clientes.js';
 
 // --- Datos de ejemplo (sustituir con datos reales del backend) ---
-let mockChoferes = [];
+export let mockChoferes = [];
 export let mockClientes = [];
 
 export let tarifasCatac = [];
@@ -22,19 +22,19 @@ export let stagedEditingData = {};
 
 // --- Definición de columnas para las tablas ---
 const choferesColumns = [
-    { key: 'nombre', label: 'Nombre y Apellido' },
-    { key: 'cuil', label: 'CUIL/CUIT' },
-    { key: 'trabajador', label: 'Trabajador', type: 'select', options: ['Monotributista', 'Responsable Inscripto', 'Autónomo', 'Exento'] },
-    { key: 'patente_chasis', label: 'Chasis' },
-    { key: 'patente_acoplado', label: 'Acoplado' },
-    { key: 'telefono', label: 'Teléfono' },
-    { key: 'email', label: 'Email' }
+    { key: 'nombre', label: 'Nombre y Apellido', class: [] },
+    { key: 'cuil', label: 'CUIL/CUIT', class: [] },
+    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: ['Monotributista', 'Responsable Inscripto', 'Autónomo', 'Exento'] },
+    { key: 'patente_chasis', label: 'Chasis', class: [] },
+    { key: 'patente_acoplado', label: 'Acoplado', class: [] },
+    { key: 'telefono', label: 'Teléfono', class: [] },
+    { key: 'email', label: 'Email', class: [] }
 ];
 
 const clientesColumns = [
-    { key: 'nombre', label: 'Nombre y Apellido/Razón Social' },
-    { key: 'cuit', label: 'CUIL/CUIT' },
-    { key: 'email', label: 'Email'}
+    { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
+    { key: 'cuit', label: 'CUIL/CUIT', class: [] },
+    { key: 'email', label: 'Email', class: []}
 ];
 
 // --- Acciones para las tablas ---
@@ -42,6 +42,8 @@ const choferesActions = [
     {
         icon: 'bi bi-pencil',
         tooltip: 'Editar',
+        classList: ['edit-btn'],
+        id: null,
         handler: (rowData) => {
             enterEditMode(rowData, 'choferes');
         }
@@ -49,6 +51,8 @@ const choferesActions = [
     {
         icon: 'bi bi-trash',
         tooltip: 'Eliminar',
+        id: null,
+        classList: ['delete-btn'],
         handler: (rowData) => {
             showConfirmModal(`¿Estás seguro de que quieres eliminar al chofer ${rowData.nombre}?`, "delete", () => handleDelete(rowData.cuil, 'choferes'));
         }
@@ -56,6 +60,8 @@ const choferesActions = [
     {
         icon: 'bi bi-send',
         tooltip: 'Ver Viajes',
+        id: null,
+        classList: ['navigate-btn'],
         handler: (rowData) => {
             verViajesModal(rowData, "chofer");
         }
@@ -66,6 +72,8 @@ const clientesActions = [
     {
         icon: 'bi bi-pencil',
         tooltip: 'Editar',
+        classList: ['edit-btn'],
+        id: null,
         handler: (rowData) => {
             enterEditMode(rowData, 'clientes');
         }
@@ -73,13 +81,17 @@ const clientesActions = [
     {
         icon: 'bi bi-trash',
         tooltip: 'Eliminar',
+        classList: ['delete-btn'],
+        id: null,
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al cliente ${rowData.nombre}?`, "delete", () => handleDelete(rowData.id, 'clientes'));
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al cliente ${rowData.nombre}?`, "delete", () => handleDelete(rowData.cuit, 'clientes'));
         }
     },
     {
         icon: 'bi bi-send',
         tooltip: 'Ver Viajes',
+        classList: ['navigate-btn'],
+        id: null,
         handler: (rowData) => {
             // Store CUIT before opening modal
             const cleanCUIT = rowData.cuit.replace(/[^0-9]/g, '');
@@ -232,6 +244,9 @@ async function handleTabContentDisplay(selectedTab) {
     }
     if (mockClientes?.length === 0) {
         mockClientes = await fetchClientes();
+        mockClientes.forEach(c => {
+            c.balance = parseImporte(c.balance);
+        })
     }
     if (selectedTab === 'choferes') {
         choferesContent.classList.remove('hidden');
@@ -500,7 +515,6 @@ export async function handleSaveEdit() {
         }
     } catch (error) {
         console.error('Error al guardar cambios:', error);
-        showConfirmModal('Error al guardar los cambios.');
     }
 
     exitEditMode();
@@ -526,7 +540,7 @@ export function resetEditingState() {
 async function handleDelete(cuil, tableType) {
     if (tableType === 'choferes') {
         const response = await deleteChofer(cuil);
-        if (response.ok) {
+        if (response) {
             mockChoferes = mockChoferes.filter(chofer => chofer.cuil !== cuil);
             const totalItemsAfter = mockChoferes.length;
             const itemsPerPage = 10;
@@ -538,18 +552,20 @@ async function handleDelete(cuil, tableType) {
             showConfirmModal('Chofer eliminado exitosamente.');
         }
     } else if (tableType === 'clientes') {
-        mockClientes = mockClientes.filter(cliente => cliente.id !== cuil);
-        const totalItemsAfter = mockClientes.length;
-        const itemsPerPage = 10;
-        const maxPage = Math.ceil(totalItemsAfter / itemsPerPage) || 1;
-        if (currentClientesPage > maxPage) {
-            currentClientesPage = maxPage;
+        const response = await deleteCliente(cuil);
+        if (response) {
+            mockClientes = mockClientes.filter(cliente => cliente.cuit !== cuil);
+            const totalItemsAfter = mockClientes.length;
+            const itemsPerPage = 10;
+            const maxPage = Math.ceil(totalItemsAfter / itemsPerPage) || 1;
+            if (currentClientesPage > maxPage) {
+                currentClientesPage = maxPage;
+            }
+            renderClientesTable(mockClientes, currentClientesPage);
+            showConfirmModal('Cliente eliminado exitosamente.');
         }
-        renderClientesTable(mockClientes, currentClientesPage);
-        showConfirmModal('Cliente eliminado exitosamente.');
     }
     resetEditingState();
-    hideConfirmModal();
 }
 
 // --- Event Listeners para los eventos personalizados de tabla.js ---

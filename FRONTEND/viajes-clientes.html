@@ -1,12 +1,12 @@
 <div class="modal-content tables" id="contentModalViajes">
     <span id= "closeBtnViaje" class="close-button">&times;</span>
-    <div class="modal-header-content" style="margin-bottom: 50px;">
+    <div class="modal-header-content" style="margin-bottom: 50px; justify-content: space-between;">
         <div style="display: flex; gap: 7px; align-items: center;">
-            <div class="person-info">
-                <i class="bi bi-buildings"></i>
-                <span>Nombre del Cliente</span>
+            <div class="tab-selector" id="facturasSelector" style="margin-bottom: 0px;">
+                <div class="tab-item active" data-tab="aFacturar">A Facturar</div>
+                <div class="tab-item" data-tab="facturados">Facturados</div>
             </div>
-            <button class="btn btn-gray btn-circle" id="historial">
+            <button class="btn btn-gray btn-circle hidden" id="historial">
                 <i class="bi bi-clock-history"></i>
             </button>
             <div id="back-historial" class="hidden">
@@ -15,14 +15,20 @@
                     Atras
                 </button>
                 <select id="selectResumenes" class="select-format">
-                    <option value=10> 10 </option>
-                    <option value=20> 20 </option>
-                    <option value=30> 30 </option>
-                    <option value=40> 40 </option>
+                    <option value="10"> 10 </option>
+                    <option value="20"> 20 </option>
+                    <option value="30"> 30 </option>
+                    <option value="40"> 40 </option>
+                    <option value="Otro"> Otro </option>
                 </select>
+                <input type="number" class="select-format input-select hidden" id="inputSelectViaje" placeholder="?">
             </div>
         </div>
         <h2 id="headerModal">Viajes</h2>
+        <div class="person-info" style="margin-right: 20px;">
+            <i class="bi bi-buildings"></i>
+            <span>Nombre del Cliente</span>
+        </div>
     </div>
 
     <div id="loading-spinner">
@@ -32,14 +38,16 @@
 
     <div id="content-clientesViajes" class="hidden">
         <div class="table-section">
-            <div id="clientesViajesSearchBar" class="search-bar">
-                <input type="text" class="search-input" placeholder="Buscar viaje ..." />
-                <div class="search-icon"><i class="bi bi-search"></i></div>
+            <div class="table-header-with-button">
+                <div id="clientesViajesSearchBar" class="search-bar">
+                    <input type="text" class="search-input" id= "searchInput" placeholder="Buscar viaje ..." />
+                    <div class="search-icon"><i class="bi bi-search"></i></div>
+                </div>
             </div>
             <div id="clientesViajes-table" class="tabla-dinamica" style="margin-top: 15px;"></div>
         </div>
 
-        <div class="summary-boxes">
+        <div class="summary-boxes" id="summaryBoxes">
             <div id ="subtotal"class="summary-box subtotal">
                 Subtotal: $0.00
             </div>
@@ -52,12 +60,97 @@
         </div>
 
         <div id="paginacion-viajes" class="pagination-controls"></div>
-    </div>
 
-    <div id="content-clientesViajesHistorial" class="hidden">
-        <div class="table-section">
-            <div id="clientesViajesHistorial-table" class="tabla-dinamica" style="margin-top: 15px;"></div>
+        <div class="table-section hidden" id="content-viajes-facturados">
+            <div class="table-header-with-button">
+                <div style="display: flex; gap: 10px;">
+                    <i class="bi bi-chevron-down toggle-dropbox active" id="togglePagosArea" style="margin: auto"></i>
+                    <h3>Ultimos Pagos</h3>
+                    <div id="headerPagos" style="display: flex; gap:10px">
+                        <select id="selectPagos" class="select-format" style="margin: auto;">
+                            <option value="10"> 10 </option>
+                            <option value="20"> 20 </option>
+                            <option value="30"> 30 </option>
+                            <option value="40"> 40 </option>
+                            <option value="Otro"> Otro</option>
+                        </select>
+                        <input type="number" class="select-format input-select hidden" id="inputSelectPago" placeholder="?">
+                    </div>
+                </div>
+                
+                <div class="add-wrapper" id="cliente-pagos-wrapper">
+                    <button id="agregar-pago" class="btn btn-success btn-plus"> + </button>
+                    <div id="addPagoCard" class="add-card chofer hidden" style="top:45px; padding: 0; max-width: 60vw;">
+                        <div class="form-grid" style="padding-bottom: 5px;">
+                            <div class="form-group">
+                                <label for="fechaPago" style="font-weight: bold;">Fecha de Pago</label>
+                                <input type="date" id="fechaPago">
+                            </div>
+                            <div class="form-group">
+                                <label for="tipoPago" style="font-weight: bold;">Tipo de Pago</label>
+                                <select id="tipoPago">
+                                    <option value="cheque">Cheque</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="chequeFields" class="payment-type-fields">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="fechaCheque">Fecha del Cheque *</label>
+                                    <input type="date" id="fechaCheque">
+                                </div>
+                                <div class="form-group">
+                                    <label for="nroCheque">Nro. de Cheque *</label>
+                                    <input type="number" id="nroCheque" placeholder="Número de Cheque">
+                                </div>
+                                <div class="form-group">
+                                    <label for="terceroCheque">Tercero *</label>
+                                    <input type="text" id="terceroCheque" placeholder="Nombre del Tercero">
+                                </div>
+                                <div class="form-group">
+                                    <label for="destinatarioCheque">Destinatario *</label>
+                                    <input type="text" id="destinatarioCheque" placeholder="Nombre del Destinatario">
+                                </div>
+                                <div class="form-group">
+                                    <label for="importeCheque">Importe *</label>
+                                    <input type="number" id="importeCheque" placeholder="Importe">
+                                </div>
+                                <div class="form-group">
+                                    <label for="choferCheque">Asignar a Chofer?</label>
+                                    <input type="text" id="choferCheque" placeholder="Nombre del Chofer">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="otroFields" class="payment-type-fields hidden">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="comprobanteOtro">Comprobante</label>
+                                    <input type="text" id="comprobanteOtro" placeholder="Comprobante del pago">
+                                </div>
+                                <div class="form-group">
+                                    <label for="detalleOtro">Detalle</label>
+                                    <input type="text" id="detalleOtro" placeholder="Descripción del pago">
+                                </div>
+                                <div class="form-group">
+                                    <label for="importeOtro">Importe</label>
+                                    <input type="number" id="importeOtro" placeholder="Importe">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-success btn-sm" id="addPagoBtn" style="max-width: 50%; height: 30px; align-self: center; width: 40vw; margin-bottom: 15px;">
+                            Cargar pago
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="pagos-table" class="tabla-dinamica tabla-pagos"></div>
+            <div id="total-cobrar" class="total-pagar-box">
+                Total a Cobrar: $ 0.00
+            </div>
         </div>
-        <div id="paginacion-viajesHistorial" class="pagination-controls"></div>
     </div>
 </div>

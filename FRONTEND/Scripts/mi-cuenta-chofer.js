@@ -145,7 +145,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error('Error al guardar datos del chofer:', error);
-            showConfirmModal(`Error al guardar cambios: ${error.message || 'Error desconocido'}`);
         }
     });
     // --- FIN: Lógica para enviar los cambios al backend ---
@@ -183,13 +182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error al obtener datos del chofer:', error);
             let displayMessage = `Error al cargar los datos: ${error.message || 'Error desconocido'}`;
             // Puedes añadir lógica para redirigir si el error es por autenticación, por ejemplo
-            if (error.message.includes('Token inválido o expirado') || error.message.includes('No se encontró token JWT')) {
-                showConfirmModal('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.');
-                // Redirigir al login
-                window.location.href = '/FRONTEND/login.html';
-                return; 
-            }
-            showConfirmModal(displayMessage);
             if (mainContentWrapper) mainContentWrapper.innerHTML = `<p class="error-message">${displayMessage}</p>`;
         } finally {
             // Ocultar el spinner y mostrar el contenido (o el mensaje de error si lo hay)

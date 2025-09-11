@@ -53,13 +53,13 @@ function renderTablaProximos() {
         containerId: 'tabla-proximos',
         paginacionContainerId: 'paginacion-proximos',
         columnas: [
-            { label: 'Días', key: 'diasRestantes', class: 'text-right' },
-            { label: 'Fecha Cobro', key: 'fecha_cheque' },
-            { label: 'Cheque', key: 'nro_cheque' },
-            { label: 'Destinatario', key: 'destinatario' },
-            { label: 'Tercero (Banco)', key: 'tercero' },
-            { label: 'Fecha de Emisión', key: 'fecha_pago' },
-            { label: 'Importe', key: 'importe', class: 'text-right' }
+            { label: 'Días', key: 'diasRestantes', class: ['text-right'] },
+            { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
+            { label: 'Cheque', key: 'nro_cheque', class: [] },
+            { label: 'Destinatario', key: 'destinatario', class: [] },
+            { label: 'Tercero (Banco)', key: 'tercero', class: [] },
+            { label: 'Fecha de Emisión', key: 'fecha_pago', class: [] },
+            { label: 'Importe', key: 'importe', class: ['text-right'] }
         ],
         datos: datosChequesProximos.map(c => ({
             id: c.nro_cheque,
@@ -84,12 +84,12 @@ function renderTablaPagos() {
         containerId: 'tabla-pagos',
         paginacionContainerId: 'paginacion-pagos',
         columnas: [
-            { label: 'Fecha Cobro', key: 'fecha_cheque' },
-            { label: 'Cheque', key: 'nro_cheque' },
-            { label: 'Destinatario', key: 'destinatario' },
-            { label: 'Tercero (Banco)', key: 'tercero' },
-            { label: 'Fecha de Emisión', key: 'fecha_pago' },
-            { label: 'Importe', key: 'importe', class: 'text-right' }
+            { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
+            { label: 'Cheque', key: 'nro_cheque', class: [] },
+            { label: 'Destinatario', key: 'destinatario', class: [] },
+            { label: 'Tercero (Banco)', key: 'tercero', class: [] },
+            { label: 'Fecha de Emisión', key: 'fecha_pago', class: [] },
+            { label: 'Importe', key: 'importe', class: ['text-right'] }
         ],
         datos: datosChequesPagos.map(c => ({
             id: c.nro_cheque,
@@ -149,11 +149,10 @@ function mostrarContenidoTabCheques(tab) {
 async function loadChequesData() {
     try {
         const userCuil = localStorage.getItem("userCuil");
-        if (!userCuil) {
-            throw new Error('No se encontró userCuil en localStorage');
-        }
+        // if (!userCuil) {
+        //     throw new Error('No se encontró userCuil en localStorage');
+        // }
         const data = await getCheques(null, userCuil);
-        console.log(data);
         if (data && data.length > 0) {
             const today = formatFecha(new Date());
             datosChequesProximos = data.filter(cheque => formatFecha(cheque.fecha_cheque) >= today);
@@ -164,7 +163,6 @@ async function loadChequesData() {
         }
     } catch (error) {
         console.error('Error al cargar cheques:', error.message);
-        showConfirmModal(`Error al cargar los datos de cheques: ${error.message}`);
         datosChequesProximos = [];
         datosChequesPagos = [];
     }

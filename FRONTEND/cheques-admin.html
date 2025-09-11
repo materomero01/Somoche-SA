@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/FRONTEND/css/header.css" />
   <link rel="stylesheet" href="/FRONTEND/css/sidebar.css" />
   <link rel="stylesheet" href="/FRONTEND/css/tab-selector.css" />
+  <link rel="stylesheet" href="/FRONTEND/css/input.css" />
   <link rel="stylesheet" href="/FRONTEND/css/button.css">
   <link rel="stylesheet" href="/FRONTEND/css/tabla.css" />
   <link rel="stylesheet" href="/FRONTEND/css/filtro.css">
@@ -81,7 +82,17 @@
 
       <div id="content-pagos" class="hidden">
         <div class="section-header">
-          <h2>Cheques pagos</h2>
+          <div style="display: flex; gap: 10px">
+            <h2>Cheques pagos</h2>
+            <select id="selectCheques" class="select-format" style="margin: auto;">
+                <option value="10"> 10 </option>
+                <option value="20"> 20 </option>
+                <option value="30"> 30 </option>
+                <option value="40"> 40 </option>
+                <option value="Otro"> Otro</option>
+            </select>
+            <input type="number" class="select-format input-select hidden" id="inputSelectCheques" placeholder="?">
+          </div>
           <div class="filter-buttons-container">
             <button id="clear-filter-btn-pagos" class="btn btn-danger btn-sm ms-2 hidden"><i class="bi bi-x-lg"></i></button>
             <button id="filter-btn-pagos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>

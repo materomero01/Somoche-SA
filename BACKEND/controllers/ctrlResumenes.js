@@ -28,7 +28,7 @@ exports.insertResumen = async(req, res) => {
             return res.status(405).json({ message: 'El groupStamp no es valido'});
 
         const userExists = await client.query(
-            'SELECT cuil FROM usuario WHERE cuil = $1',
+            'SELECT cuil FROM usuario WHERE valid = true AND cuil = $1',
             [choferCuil]
         );
 
@@ -37,7 +37,6 @@ exports.insertResumen = async(req, res) => {
                 message: `El chofer con CUIL ${choferCuil} no está registrado.`
             });
         }
-        console.log(pagos);
         for (const [index, pago] of Object.entries(pagos)) {
             // Construir consulta de actualización dinámica
             const tipo = pago.tipo;
@@ -45,11 +44,11 @@ exports.insertResumen = async(req, res) => {
 
             values = [groupStamp, index.split('-')[0]];
             if (tipo.toLowerCase() === 'cheque') {
-                query = `UPDATE pagos_cheque SET "group_r" = $1 WHERE nro = $2`;
+                query = `UPDATE pagos_cheque SET group_r = $1 WHERE nro = $2`;
             } else if (tipo.toLowerCase() === 'gasoil') {
-                query = `UPDATE pagos_gasoil SET "group_r" = $1 WHERE comprobante = $2`;
+                query = `UPDATE pagos_gasoil SET group_r = $1 WHERE comprobante = $2`;
             } else if (tipo.toLowerCase() === 'otro') {
-                query = `UPDATE pagos_otro SET "group_r" = $1 WHERE comprobante = $2`;
+                query = `UPDATE pagos_otro SET group_r = $1 WHERE comprobante = $2`;
             } else {
                 await client.query('ROLLBACK');
                 client.release();
@@ -57,15 +56,18 @@ exports.insertResumen = async(req, res) => {
             }
             // Ejecutar la actualización
             const result = await client.query(query, values);
+            if (tipo.toLowerCase() === "otro" && result.rowCount === 0){
+                await client.query('UPDATE pagos_otro SET group_r = $1 WHERE id = $2', values);
+            }
         }
 
         for (const [index, viaje] of Object.entries(viajes)) {
             // Ejecutar la actualización
-            const result = await client.query(` UPDATE viaje SET "group_r" = $1 WHERE comprobante = $2`, 
+            const result = await client.query(` UPDATE viaje SET group_r = $1 WHERE comprobante = $2`, 
                 [groupStamp, index]);
         }
 
-        let idPagoAdicional;
+        let idPagoAdicional = null;
         const pagoAdicional = req.body.pagoAdicional;
         if (pagoAdicional){
             if (!pagoAdicional.tipo || pagoAdicional.tipo.toLowerCase() !== "otro"){
@@ -92,6 +94,7 @@ exports.insertResumen = async(req, res) => {
     } catch (error) {
         if (client) await client.query('ROLLBACK');
         client?.release();
+        console.error("ERROR EN insertResumen: ", error.message, error.stack);
         res.status(405).json({ message: "No se pudo realizar el resumen" });
     }    
 }
@@ -119,7 +122,7 @@ exports.getResumenCuil = async (req, res) => {
 
         // Verificar si el chofer existe
         const userExists = await client.query(
-            'SELECT cuil FROM usuario WHERE cuil = $1',
+            'SELECT cuil FROM usuario WHERE valid = true AND cuil = $1',
             [cuil]
         );
         if (userExists.rows.length === 0) {
@@ -130,10 +133,11 @@ exports.getResumenCuil = async (req, res) => {
 
         // Obtener los últimos n grupos de viajes
         const viajesQuery = `
-            SELECT "group_r", 
+            SELECT group_r, 
                    ARRAY_AGG(
                        JSON_BUILD_OBJECT(
                            'comprobante', comprobante,
+                           'cuil', chofer_cuil,
                            'fecha', fecha,
                            'campo', campo,
                            'kilometros', kilometros,
@@ -141,20 +145,27 @@ exports.getResumenCuil = async (req, res) => {
                            'variacion', variacion,
                            'toneladas', toneladas,
                            'cargado', cargado,
-                           'descargado', descargado
+                           'descargado', descargado,
+                           'factura_id', factura_id,
+                           'carta_porte', EXISTS (
+                                SELECT 1 
+                                FROM carta_porte cp 
+                                WHERE cp.valid = true 
+                                AND cp.viaje_comprobante = comprobante
+                            )
                        )
                    ) as viajes
             FROM viaje
-            WHERE chofer_cuil = $1 AND "group_r" IS NOT NULL
-            GROUP BY "group_r"
-            ORDER BY "group_r" DESC
+            WHERE valid = true AND chofer_cuil = $1 AND group_r IS NOT NULL
+            GROUP BY group_r
+            ORDER BY group_r DESC
             LIMIT $2
         `;
         const viajesResult = await client.query(viajesQuery, [cuil, cantidad]);
 
         // Obtener los últimos n grupos de pagos (unificados)
         const pagosQuery = `
-            SELECT "group_r",
+            SELECT group_r,
                    ARRAY_AGG(
                        JSON_BUILD_OBJECT(
                            'tipo', tipo,
@@ -168,39 +179,39 @@ exports.getResumenCuil = async (req, res) => {
                        )
                    ) as pagos
             FROM (
-                SELECT 'Cheque' AS tipo, nro AS id, fecha_pago, 
-                       fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros, "group_r"
+                SELECT 'Cheque' AS tipo, nro::varchar(30) AS id, fecha_pago, 
+                       fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros, group_r
                 FROM pagos_cheque
-                WHERE chofer_cuil = $1 AND "group_r" IS NOT NULL
+                WHERE valid = true AND chofer_cuil = $1 AND group_r IS NOT NULL
                 UNION ALL
                 SELECT 'Gasoil' AS tipo, g.comprobante AS id, fecha_pago, 
                        NULL AS fecha_cheque, NULL AS tercero, NULL AS descripcion, precio * litros AS importe,
-                       litros, "group_r"
+                       litros, group_r
                 FROM pagos_gasoil g
-                WHERE chofer_cuil = $1 AND "group_r" IS NOT NULL
+                WHERE valid = true AND chofer_cuil = $1 AND group_r IS NOT NULL
                 UNION ALL
-                SELECT 'Otro' AS tipo, o.comprobante AS id, fecha_pago, 
-                       NULL AS fecha_cheque, NULL AS tercero, detalle AS descripcion, importe, NULL AS litros, "group_r"
+                SELECT 'Otro' AS tipo, COALESCE(o.comprobante, o.id::varchar(30)) AS id, fecha_pago, 
+                       NULL AS fecha_cheque, NULL AS tercero, detalle AS descripcion, importe, NULL AS litros, group_r
                 FROM pagos_otro o
-                WHERE chofer_cuil = $1 AND "group_r" IS NOT NULL
+                WHERE valid = true AND chofer_cuil = $1 AND group_r IS NOT NULL
             ) AS unified_pagos
-            GROUP BY "group_r"
-            ORDER BY "group_r" DESC
+            GROUP BY group_r
+            ORDER BY group_r DESC
             LIMIT $2
         `;
         const pagosResult = await client.query(pagosQuery, [cuil, cantidad]);
-
+        
         await client.query('COMMIT');
         client.release();
 
         // Formatear la respuesta
         const response = {
             viajes: viajesResult.rows.map(row => ({
-                group: row.group,
+                group: row.group_r,
                 viajes: row.viajes
             })),
             pagos: pagosResult.rows.map(row => ({
-                group: row.group,
+                group: row.group_r,
                 pagos: row.pagos
             }))
         };

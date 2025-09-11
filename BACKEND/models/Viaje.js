@@ -31,7 +31,8 @@ const validateViaje = (data, partial = false) => {
         descargado: { type: 'number', required: true, min: 0, error: 'El descargado debe ser un número mayor a 0.' },
         pagado: { type: 'boolean', required: false, default: false, error: 'El pagado debe ser un booleano.' },
         variacion: { type: 'number', required: false, default: 0.1, min: 0, max: 1, error: 'La variación debe ser un número mayor o igual a 0.' },
-        group: { type: 'date', required: false, error: 'El grupo debe ser una fecha válida.', validate: isValidDate }
+        group: { type: 'date', required: false, error: 'El grupo debe ser una fecha válida.', validate: isValidDate },
+        tabla: { type: 'string', required: false, tablas: ['viaje', 'viaje_cliente', 'viaje_clienteV'], error: 'La tabla proporcionada no es válida.' },
     };
 
     // Validar cada campo
@@ -77,6 +78,9 @@ const validateViaje = (data, partial = false) => {
                 validatedData[key] = parsedTarifa;
             }
         }
+
+        if(key === "tabla" && !rules.tablas.some( tabla => tabla === value))
+            errors.push(rules.error);
 
         // Validar regex para comprobante
         if (rules.regex && !rules.regex.test(value)) {

@@ -1,9 +1,9 @@
 import { renderTabla } from './tabla.js';
-import { getViajes, getPagosCuil, showConfirmModal, getFactura } from './apiPublic.js';
-import { addViaje, addPagos, updateViaje, addResumen } from './api.js';
+import { getViajes, getPagosCuil, showConfirmModal } from './apiPublic.js';
+import { addViaje, addPagos, updateViaje, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje } from './api.js';
 import { enterEditMode, handleEdit, editingRowId, originalEditingData, stagedEditingData, mockClientes, tarifasCatac } from './choferes-clientes.js';
-import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos } from './resumenes.js';
-import { viajesFactura } from './subir-factura.js';
+import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos} from './resumenes.js';
+import { viaje, initializeFacturaUpload } from './subir-factura.js';
 
 let loadingSpinner;
 let mainContent;
@@ -15,7 +15,8 @@ let viajesData = [];
 
 let pagosData = [];
 
-export let generatedUrls = [];
+let pagosOpen = true;
+
 
 // Regex for input validation
 const regexInputs = {
@@ -27,19 +28,44 @@ const accionesViajes = [
     {
         icon: "bi bi-pencil",
         tooltip: "Editar viaje",
+        classList: ['edit-btn'],
+        id: null,
         handler: (item) => {
             enterEditMode({ ...item, choferCuil: choferData.cuil }, 'viajes');
         }
     },
     {
+        icon: "bi bi-download",
+        tooltip:"Descargar archivos",
+        classList: ['navigate-btn'],
+        id: null,
+        handler: (item) => {
+            viaje.push(item); // Establece el viaje actual
+            initializeFacturaUpload(
+                changeDataFactura,
+                (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, changeDataDocuments),
+                (facturaId) => deleteFactura(facturaId, changeDataDocuments),
+                "viajes"
+            );
+        }
+    },
+    {
         icon: "bi bi-trash",
         tooltip: "Eliminar viaje",
+        classList: ['delete-btn'],
+        id: null,
         handler: (item, tr) => {
-            showConfirmModal("¿Estás seguro de eliminar este viaje?", "delete", () => {
-                viajesData = viajesData.filter(v => v.id !== item.id);
-                renderizarTablas();
-                actualizarTotales(viajesData);
-            });
+            showConfirmModal("¿Estás seguro de eliminar este viaje?", "delete", async () => {
+                const result = await deleteViaje(item.id);
+                const data = await result.json();
+                if (result.ok) {
+                    viajesData = viajesData.filter(v => v.id !== item.id);
+                    renderizarTablas();
+                    actualizarTotales(viajesData);
+                    showConfirmModal(data.message);
+                } else {
+                    showConfirmModal(`Error: ${data.message}`);
+                }})
         }
     }
 ];
@@ -49,15 +75,39 @@ const accionesPagos = [
     {
         icon: "bi bi-trash",
         tooltip: "Eliminar pago",
+        classList: ['delete-btn'],
+        id: null,
         handler: (item, tr) => {
-            showConfirmModal("¿Estás seguro de eliminar este pago?", "delete" , () => {
+            showConfirmModal("¿Estás seguro de eliminar este pago?", "delete" , async () => {
+                const response = await deletePago(item.id, item.tipo);
+                const data = await response.json();
+                if(!response.ok){
+                    showConfirmModal(data.message);
+                    return;
+                }
                 pagosData = pagosData.filter(p => p.id !== item.id);
+                showConfirmModal(data.message);
                 renderizarTablas();
                 actualizarTotales(viajesData);
             });
         }
     }
 ];
+
+const checkboxHeaderActionUpload = {
+    icon: 'bi bi-file-earmark-arrow-up',
+    tooltip: 'Subir factura para los viajes seleccionados',
+    id: 'facturaBtn',
+    classList: ['btn-upload', 'checkbox-cell', 'factura-cell'],
+    handler: selectedRows => {
+        if (selectedRows.length === 0) {
+            showConfirmModal('Por favor, seleccione al menos un viaje para subir la factura.');
+            return;
+        }
+
+        initializeFacturaUpload(changeDataFactura, null, null, "viajes", selectedRows.map( r =>  r.comprobante));
+    }
+}
 
 // Set today's date in date inputs
 const setTodayDate = () => {
@@ -91,7 +141,9 @@ export function renderizarTablas() {
         : columnasViajes.filter(col => col.key !== "iva");
 
     if (editingRowId)
-        columnas = columnas.filter(col => !["diferencia", "importe", "comision", "iva"].includes(col.key));
+        columnas = columnas.filter(col => !["faltante", "importe", "comision", "iva", "saldo"].includes(col.key));
+    else
+        columnas = columnas.filter(col => !["cargado", "descargado"].includes(col.key));
 
     renderTabla({
         containerId: "viajes-table",
@@ -108,10 +160,13 @@ export function renderizarTablas() {
                 toneladas: v.toneladas,
                 cargado: v.cargado,
                 descargado: v.descargado,
-                diferencia: v.diferencia,
+                faltante: v.faltante,
                 importe: `$${v.importe.toFixed(2)}`,
-                comision: `$${v.comision.toFixed(2)}`,
-                factura_id: v.factura_id
+                comision: `$${v.comision.toFixed(2)}`.replace('$-','-$'),
+                saldo: `$${v.saldo.toFixed(2)}`,
+                factura_id: v.factura_id,
+                cuil: v.cuil,
+                carta_porte: v.carta_porte
             };
             if (v.iva) {
                 retornar = {
@@ -121,7 +176,7 @@ export function renderizarTablas() {
             }
             return retornar;
         }),
-        itemsPorPagina: 5,
+        itemsPorPagina: pagosOpen? 3 : 8,
         actions: accionesViajes,
         tableType: "viajes",
         checkboxColumn: true,
@@ -129,16 +184,10 @@ export function renderizarTablas() {
         editingRowId: editingRowId,
         onEdit: (id, field, value) => handleEdit(id, field, value, 'viajes'),
         useScrollable: true,
-        changeDataFactura: changeDataFactura,
-        descargarFactura: descargarFactura,
-        onCheckboxChange: (itemId, itemChecked) => { 
-            if (itemChecked)
-                viajesFactura.push(itemId); 
-            else
-                viajesFactura.pop(itemId);
-        }
+        uploadFactura: true,
+        checkboxHeaderAction: checkboxHeaderActionUpload
     });
-        
+    
     renderTabla({
         containerId: "pagos-table",
         columnas: columnasPagos,
@@ -149,7 +198,7 @@ export function renderizarTablas() {
             descripcion: p.descripcion,
             importe: `$${p.importe.toFixed(2)}`.replace('$-',"-$")
         })),
-        itemsPorPagina: 5,
+        itemsPorPagina: 3,
         actions: accionesPagos,
         useScrollable: true,
         tableType: "pagos"
@@ -158,12 +207,12 @@ export function renderizarTablas() {
     actualizarTotales(viajesData);
 }
 
-function changeDataFactura(facturaId){
+function changeDataFactura(facturaId, selectedRows){
     if (!facturaId) {
         console.warn('No se recibió el facturaId en los encabezados');
     } else {
         viajesData.forEach(v =>{
-            if (viajesFactura.includes(v.id))
+            if (selectedRows.includes(v.id))
                 v.factura_id = facturaId;
         });
 
@@ -171,34 +220,46 @@ function changeDataFactura(facturaId){
     }
 }
 
-// Función para descargar factura
-async function descargarFactura(viaje) {
-    if (viaje && viaje.factura_id) {
-        try {
-            const response = await getFactura(choferData.cuil, viaje.factura_id);
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Error al obtener la factura');
+function changeDataDocuments(){
+    if (viajesData.length > 0){
+        viajesData.forEach(v => {
+            if (v.comprobante === viaje[0].comprobante){
+                v.carta_porte = viaje[0].carta_porte;
+                v.factura_id = viaje[0].factura_id? viaje[0].factura_id : null;
             }
-
-            const data = await response.blob();
-
-            const url = window.URL.createObjectURL(data);
-
-            generatedUrls.push(url);
-
-            // Abrir el PDF en una nueva pestaña
-            const pdfWindow = window.open(url, '_blank');
-        } catch (error){
-            console.log(error.message);
-            showConfirmModal("No se pudo obtener la factura para descargar");
-        }
+        })
     }
+    renderizarTablas();
+}
+
+export async function cartaPorteFunc(cartaPorteFiles , changeDataDocuments) {
+    
+    const cartaPorteResponse = await uploadCartaPorte(viaje[0].comprobante, cartaPorteFiles);
+    if (!cartaPorteResponse.ok) {
+        showConfirmModal("Ocurrió un error al subir el archivo de la carta de porte");
+        return;
+    }
+
+    viaje[0].carta_porte = true;
+    await changeDataDocuments?.();
+}
+
+export async function deleteFactura(facturaId = null, changeDataDocuments, tableType = "viajes") {
+    console.log(facturaId);
+    const response = await deleteDocument(facturaId, viaje[0].comprobante, tableType);
+    if (!response.ok) {
+        showConfirmModal(`Ocurrió un error al eliminar la ${facturaId ? "factura" : "carta de porte"}`);
+        return;
+    }
+    viaje[0][facturaId ? "factura_id" : "carta_porte"] = facturaId ? null : false;
+
+    await changeDataDocuments?.();
+    showConfirmModal(`${facturaId ? "Factura" : "Carta de porte"} eliminada con éxito`);
 }
 
 // Función para actualizar los totales
 export function actualizarTotales(viajesData) {
-    const subtotal = viajesData.reduce((sum, viaje) => sum + (viaje.importe || 0), 0);
+    const subtotal = viajesData.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
     const iva = viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
     const totalViajes = subtotal + iva;
     let totalPagos;
@@ -223,7 +284,7 @@ export function actualizarTotales(viajesData) {
         totalPagarContainer.textContent = `Total a Pagar: ${("$" + totalAPagar.toFixed(2)).replace("$-", "-$")}`;
 }
 
-const validateInputs = (payload, fields) => {
+export const validateInputs = (payload, fields) => {
     for (const [key, label] of Object.entries(fields)) {
         if (!payload[key] || (typeof payload[key] === 'string' && !payload[key].trim())) {
             showConfirmModal(`El valor para ${label} no ha sido ingresado.`);
@@ -245,7 +306,8 @@ export async function handleSaveEditViajes() {
             variacion: parseFloat(stagedEditingData.variacion) > 1? parseFloat(stagedEditingData.variacion) /100 : parseFloat(stagedEditingData.variacion) || 0.1,
             toneladas: parseFloat(stagedEditingData.toneladas) || null,
             cargado: parseFloat(stagedEditingData.cargado) || null,
-            descargado: parseFloat(stagedEditingData.descargado) || null
+            descargado: parseFloat(stagedEditingData.descargado) || null,
+            tabla: "viaje"
         }
     };
 
@@ -291,7 +353,7 @@ export async function handleSaveEditViajes() {
 async function setupAddViajeBtn() {
     const form = document.getElementById('form-viaje');
     const btn = document.getElementById('addViajeBtn');
-    setupClienteAutocomplete('nuevoCliente');
+    setupClienteAutocomplete('nuevoCliente', mockClientes);
     btn?.addEventListener('click', async () => {
         const choferInput = document.getElementById('chofer');
         const clienteInput = document.getElementById('nuevoCliente');
@@ -359,11 +421,10 @@ async function setupAddViajeBtn() {
                 viajesData.push(parseViaje(viaje));
                 form.reset();
                 setTodayDate();
-                showConfirmModal(data.message);
                 renderizarTablas();
             }
+            showConfirmModal(data.message);
         } catch (error) {
-            showConfirmModal(`Error al añadir viaje: ${error.message}`);
             console.error('Error en addViaje:', error.message);
         }
     });
@@ -375,6 +436,8 @@ async function setupAddViajeBtn() {
 // Setup add pago button
 const setupAddPagoBtn = () => {
     const btn = document.getElementById('addPagoBtn');
+    const cuitCliente = document.getElementById('cuitCheque');
+    setupClienteAutocomplete('cuitCheque', mockClientes);
     btn?.addEventListener('click', async () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPagoInput = document.getElementById('fechaPago')?.value;
@@ -387,7 +450,7 @@ const setupAddPagoBtn = () => {
         }
 
         let payload = {
-            choferCuil: choferData?.cuil,
+            chofer_cuil: choferData?.cuil,
         };
 
         switch (tipoPago) {
@@ -409,7 +472,8 @@ const setupAddPagoBtn = () => {
                         nroCheque: document.getElementById('nroCheque')?.value,
                         tercero: document.getElementById('terceroCheque')?.value,
                         destinatario: document.getElementById('destinatarioCheque')?.value,
-                        importe: document.getElementById('importeCheque')?.value
+                        importe: document.getElementById('importeCheque')?.value,
+                        cliente_cuit: cuitCliente?.dataset.selectedClienteCuit
                     }
                 };
 
@@ -424,12 +488,17 @@ const setupAddPagoBtn = () => {
                     pagos: {
                         tipo: 'Gasoil',
                         fechaPago: fechaPago,
+                        comprobante: document.getElementById('comprobanteGasoil')?.value,
                         precioGasoil: document.getElementById('precioGasoil')?.value,
                         litros: document.getElementById('litrosGasoil')?.value,
                         importe: document.getElementById('importeGasoil')?.value
                     }
                 };
 
+                if (!payload.pagos.comprobante){
+                    showConfirmModal('Ingrese el comprobante para el pago del gasoil');
+                    return;
+                }
                 ['precioGasoil', 'litros', 'importe'].forEach(id => {
                     if (isNaN(payload.pagos[id]) || payload.pagos[id] <= 0) {
                         showConfirmModal(`El valor ingresado para ${id} no es válido`);
@@ -443,11 +512,17 @@ const setupAddPagoBtn = () => {
                     pagos: {
                         tipo: 'Otro',
                         fechaPago: fechaPago,
+                        comprobante: document.getElementById('comprobanteOtro')?.value,
                         detalle: document.getElementById('detalleOtro')?.value,
-                        importe: document.getElementById('importeOtro')?.value
+                        importe: document.getElementById('importeOtro')?.value,
                     }
                 };
 
+                if (!payload.pagos.comprobante){
+                    showConfirmModal('Ingrese el comprobante para el pago');
+                    return;
+                }
+                
                 if (isNaN(payload.pagos.importe) || payload.pagos.importe <= 0) {
                     showConfirmModal(`El valor ingresado para el importe no es válido`);
                     return;
@@ -465,26 +540,29 @@ const setupAddPagoBtn = () => {
             pagosData.push(parsePagos({id: data.pagoId.id, fecha_cheque: payload.pagos.fechaCheque, fecha_pago: payload.pagos.fechaPago, ...payload.pagos}));
             renderizarTablas();
         } catch (error) {
-            showConfirmModal(`Error al añadir el pago: ${error.message}`);
             console.error('Error en addPagos:', error.message);
         }
     });
 };
 
 // Setup payment type selector
-const setupPaymentTypeSelector = () => {
+export const setupPaymentTypeSelector = (fields) => {
     const tipoPagoSelect = document.getElementById('tipoPago');
-    const fields = {
-        cheque: document.getElementById('chequeFields'),
-        gasoil: document.getElementById('gasoilFields'),
-        otro: document.getElementById('otroFields')
-    };
 
     const showPaymentFields = type => {
         Object.values(fields).forEach(field => field?.classList.add('hidden'));
         fields[type]?.classList.remove('hidden');
         setTodayDate();
-        if (type === 'gasoil') calculateGasoilImporte();
+        switch (type){
+            case 'cheque':
+                document.getElementById('cuitCliente')?.classList.remove("hidden");
+                break;
+            case 'gasoil':
+                calculateGasoilImporte();
+            default:
+                document.getElementById('cuitCliente')?.classList.add("hidden");
+                break;
+        }
     };
 
     if (tipoPagoSelect) {
@@ -528,6 +606,7 @@ async function cargarTablas() {
                 showConfirmModal(dataPagos.message);
                 deleteModal();
             }
+            console.log(dataPagos);
             pagosData = dataPagos.map(p => {
                 return parsePagos(p);
             });
@@ -537,118 +616,6 @@ async function cargarTablas() {
     }
     renderizarTablas();
 }
-
-// Setup autocomplete
-const setupAutocomplete = ({ inputId, suggestionsId = `${inputId}-suggestions`, filterSuggestions, renderSuggestion, onSelect, dependentInputId, onDependentChange }) => {
-    const input = document.getElementById(inputId);
-    let suggestionsDiv = document.getElementById(suggestionsId);
-
-    if (!input) {
-        console.warn(`Input con ID '${inputId}' no encontrado.`);
-        return;
-    }
-
-    if (!suggestionsDiv) {
-        suggestionsDiv = document.createElement('div');
-        suggestionsDiv.id = suggestionsId;
-        suggestionsDiv.classList.add('suggestions-list');
-        input.parentNode.insertBefore(suggestionsDiv, input.nextSibling);
-    }
-
-    let activeSuggestionIndex = -1;
-
-    const displaySuggestions = suggestions => {
-        suggestionsDiv.innerHTML = '';
-        activeSuggestionIndex = -1;
-
-        if (!suggestions?.length) {
-            suggestionsDiv.style.display = 'none';
-            return;
-        }
-
-        suggestions.forEach((suggestion, index) => {
-            const item = document.createElement('div');
-            item.classList.add('suggestion-item');
-            item.textContent = renderSuggestion(suggestion);
-            Object.entries(suggestion).forEach(([key, value]) => item.dataset[key] = value);
-
-            item.addEventListener('click', () => {
-                onSelect(input, suggestion);
-                suggestionsDiv.innerHTML = '';
-                suggestionsDiv.style.display = 'none';
-                input.focus();
-            });
-            suggestionsDiv.appendChild(item);
-        });
-        suggestionsDiv.style.display = 'block';
-    };
-
-    input.addEventListener('input', () => {
-        const query = input.value.trim();
-        Object.keys(input.dataset).forEach(key => delete input.dataset[key]);
-        displaySuggestions(query ? filterSuggestions(query) : []);
-    });
-
-    if (dependentInputId && onDependentChange) {
-        const dependentInput = document.getElementById(dependentInputId);
-        dependentInput?.addEventListener('change', () => onDependentChange(dependentInput, input, suggestionsDiv));
-    }
-
-    document.addEventListener('click', e => {
-        if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-            suggestionsDiv.style.display = 'none';
-            activeSuggestionIndex = -1;
-        }
-    });
-
-    input.addEventListener('keydown', e => {
-        const items = Array.from(suggestionsDiv.children);
-        if (!items.length) return;
-
-        switch (e.key) {
-            case 'ArrowDown':
-                e.preventDefault();
-                activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
-                highlightSuggestion(items[activeSuggestionIndex]);
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
-                highlightSuggestion(items[activeSuggestionIndex]);
-                break;
-            case 'Enter':
-                e.preventDefault();
-                if (activeSuggestionIndex > -1) items[activeSuggestionIndex].click();
-                else if (items.length === 1 && input.value === items[0].dataset.nombre) items[0].click();
-                break;
-            case 'Escape':
-                suggestionsDiv.style.display = 'none';
-                activeSuggestionIndex = -1;
-                break;
-        }
-    });
-
-    suggestionsDiv.addEventListener('mousedown', e => e.preventDefault());
-
-    input.addEventListener('focus', () => displaySuggestions(filterSuggestions(input.value.trim())));
-
-    const highlightSuggestion = item => {
-        Array.from(suggestionsDiv.children).forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
-        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    };
-};
-
-const setupClienteAutocomplete = inputId => setupAutocomplete({
-    inputId,
-    filterSuggestions: query => query.length < 2 ? [] : mockClientes.filter(cliente => cliente.nombre.toLowerCase().includes(query.toLowerCase())),
-    renderSuggestion: cliente => `${cliente.nombre} (${cliente.cuit})`,
-    onSelect: (input, cliente) => {
-        input.value = cliente.nombre;
-        input.dataset.selectedClienteNombre = cliente.nombre;
-        input.dataset.selectedClienteCuit = cliente.cuit;
-    }
-})
 
 // Setup tarifa autocomplete
 const setupTarifaAutocomplete = () => {
@@ -712,7 +679,7 @@ async function cerrarCuenta() {
     const pagos = pagosData.map(pagos => {
         return {
             tipo: pagos.tipo,
-            id: pagos.id
+            id: pagos.id || pagos.idAlternativo
         };
     });
     let saldoRestante = "";
@@ -775,7 +742,7 @@ async function cerrarCuenta() {
             console.log(dataId);
             pagosData = [];
             viajesData = [];
-            if (dataId.idPagoAdicional.id)
+            if (dataId.idPagoAdicional)
                 pagosData = [{id: dataId.idPagoAdicional.id, fecha_pago: groupStamp, ...payloadRestante}].map( p => {
                     return parsePagos(p);
                 })
@@ -811,13 +778,6 @@ export function deleteModal(modalId, modalContentId) {
         return;
     }
 
-    generatedUrls.forEach(url => {
-        window.URL.revokeObjectURL(url);
-        console.log('URL liberada:', url);
-    });
-
-    generatedUrls = [];
-
     if (modal) {
         modal.classList.toggle("active");
         document.body.classList.remove("no-scroll");
@@ -850,10 +810,32 @@ export async function inicializarModal(data) {
     if (loadingSpinner) loadingSpinner.classList.remove("hidden");
     if (mainContent) mainContent.classList.add("hidden");
 
+    const fields = {
+        cheque: document.getElementById('chequeFields'),
+        gasoil: document.getElementById('gasoilFields'),
+        otro: document.getElementById('otroFields')
+    };
+
+    const clienteAddPago = document.getElementById('chofer-pagos-wrapper');
+    const tablaPagos = document.getElementById('pagos-table');
+    const togglePagosArea = document.getElementById('togglePagosArea');
+    
+        // Toggle pagos area
+        togglePagosArea?.addEventListener('click', () => {
+            togglePagosArea.classList.toggle('active');
+            tablaPagos.classList.toggle('hidden');
+            clienteAddPago.classList.toggle('hidden');
+            pagosOpen = !pagosOpen;
+            if (pagosOpen)
+                renderizarTablas();
+            else
+                renderizarTablas();
+        });
+
     try {
         await cargarTablas();
         setTodayDate();
-        setupPaymentTypeSelector();
+        setupPaymentTypeSelector(fields);
         setupAddPagoBtn();
         setupAddViajeBtn();
         const historialBtn = document.getElementById("historial");
@@ -861,10 +843,19 @@ export async function inicializarModal(data) {
         const headerModal = document.getElementById("headerModal");
         const selectCantidad = document.getElementById("selectResumenes");
         const contentResumenes = document.getElementById("content-resumenes");
+        const inputCantResumenes = document.getElementById('inputSelectResumenes');
+
+        inputCantResumenes?.addEventListener("change", () => {
+            if (inputCantResumenes.value > 0)
+                historialBtn.click();
+        })
 
         selectCantidad?.addEventListener("change", () => {
-            contentResumenes.classList.add("hidden");
-            historialBtn.click();
+            if (selectCantidad.value !== "Otro"){
+                inputCantResumenes.classList.add("hidden");
+                historialBtn.click();
+            } else 
+                inputCantResumenes.classList.remove("hidden");
         })
 
         historialBtn?.addEventListener("click", async () =>{
@@ -873,7 +864,7 @@ export async function inicializarModal(data) {
                 loadingSpinner.childNodes[2].textContent = "Cargando resumenes...";
             }
             if (mainContent) mainContent.classList.add("hidden");
-            await setHistorial(choferData, descargarFactura);
+            await setHistorial(choferData, cartaPorteFunc, deleteFactura);
             if (loadingSpinner) {
                 loadingSpinner.classList.add("hidden");
                 loadingSpinner.childNodes[2].textContent = "Cargando datos...";
@@ -909,7 +900,6 @@ export async function inicializarModal(data) {
         });
     } catch (error) {
         console.error('Error de red o desconocido al obtener datos de los viajes:', error);
-        showConfirmModal('Error de conexión al cargar los viajes.');
         if (mainContent) mainContent.innerHTML = `<p class="error-message">Error de conexión al cargar los datos.</p>`;
     } finally {
         if (loadingSpinner) loadingSpinner.classList.add("hidden");

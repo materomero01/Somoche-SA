@@ -10,7 +10,7 @@ exports.getChoferesAll = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(
-            'SELECT nombre_apellido AS nombre, cuil FROM usuario WHERE role = $1 ORDER BY nombre_apellido ASC',
+            'SELECT nombre_apellido AS nombre, cuil FROM usuario WHERE role = $1 AND valid = true ORDER BY nombre_apellido ASC',
             ['chofer']
         );
         res.status(208).json({ choferes: result.rows });
@@ -32,11 +32,15 @@ exports.getChoferesAllData = async (req, res) => {
         const result = await pool.query(
             `SELECT u.nombre_apellido AS nombre, c.cuil, tipo_trabajador AS trabajador, patente_chasis, patente_acoplado, telefono, email FROM usuario u 
             INNER JOIN chofer c ON u.cuil = c.cuil
-            WHERE u.role = $1
-            ORDER BY 1`,
+            WHERE u.role = $1 AND c.valid = true
+            ORDER BY 1 ASC`,
             ['chofer']
         );
-        
+
+        // const response = await pool.query(``);
+
+        // console.log(response.rows);
+
         // Mapear los resultados para agregar un id basado en el índice
         const choferes = result.rows.map((row, index) => ({
             id: index + 1, // Genera un id comenzando desde 1
@@ -159,31 +163,36 @@ exports.updateChofer = async (req, res) => {
 };
 
 exports.deleteChofer = async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
     const cuil = req.params.cuil;
 
-    try {
-        const viajesResult = await pool.query(
-            'SELECT chofer_cuil FROM viaje WHERE chofer_cuil = $1 AND pagado = $2',
-            [cuil, false]
-        );
-        if (viajesResult.rows.length > 0) {
-            return res.status(401).json({ message: 'No se pudo eliminar el chofer: El chofer aun tiene viajes por cobrar' });
-        }
+    try { 
 
-        const chequesResult = await pool.query(
-            'SELECT chofer_cuil_c FROM pagos_cheque WHERE chofer_cuil_c = $1 AND pagado = $2',
-            [cuil, false]
-        );
-        if (chequesResult.rows.length > 0) {
-            return res.status(401).json({ message: 'No se pudo eliminar el chofer: El chofer aun tiene cheques por cobrar' });
-        }
         
-        res.status(201).json({ message: 'Usuario modificado con éxito' });
+
+        const { rowCount } = await pool.query(
+            'UPDATE usuario SET valid = false WHERE cuil = $1',
+            [cuil]
+        );
+        const { rowCount2 } = await pool.query(
+            'UPDATE chofer SET valid = false WHERE cuil = $1',
+            [cuil]
+        );
+
+        if (rowCount === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+        if (rowCount2 === 0) {
+            return res.status(404).json({ message: 'Chofer no encontrado.' });
+        }
+        res.status(200).json({ message: 'Chofer desactivado con éxito' });
     } catch (error) {
-        console.error('Error en updateUser:', error);
+        console.error('Error en deleteChofer:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
-}
+};
 
 exports.getChoferByCuil = async (req, res) => {
     if (req.user.role !== 'admin' && req.user.cuil !== req.params.cuil) {

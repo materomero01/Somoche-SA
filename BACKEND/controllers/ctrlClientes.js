@@ -20,7 +20,7 @@ exports.getClientes = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(
-            'SELECT razon_social AS nombre, cuit, email FROM cliente ORDER BY razon_social ASC'
+            'SELECT razon_social AS nombre, cuit, email, balance FROM cliente WHERE valid = true ORDER BY 1 ASC'
         );
 
         // Mapear los resultados para agregar un id basado en el índice
@@ -112,3 +112,26 @@ exports.updateClientes = async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor al modificar cliente.' });
     }
 }
+
+exports.deleteClientes = async (req, res) => {    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
+    const cuit = req.params.cuit;
+    try {
+        // Actualizar el campo 'valid' a false en lugar de eliminar
+        const result = await pool.query(
+            'UPDATE cliente SET valid = false WHERE cuit = $1 RETURNING *',
+            [cuit]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Cliente no encontrado.' });
+        }
+
+        res.status(200).json({ message: 'Cliente eliminado lógicamente con éxito.' });
+
+    } catch (error) {
+        console.error('Error al eliminar lógicamente el cliente en la DB:', error);
+        res.status(500).json({ message: 'Error interno del servidor al eliminar el cliente.' });
+    }
+}   

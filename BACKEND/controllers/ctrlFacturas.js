@@ -1,8 +1,9 @@
-const { generarFactura } = require('../Factura completo');
+        const { generarFactura } = require('../Factura completo');
 const path = require('path');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const pool = require('../db');
+const { PDFDocument, rgb } = require('pdf-lib');
 
 exports.generarFacturaCtrl = async (req, res) => {
     if (req.user.role !== 'admin') {
@@ -84,8 +85,8 @@ exports.generarFacturaCtrl = async (req, res) => {
         client = await pool.connect();
         await client.query('BEGIN');
 
-        const response = await client.query(`INSERT INTO factura(cuil, factura_pdf, fecha_subida) VALUES ($1, $2, $3) RETURNING id`,
-            [cuit, pdfBuffer, new Date()]
+        const response = await client.query(`INSERT INTO factura_arca(cliente_cuit, factura_pdf) VALUES ($1, $2) RETURNING id`,
+            [cuit, pdfBuffer]
         )
 
         // Obtener el factura_id insertado
@@ -94,7 +95,7 @@ exports.generarFacturaCtrl = async (req, res) => {
         // Actualizar la tabla viaje con el factura_id para cada comprobante
         for (const c of invoiceData.comprobante) {
             await client.query(
-                'UPDATE viaje SET factura_id = $1 WHERE comprobante = $2',
+                'UPDATE viaje_cliente SET factura_id = $1 WHERE viaje_comprobante = $2',
                 [facturaId, c.id]
             );
         }
@@ -124,17 +125,17 @@ exports.uploadFactura = async (req, res) => {
     let client;
     try {
         // Verificar autorización
-        if (req.user.role !== 'admin' && req.user.cuil !== req.body.cuil) {
+        if ((req.user.role !== 'admin' && req.user.cuil !== req.body.cuil) || (req.user.role !== 'admin' && req.user.type === 'viajeCliente')) {
             return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
         }
 
         // Obtener datos del FormData
-        const { viajeIds, cuil } = req.body;
+        const { viajeIds, type } = req.body;
         const facturaFile = req.files?.factura;
 
         // Validar datos
-        if (!viajeIds || !facturaFile || !cuil) {
-            return res.status(400).json({ error: 'Faltan viajeIds, archivo factura o cuil' });
+        if (!viajeIds || !facturaFile || !type) {
+            return res.status(400).json({ error: 'Faltan viajeIds o archivo factura' });
         }
 
         // Parsear viajeIds (enviado como string JSON)
@@ -161,32 +162,67 @@ exports.uploadFactura = async (req, res) => {
             return res.status(400).json({ error: 'El buffer del archivo está vacío o inválido' });
         }
 
+
         // Iniciar transacción
         client = await pool.connect();
         await client.query('BEGIN');
+        let query = type !== "viajeCliente"? 'SELECT chofer_cuil FROM viaje WHERE comprobante = $1' : 'SELECT cliente_cuit AS chofer_cuil FROM viaje_cliente WHERE viaje_comprobante = $1';
 
+        const responseCuil = await client.query(query,
+            [parsedViajeIds[0]]
+        )
+
+        if (!(responseCuil.rows.length > 0))
+            return res.status(405).json({ error: "El viaje al que desea cargar la factura no se encuentra registrado"});
+
+        const cuil = responseCuil.rows[0].chofer_cuil;
         // Insertar factura en la base de datos
+
+        let queryInsert = type !== "viajeCliente"? 'INSERT INTO factura(cuil, factura_pdf) VALUES ($1, $2) RETURNING id' : 'INSERT INTO factura_arca(cliente_cuit, factura_pdf) VALUES ($1, $2) RETURNING id';
         const response = await client.query(
-            'INSERT INTO factura(cuil, factura_pdf, fecha_subida) VALUES ($1, $2, $3) RETURNING id',
-            [cuil, pdfBuffer, new Date()]
+            queryInsert,
+            [cuil, pdfBuffer]
         );
+
+        if (response.rows.length === 0){
+            await client.query('ROLLBACK');
+            return res.status(405).json({message: "Ocurrio un error al intentar registrar la factura"});
+        }
 
         // Obtener el factura_id insertado
         const facturaId = response.rows[0].id;
+        const viajesError = [];
 
         // Actualizar la tabla viaje con el factura_id
         for (const id of parsedViajeIds) {
+            let queryUpdate = type !== "viajeCliente"? 'UPDATE viaje SET factura_id = $1 WHERE valid = true AND comprobante = $2' : 'UPDATE viaje_cliente SET factura_id = $1 WHERE valid = true AND viaje_comprobante = $2';
             const viajeResponse = await client.query(
-                'UPDATE viaje SET factura_id = $1 WHERE comprobante = $2',
+                queryUpdate,
                 [facturaId, id]
             );
+            if (viajeResponse.rowCount === 0)
+                viajesError.push(id);
+        }
+
+        
+
+
+        if (viajesError.length === parsedViajeIds.length){
+            await client.query('ROLLBACK');
+            return res.status(405).json({message:`Los viajes seleccionados no se encuentran registrados`});
+        }
+
+
+        let message = "Factura subida con éxito.";
+        if(viajesError.length > 0){
+            message+= ` Los siguientes viajes no se encuentran registrados: ${viajesError.join(', ')}`;
         }
 
         // Confirmar transacción
         await client.query('COMMIT');
 
         // Enviar respuesta
-        return res.status(200).json({ message: 'Factura subida con éxito', facturaId });
+        return res.status(200).json({ message , facturaId });
     } catch (error) {
         if (client) {
             await client.query('ROLLBACK');
@@ -199,36 +235,187 @@ exports.uploadFactura = async (req, res) => {
     }
 }
 
+exports.uploadCartaPorte = async (req, res) => {
+   let client;
+    try {
+        // Verificar autorización
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+        }
+
+        // Obtener datos del FormData
+        const { viajeIds } = req.body;
+        const cartaPorteFiles= req.files?.cartaPorte || [];
+
+        // Validar datos
+        if (!viajeIds || !cartaPorteFiles) {
+            return res.status(400).json({ error: 'Faltan viajeIds o archivo factura' });
+        }
+
+        // Iniciar transacción
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const responseCuil = await client.query('SELECT chofer_cuil FROM viaje WHERE valid = true AND comprobante = $1',
+            [viajeIds]
+        )
+
+        if (responseCuil.rowCount === 0){
+            client.release();
+            return res.status(405).json({ message: `El viaje con comprobante ${viajeIds} no se encuentra registrado` });
+        }
+
+        // Procesar cartas de porte si se enviaron
+        if (cartaPorteFiles.length > 0) {
+            // Validar tipo de archivo para todos los archivos
+            const invalidFile = cartaPorteFiles.find(file => !['application/pdf', 'image/jpeg', 'image/png'].includes(file.mimetype));
+            if (invalidFile) {
+                return res.status(400).json({ error: 'Uno o más archivos de carta de porte deben ser PDF, JPG o PNG' });
+            }
+
+            // Crear un nuevo documento PDF
+            const pdfDoc = await PDFDocument.create();
+            // Agregar cada archivo al PDF
+            for (const file of cartaPorteFiles) {
+                if (file.mimetype === 'application/pdf') {
+                    // Si es un PDF, copiar sus páginas
+                    const sourcePdf = await PDFDocument.load(file.buffer);
+                    const copiedPages = await pdfDoc.copyPages(sourcePdf, sourcePdf.getPageIndices());
+                    copiedPages.forEach(page => pdfDoc.addPage(page));
+                } else if (['image/jpeg', 'image/png'].includes(file.mimetype)) {
+                    // Si es una imagen, agregarla como una página
+                    const imageBytes = file.buffer;
+                    let image;
+                    if (file.mimetype === 'image/jpeg') {
+                        image = await pdfDoc.embedJpg(imageBytes);
+                    } else {
+                        image = await pdfDoc.embedPng(imageBytes);
+                    }
+                    const page = pdfDoc.addPage([600, 800]); // Tamaño de página (ajústalos según necesites)
+                    page.drawImage(image, {
+                        x: 0,
+                        y: 0,
+                        width: 600,
+                        height: 800,
+                    });
+                }
+            }
+
+            // Generar el buffer del PDF combinado
+            const combinedPdfBuffer = await pdfDoc.save();
+
+            // Insertar el PDF combinado en la base de datos
+            await client.query(
+                'INSERT INTO carta_porte (viaje_comprobante, carta_porte_pdf) VALUES ($1, $2)',
+                [viajeIds, combinedPdfBuffer]
+            );
+        }
+
+        // Confirmar transacción
+        await client.query('COMMIT');
+
+        // Enviar respuesta
+        return res.status(200).json({ message: 'Carta de porte subida con éxito' });
+    } catch (error) {
+        if (client) {
+            await client.query('ROLLBACK');
+            client.release();
+        }
+        console.error('Error en uploadCartaPorte:', error.message, error.stack);
+        return res.status(500).json({ error: `Error al subir la carta de porte: ${error.message}` });
+    } finally {
+        if (client) client.release();
+    }
+}
+
 exports.descargarFactura = async (req, res) => {
-    const { cuil, id } = req.query;
+    const { cuil, id, comprobante } = req.query;
     if (req.user.role !== 'admin' && req.user.cuil !== cuil) {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
     try{
-        // const response = await pool.query('SELECT factura_pdf FROM factura WHERE id = $1 AND cuil = $2',
-        //     [id, cuil]
-        // );
-
-        const response = await pool.query('SELECT factura_pdf FROM factura WHERE id = $1',
-            [id]
-        );
+        let query;
+        let params = [];
+        if (id && id !== "null" & id !== "undefined"){
+            query = 'SELECT factura_pdf FROM factura WHERE valid = true AND id = $1 AND cuil = $2';
+            params.push(id);
+            params.push(cuil);
+        } else if (comprobante && comprobante !== "null" && comprobante !== "undefined") {
+            query = 'SELECT carta_porte_pdf FROM carta_porte WHERE valid = true AND viaje_comprobante = $1'
+            params.push(comprobante);
+        } else {
+            return res.status(405).json({ message: "No se obtuvieron los datos del documento solicitado"});
+        }
+        let response = await pool.query(query, params);
 
         if (response.rows.length === 0){
-            return res.status(406).json({ message: "No se encontro la factura para el viaje especificado"});
+            if (id && id !== "null" & id !== "undefined")
+                response = await pool.query('SELECT factura_pdf FROM factura_arca WHERE valid = true AND id = $1 AND cliente_cuit = $2', params);
+            if (response.rows.length === 0)
+                return res.status(406).json({ message: "No se encontro el documento solicitado para el viaje especificado"});
         }
 
-        const { factura_pdf } = response.rows[0];
+        const { factura_pdf, carta_porte_pdf } = response.rows[0];
 
         // Configurar encabezados para visualizar el PDF en el navegador
         res.setHeader('Content-Type', 'application/pdf');
         // Para visualizar en el navegador, usa 'inline'; para descarga, usa 'attachment'
         res.setHeader('Content-Disposition', `inline; filename='facturaCliente'`);
-        res.setHeader('Content-Length', factura_pdf.length);
+        res.setHeader('Content-Length', factura_pdf? factura_pdf.length : carta_porte_pdf.length);
         
         // Send the PDF directly
-        return res.status(200).send(factura_pdf);
+        return res.status(200).send(factura_pdf? factura_pdf : carta_porte_pdf);
     } catch (error){
+        console.error('Error en descargar en descargarFactura',error.message, error.stack);
+        return res.status(500).json({ error: `Error al descargar el documento: ${error.message}` });
+    }
+}
 
+exports.deleteFactura = async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
+    const { id, comprobante, type } = req.query;
+    if (!type || type === "null" || type === "undefined")
+        return res.status(405).json({message: "No se pudo reconocer los datos del viaje para el que desea eliminar documentación"});
+
+    let client;
+    try {
+        let query;
+        let params = [];
+        if (id && id !== "null" & id !== "undefined"){
+            query = type !== 'viajeCliente' ? 'UPDATE viaje SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2' : 'UPDATE viaje_cliente SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND viaje_comprobante = $2';
+            params.push(id);
+        } else if (comprobante && comprobante !== "null" && comprobante !== "undefined") {
+            query = 'DELETE FROM carta_porte WHERE viaje_comprobante = $1'
+        } else {
+            return res.status(405).json({ message: "No se obtuvieron los datos del documento solicitado"});
+        }
+
+
+
+        params.push(comprobante);
+        // Iniciar transacción
+        client = await pool.connect();
+        await client.query('BEGIN');
+        
+        await client.query(query, params);
+        console.log(id);
+        const response = await client.query('SELECT id FROM factura');
+        console.log(response.rows);
+
+        const responseCartaPorte = await client.query('SELECT viaje_comprobante FROM carta_porte');
+        console.log(responseCartaPorte.rows);
+
+        await client.query('COMMIT');
+        client.release();
+
+        return res.status(204).json({ message:`${id? "Factura": "Carta de porte"} eliminada con exito` });
+        
+    } catch (error){
+        if (client) client.release();
+        console.error('Error en deleteFactura ',error.message, error.stack);
+        return res.status(500).json({ error: `Error al eliminar el documento: ${error.message}` });
     }
 }

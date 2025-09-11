@@ -5,6 +5,11 @@
     text-align: center;
     margin: 20px 0;
     border-radius: 4px;
+    display: none; /* Oculta por defecto, se muestra al desplegar */
+}
+
+.drop-area.active {
+    display: block; /* Muestra cuando está activo */
 }
 
 .drop-area.drag-over {
@@ -13,10 +18,14 @@
 }
 
 .drop-area p {
-    margin: 0 0 10px;
+    margin: 0px;
 }
 
-#facturaInput {
+.drop-area label {
+    margin: 10px 0px 10px;
+}
+
+#facturaInput, #cartaPorteInput {
     display: none;
 }
 
@@ -46,7 +55,7 @@
     cursor: pointer;
 }
 
-#uploadFacturaBtn:disabled {
+#uploadDocumentsBtn:disabled, #downloadCartaPorteBtn:disabled {
     background: #6c757d;
     cursor: not-allowed;
 }
@@ -54,4 +63,55 @@
 .upload-status {
     margin-top: 10px;
     color: #333;
+}
+
+.document-section {
+    margin-bottom: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.toggle-dropbox {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+}
+
+.toggle-dropbox.active {
+    transform: rotate(180deg);
+}
+
+.section-divider {
+    border: 0;
+    height: 1px;
+    background: #ccc;
+    margin: 20px 0;
+}
+
+.document-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn-download {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-download:hover {
+    background: #218838;
 }

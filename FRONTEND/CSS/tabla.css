@@ -41,7 +41,6 @@
 
 .action-icons i {
     cursor: pointer;
-    color: #555;
     transition: color 0.2s ease;
 }
 
@@ -214,7 +213,7 @@
 }
 
 .tabla-scrollable {
-    max-height: 160px; /* Aproximado para 5 filas de ~40px cada una */
+    /* max-height: 160px; Aproximado para 5 filas de ~40px cada una */
     overflow-y: auto;
     width: 100%;
     box-sizing: border-box;
@@ -374,6 +373,10 @@
     text-align: right;
 }
 
+.tabla-dinamica .bold {
+    font-weight: bold;
+}
+
 /* ============================= */
 /* ESTILOS ESPECÍFICOS PARA MODO EDICIÓN */
 /* ============================= */
@@ -458,5 +461,116 @@
     
     .cheques-actions button {
         flex: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Ensure table container allows horizontal scrolling */
+    .tabla-dinamica {
+        overflow-x: auto;
+        width: 100%;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        display: block; /* Ensure proper block context */
+    }
+
+    /* Prevent table from shrinking and ensure all columns are visible */
+    .tabla-dinamica table {
+        table-layout: fixed; /* Fixed layout to control column widths */
+        width: auto; /* Allow table to expand based on content */
+        min-width: 1000px; /* Set a minimum width to accommodate all columns */
+    }
+
+    /* Column styling to prevent compression and vertical text */
+    .tabla-dinamica th,
+    .tabla-dinamica td {
+        min-width: 100px; /* Minimum width for each column */
+        max-width: 200px; /* Cap maximum width to avoid excessive stretching */
+        padding: 8px 6px; /* Slightly larger padding for readability */
+        font-size: 0.9rem; /* Readable font size */
+        white-space: nowrap; /* Prevent text wrapping */
+        text-overflow: ellipsis; /* Truncate long text with ellipsis */
+        overflow: hidden; /* Hide overflowed text */
+        border: 1px solid #ddd; /* Maintain borders */
+    }
+
+    /* Ensure sticky headers work but don’t obscure content */
+    .tabla-dinamica th {
+        position: sticky;
+        top: 0;
+        background-color: #e7e7e7;
+        z-index: 10;
+        font-weight: bold;
+    }
+
+    /* Improve scrollbar for touch interaction */
+    .tabla-dinamica::-webkit-scrollbar {
+        height: 12px; /* Larger scrollbar for touch */
+    }
+
+    .tabla-dinamica::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 6px;
+    }
+
+    .tabla-dinamica::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 6px;
+    }
+
+    .tabla-dinamica::-webkit-scrollbar-thumb:hover {
+        background: #666;
+    }
+
+    /* Ensure action buttons are touch-friendly */
+    .btn-action,
+    .action-icons i {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+        padding: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Adjust pagination for touch */
+    .pagination-controls {
+        gap: 10px;
+    }
+
+    .pagination-button {
+        padding: 10px 14px;
+        font-size: 1rem;
+        min-width: 44px; /* Minimum touch target size */
+    }
+
+    /* Ensure summary boxes and totals are readable */
+    .summary-boxes {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .summary-box {
+        min-width: 100%;
+        font-size: 1rem;
+        padding: 12px;
+    }
+
+    .cheques-selected-summary,
+    #total-a-cobrar {
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    /* Adjust form inputs for touch */
+    .editable-input,
+    .editable-select,
+    .form-group input,
+    .form-group select {
+        font-size: 1rem;
+        padding: 10px;
+        width: 100%;
+        box-sizing: border-box;
     }
 }

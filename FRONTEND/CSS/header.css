@@ -157,3 +157,37 @@
     color: #aaa;
     font-weight: bold;
 }
+
+/* --- Estilos para dispositivos móviles --- */
+@media (max-width: 768px) {
+    /* / Ajusta el padding del header para móvil / */
+    .header {
+        padding: 10px 15px; /* Menor padding horizontal */
+        padding-left: 50px; /* Reducimos el espacio para el menu-toggle */
+    }
+
+    /* / Ocultamos elementos que no caben en móvil / */
+    .header-logo,
+    .header-date,
+
+    /* / Ocultamos el rol del usuario para simplificar / */
+    .header-user-role {
+        display: none;
+    }
+
+    /* / Ajustamos el tamaño del icono de menú y su contenedor / */
+    .menu-toggle {
+        width: 50px; /* Un poco más pequeño */
+        font-size: 1.3rem;
+    }
+
+    /* / Ajusta el contenedor de la información del usuario / */
+    .user-info-inline {
+        margin: 0 5px; /* Menos margen */
+    }
+
+    /* / Ajustamos los íconos de la derecha */
+    .logout-icon-wrapper i {
+        font-size: 1.2rem;
+    }
+}

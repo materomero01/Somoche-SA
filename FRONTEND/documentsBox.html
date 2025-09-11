@@ -1,0 +1,47 @@
+<div class="modal-content" style="max-width: 400px;">
+    <h2 style="margin-bottom: 40px;">Documentos del Viaje</h2>
+    
+    <!-- Sección Factura -->
+    <div class="document-section" id="facturaSection">
+        <div class="section-header">
+            <h3>Factura</h3>
+            <i class="bi bi-chevron-down toggle-dropbox active" id="toggleFacturaDropbox"></i>
+            <div class="document-actions" id="facturaActions" style="display: none;">
+                <button class="btn btn-download" id="downloadFacturaBtn">Descargar</button>
+                <button class="btn btn-danger" id="deleteFacturaBtn">Eliminar</button>
+            </div>
+        </div>
+        <div class="drop-area active" id="facturaDropArea">
+            <p>Arrastra y suelta la factura aquí o</p>
+            <label for="facturaInput" class="file-label">Seleccionar archivo</label>
+            <input type="file" id="facturaInput" accept=".pdf,.jpg,.jpeg,.png">
+            <p class="upload-status" id="facturaUploadStatus"></p>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- Sección Carta de Porte -->
+    <div class="document-section" id="cartaPorteSection">
+        <div class="section-header">
+            <h3>Carta de Porte</h3>
+            <i class="bi bi-chevron-down toggle-dropbox active" id="toggleCartaPorteDropbox"></i>
+            <div class="document-actions" id="cartaPorteActions" style="display: none;">
+                <button class="btn btn-download" id="downloadCartaPorteBtn">Descargar</button>
+                <button class="btn btn-danger" id="deleteCartaPorteBtn">Eliminar</button>
+            </div>
+        </div>
+        
+        <div class="drop-area active" id="cartaPorteDropArea">
+            <p>Arrastra y suelta la carta de porte aquí o</p>
+            <label for="cartaPorteInput" class="file-label">Seleccionar archivos</label>
+            <input type="file" id="cartaPorteInput" accept=".pdf,.jpg,.jpeg,.png" multiple>
+            <p class="upload-status" id="cartaPorteUploadStatus"></p>
+        </div>
+    </div>
+
+    <div class="modal-actions">
+        <button id="uploadDocumentsBtn" class="btn btn-success" disabled>Subir</button>
+        <button id="cancelDocumentsBtn" class="btn btn-danger">Cancelar</button>
+    </div>
+</div>

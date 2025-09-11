@@ -15,11 +15,13 @@
                     Atras
                 </button>
                 <select id="selectResumenes" class="select-format">
-                    <option value=5> 5 </option>
-                    <option value=10> 10 </option>
-                    <option value=15> 15 </option>
-                    <option value=20> 20 </option>
+                    <option value="5"> 5 </option>
+                    <option value="10"> 10 </option>
+                    <option value="15"> 15 </option>
+                    <option value="20"> 20 </option>
+                    <option value="Otro"> Otro </option>
                 </select>
+                <input type="number" class="select-format input-select hidden" id="inputSelectResumenes" placeholder="?">
             </div>
         </div>
         <h2 id="headerModal">Viajes y Pagos</h2>
@@ -107,8 +109,12 @@
 
         <div class="table-section">
             <div class="table-header-with-button">
-                <h3>Pagos</h3>
-                <div class="add-wrapper" id="chofer-wrapper">
+                <div style="display: flex; gap: 10px;">
+                    <i class="bi bi-chevron-down toggle-dropbox active" id="togglePagosArea" style="margin: auto"></i>
+                    <h3>Pagos</h3>
+                </div>
+                
+                <div class="add-wrapper" id="chofer-pagos-wrapper">
                     <button id="agregar-pago" class="btn btn-success btn-plus"> + </button>
                     <div id="addPagoCard" class="add-card chofer hidden" style="top:45px; padding: 0; max-width: 60vw;">
                         <div class="form-grid" style="padding-bottom: 5px;">
@@ -123,6 +129,10 @@
                                     <option value="gasoil">Gasoil</option>
                                     <option value="otro">Otro</option>
                                 </select>
+                            </div>
+                            <div class="form-group" id="cuitCliente">
+                                <label for="cuitCheque" style="font-weight: bold;">Asignar Cliente?</label>
+                                <input type="text" id="cuitCheque" placeholder="Razón Social">
                             </div>
                         </div>
                         
@@ -154,6 +164,10 @@
                         <div id="gasoilFields" class="payment-type-fields hidden">
                             <div class="form-grid">
                                 <div class="form-group">
+                                    <label for="comprobanteGasoil">Comprobante</label>
+                                    <input type="text" id="comprobanteGasoil" placeholder="Comprobante">
+                                </div>
+                                <div class="form-group">
                                     <label for="precioGasoil">Precio Gasoil</label>
                                     <input type="number" id="precioGasoil" placeholder="Precio por Litro">
                                 </div>
@@ -170,6 +184,10 @@
 
                         <div id="otroFields" class="payment-type-fields hidden">
                             <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="comprobanteOtro">Comprobante</label>
+                                    <input type="text" id="comprobanteOtro" placeholder="Comprobante">
+                                </div>
                                 <div class="form-group">
                                     <label for="detalleOtro">Detalle</label>
                                     <input type="text" id="detalleOtro" placeholder="Descripción del pago">

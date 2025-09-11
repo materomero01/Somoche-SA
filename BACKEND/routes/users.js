@@ -8,4 +8,7 @@ var ctrlUsers = require('../controllers/ctrlUsers.js');
 router.post('/register', ctrlUsers.insertUser);
 router.post('/login', ctrlUsers.loginUser);
 
+router.put('/forgot-password', ctrlUsers.getEmailByCuit)
+router.post('/reset-password', ctrlUsers.resetPassword);
+
 module.exports = router;

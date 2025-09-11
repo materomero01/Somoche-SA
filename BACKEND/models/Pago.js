@@ -1,4 +1,4 @@
-// Función para validar si es una fecha válida
+    // Función para validar si es una fecha válida
 const isValidDate = (value) => {
     if (typeof value !== 'string') return false;
     const date = Date.parse(value);
@@ -18,6 +18,8 @@ const pagoChequeSchema = {
     tercero: { type: 'string', required: true, error: 'El tercero es obligatorio.' },
     destinatario: { type: 'string', required: true, error: 'El destinatario es obligatorio.' },
     importe: { type: 'number', required: true, min: 0, error: 'El importe debe ser un número mayor o igual a 0.' },
+    cliente_cuit: { type: 'string', required: false, default: null, regex: /^\d{2}-\d{8}-\d{1}$/, error: 'El Cuit del cliente no es valido'},
+    chofer_cuil: { type: 'string', required: false, default: null, regex: /^\d{2}-\d{8}-\d{1}$/, error: 'El Cuil del chofer no es valido'},
     pagado: { type: 'boolean', required: false, default: false, error: 'El pagado debe ser un booleano.' }
 };
 
@@ -87,7 +89,7 @@ const validateSinglePago = (data, partial = false) => {
         }
 
         // Para validación parcial (update), ignorar campos no proporcionados
-        if (partial && (value === undefined || value === null)) {
+        if ((partial || !rules.required) && (value === undefined || value === null)) {
             continue;
         }
 
@@ -117,6 +119,11 @@ const validateSinglePago = (data, partial = false) => {
             } else {
                 validatedData[key] = value === '' ? null : value;
             }
+        }
+
+        // Validar regex para comprobante
+        if (rules.regex && !rules.regex.test(value)) {
+            errors.push(rules.error);
         }
 
         // Aplicar valor por defecto si no está presente y no es requerido

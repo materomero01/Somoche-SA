@@ -64,6 +64,12 @@ input[type="number"]::-webkit-inner-spin-button {
     box-shadow: 0 0 3px rgba(231, 228, 49, 0.3);
 }
 
+.input-select {
+    max-width: 2vw;
+    margin: auto;
+    padding: 5px 5px;
+}
+
 
 .form-group input:focus,
 .form-group select:focus { 

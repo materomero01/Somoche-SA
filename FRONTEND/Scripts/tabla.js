@@ -1,5 +1,3 @@
-import { initializeFacturaUpload } from "./subir-factura.js";
-
 export function renderTabla({ 
     containerId, 
     paginacionContainerId, 
@@ -14,10 +12,9 @@ export function renderTabla({
     onPageChange = null,
     checkboxColumn = false,
     checkboxColumnPosition = 'start',
+    checkboxHeaderAction = null,
     onCheckboxChange = null,
-    generateFactura = null,
-    descargarFactura = null,
-    changeDataFactura = null,
+    uploadFactura = null,
     useScrollable = false
 }) {
     const container = document.getElementById(containerId);
@@ -48,6 +45,10 @@ export function renderTabla({
     // Crear contenedor para la tabla
     const newTableWrapper = document.createElement("div");
     newTableWrapper.className = `tabla-dinamica ${useScrollable ? 'tabla-scrollable' : ''} ${tableType === 'clientes' ? 'tabla-clientes' : ''}`;
+    if (useScrollable){
+        const maxHeightValue = itemsPorPagina && !isNaN(itemsPorPagina) && itemsPorPagina > 3 ? 47 : 20;
+        newTableWrapper.style.setProperty('max-height', `${maxHeightValue}vh`, 'important') ;
+    }
 
     const tabla = document.createElement("table");
     tabla.classList.add("data-table");
@@ -79,33 +80,28 @@ export function renderTabla({
 
     if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
         const th = document.createElement("th");
-        if (datos.length > 0 && datos[0].hasOwnProperty('factura_id')) {
-            const facturaButton = document.createElement("button");
-            facturaButton.classList.add("btn-action");
-            facturaButton.innerHTML = '<i class="bi bi-file-earmark-arrow-up"></i>';
-            // Change button for viajesCliente table
-            if (tableType === 'viajesCliente') {
-                facturaButton.classList.add("btn-generate-invoice");
-                facturaButton.title = "Generar Factura";
-                facturaButton.addEventListener('click', () =>{ 
-                    const selectedRows = datos.filter(item => item.selected);
-                    generateFactura(selectedRows);
-                });
-            } else {
-                facturaButton.classList.add("btn-upload");
-                facturaButton.title = "Subir Factura";
-                facturaButton.id = "facturaBtn";
-                facturaButton.addEventListener("click", () =>{
-                    initializeFacturaUpload(changeDataFactura);
-                })
-            }
-            th.classList.add("checkbox-cell", "factura-cell");
-            th.style.textAlign = "center";
-            th.appendChild(facturaButton);
+        if (checkboxHeaderAction){
+            const actionContainer = document.createElement("div");
+            actionContainer.classList.add("action-icons");
+            const button = document.createElement("button");
+            button.classList.add("btn-action");
+            checkboxHeaderAction.classList.forEach( className => {
+                button.classList.add(className);
+            })
+            button.innerHTML = `<i class="${checkboxHeaderAction.icon}"></i>`;
+            if (checkboxHeaderAction.id) button.id = checkboxHeaderAction.id;
+            button.title = checkboxHeaderAction.tooltip || '';
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const selectedRows = datos.filter(v => v.selected);
+                checkboxHeaderAction.handler(selectedRows);
+            });
+            actionContainer.appendChild(button);
+            th.appendChild(actionContainer);
         }
         headerRow.appendChild(th);
     }
-
+    
     thead.appendChild(headerRow);
     tabla.appendChild(thead);
     tabla.appendChild(tbody);
@@ -169,8 +165,12 @@ export function renderTabla({
                     td.title = item[col.key] || '';
                 }
                 
-                if (col.class) {
-                    td.classList.add(col.class);
+                try{
+                    col.class.forEach( className => {
+                        td.classList.add(className);
+                    })
+                } catch (error){
+                    console.log(error.message);
                 }
                 tr.appendChild(td);
             });
@@ -205,22 +205,12 @@ export function renderTabla({
                     actions.forEach(action => {
                         const button = document.createElement("button");
                         button.className = "btn-action";
-                        
-                        if (action.icon.includes('pencil')) {
-                            button.classList.add('edit-btn');
-                        } else if (action.icon.includes('trash')) {
-                            button.classList.add('delete-btn');
-                        } else if (action.icon.includes('send')) {
-                            button.classList.add('navigate-btn');
-                        }
-                        
-                        if (action.class) {
-                            action.class.split(' ').forEach(cls => {
-                                if (cls) {
-                                    button.classList.add(cls);
-                                }
-                            });
-                        }
+
+                        action.classList.forEach( className => {
+                            button.classList.add(className);
+                        })
+
+                        if (action.id) button.id = action.id;
 
                         button.innerHTML = `<i class="${action.icon}"></i>`;
                         button.title = action.tooltip || '';
@@ -240,15 +230,11 @@ export function renderTabla({
             if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
                 const td = document.createElement("td");
                 td.classList.add("checkbox-cell");
-                if (item.factura_id) {
-                    const downloadBtn = document.createElement("button");
-                    downloadBtn.className = "btn-action navigate-btn";
-                    downloadBtn.innerHTML = '<i class="bi bi-download"></i>';
-                    downloadBtn.title = "Descargar factura";
-                    downloadBtn.addEventListener('click', () => {
-                        descargarFactura(item);
-                    });
-                    td.appendChild(downloadBtn);
+                if (uploadFactura && item.hasOwnProperty("factura_id") && item.factura_id ) {
+                    const checkFactura = document.createElement("div");
+                    checkFactura.innerHTML = '<i class="bi bi-check-lg"></i>';
+                    checkFactura.title = "Factura cargada";
+                    td.appendChild(checkFactura);
                 } else {
                     const checkbox = document.createElement("input");
                     checkbox.type = "checkbox";

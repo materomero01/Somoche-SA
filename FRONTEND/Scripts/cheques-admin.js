@@ -84,14 +84,14 @@ function renderTablaProximos() {
         containerId: 'tabla-proximos',
         paginacionContainerId: 'paginacion-proximos',
         columnas: [
-            { label: 'Días', key: 'diasRestantes', class: 'text-right' },
-            { label: 'Fecha Cobro', key: 'fecha_cheque' },
-            { label: 'Cheque', key: 'nro_cheque' },
-            { label: 'Destinatario', key: 'destinatario' },
-            { label: 'Tercero', key: 'tercero' },
-            { label: 'Fecha Emisión', key: 'fecha_pago' },
-            { label: 'Chofer Nombre', key: 'nombre' },
-            { label: 'Importe', key: 'importe', class: 'text-right' }
+            { label: 'Días', key: 'diasRestantes', class: ['text-right'] },
+            { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
+            { label: 'Cheque', key: 'nro_cheque', class: [] },
+            { label: 'Destinatario', key: 'destinatario', class: [] },
+            { label: 'Tercero', key: 'tercero', class: [] },
+            { label: 'Fecha Emisión', key: 'fecha_pago', class: [] },
+            { label: 'Chofer Nombre', key: 'nombre', class: [] },
+            { label: 'Importe', key: 'importe', class: ['text-right'] }
         ],
         datos: filteredData.map(c => ({
             id: c.nro_cheque, // Usar nro_cheque como ID
@@ -128,13 +128,13 @@ function renderTablaPagos() {
         containerId: 'tabla-pagos',
         paginacionContainerId: 'paginacion-pagos',
         columnas: [
-            { label: 'Fecha Cobro', key: 'fecha_cheque' },
-            { label: 'Cheque', key: 'nro_cheque' },
-            { label: 'Destinatario', key: 'destinatario' },
-            { label: 'Tercero', key: 'tercero' },
-            { label: 'Fecha Pago', key: 'fecha_pago' },
-            { label: 'Chofer Nombre', key: 'nombre' },
-            { label: 'Importe', key: 'importe', class: 'text-right' }
+            { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
+            { label: 'Cheque', key: 'nro_cheque', class: [] },
+            { label: 'Destinatario', key: 'destinatario', class: [] },
+            { label: 'Tercero', key: 'tercero', class: [] },
+            { label: 'Fecha Pago', key: 'fecha_pago', class: [] },
+            { label: 'Chofer Nombre', key: 'nombre', class: [] },
+            { label: 'Importe', key: 'importe', class: ['text-right'] }
         ],
         datos: filteredData.map(c => ({
             id: c.nro_cheque,
@@ -211,6 +211,9 @@ function setupChequesTabSelector() {
 async function mostrarContenidoTabCheques(tab) {
     const proximosDiv = document.getElementById('content-proximos');
     const pagosDiv = document.getElementById('content-pagos');
+    const selectCantidad = document.getElementById("selectCheques");
+    const inputCantCheques = document.getElementById('inputSelectCheques');
+    
 
     currentFilter = {};
     clearFilterInputs();
@@ -221,12 +224,10 @@ async function mostrarContenidoTabCheques(tab) {
         if (datosChequesProximos.length < 1) {
             try {
                 datosChequesProximos = await getCheques(false, null);
-                console.log(datosChequesProximos);
                 datosChequesProximos.forEach(cheque => {
                     cheque.selected = false;
                     cheque.importe = parseImporte(cheque.importe);
                 });
-                console.log(datosChequesProximos)
                 if(datosChequesProximos.length > 0){
                     datosChequesProximos.filter(
                                 cheque =>formatFecha(cheque.fecha_cheque) < formatFecha(new Date())
@@ -234,7 +235,6 @@ async function mostrarContenidoTabCheques(tab) {
                 }
                     
                 if(chequesFueraFecha.length > 0){
-                    console.log(chequesFueraFecha);
                     await setChequesPagos(chequesFueraFecha);
                     datosChequesProximos = datosChequesProximos.filter(cheque => !chequesFueraFecha.includes(cheque.nro_cheque))
                 }
@@ -246,16 +246,14 @@ async function mostrarContenidoTabCheques(tab) {
     } else if (tab === 'pagos') {
         proximosDiv.classList.add('hidden');
         pagosDiv.classList.remove('hidden');
-        if (datosChequesPagos.length < 1) {
-            try {
-                datosChequesPagos = await getCheques(true, null);
-                datosChequesPagos.forEach(cheque => {
-                    cheque.importe = parseImporte(cheque.importe);
-                });
-            } catch (error) {
-                showConfirmModal(error.message);
-                console.error(error.message);
-            }
+        try {
+            const cantidad = selectCantidad.value !== "Otro"? selectCantidad.value : inputCantCheques.value;
+            datosChequesPagos = await getCheques(true, null, cantidad);
+            datosChequesPagos.forEach(cheque => {
+                cheque.importe = parseImporte(cheque.importe);
+            });
+        } catch (error) {
+            console.error(error.message);
         }
         renderTablaPagos();
     }
@@ -457,6 +455,22 @@ document.addEventListener('DOMContentLoaded', async function () {
             applyFilters();
         });
     }
+
+    const selectCantidad = document.getElementById("selectCheques");
+    const inputCantCheques = document.getElementById('inputSelectCheques');
+
+    inputCantCheques?.addEventListener("change", () => {
+        if (inputCantCheques.value > 0)
+            mostrarContenidoTabCheques('pagos');
+    })
+
+    selectCantidad?.addEventListener("change", () => {
+        if (selectCantidad.value !== "Otro"){
+            inputCantCheques.classList.add("hidden");
+            mostrarContenidoTabCheques('pagos');
+        } else
+            inputCantCheques.classList.remove("hidden");
+    })
 
     const paySelectedBtn = document.getElementById('pay-selected-btn');
     if (paySelectedBtn) {
