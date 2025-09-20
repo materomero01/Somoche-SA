@@ -309,7 +309,7 @@ exports.uploadCartaPorte = async (req, res) => {
                 'INSERT INTO carta_porte (viaje_comprobante, carta_porte_pdf) VALUES ($1, $2)',
                 [viajeIds, combinedPdfBuffer]
             );
-        }
+        }     
 
         // Confirmar transacción
         await client.query('COMMIT');

@@ -819,6 +819,7 @@ export async function inicializarModal(data) {
     const clienteAddPago = document.getElementById('chofer-pagos-wrapper');
     const tablaPagos = document.getElementById('pagos-table');
     const togglePagosArea = document.getElementById('togglePagosArea');
+    togglePagosArea.style.cursor = 'pointer';
     
         // Toggle pagos area
         togglePagosArea?.addEventListener('click', () => {

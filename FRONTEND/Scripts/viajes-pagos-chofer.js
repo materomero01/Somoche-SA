@@ -248,6 +248,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     mainContent = document.getElementById('contenido');
 
     const togglePagosArea = document.getElementById('togglePagosArea');
+    togglePagosArea.style.cursor = 'pointer';
     const tablaPagos = document.getElementById('pagos-table');
     
     // Toggle pagos area

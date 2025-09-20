@@ -381,7 +381,8 @@ async function generarEnlaceQR(datos, impTotal) {
     moneda: 'PES',
     ctz: 1,
     tipoCodAut: 'E',
-    codAut: datos.cae
+    codAut: parseInt(datos.cae, 10)
+
   };
   const qrJson = JSON.stringify(qrData);
   const qrBase64 = Buffer.from(qrJson).toString('base64');

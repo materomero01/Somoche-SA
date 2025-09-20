@@ -855,6 +855,7 @@ export async function inicializarModaCliente(data) {
     const clienteAddPago = document.getElementById('cliente-pagos-wrapper');
     const searchInput = document.getElementById('searchInput');
     const togglePagosArea = document.getElementById('togglePagosArea');
+    togglePagosArea.style.cursor = 'pointer';
 
     // Toggle pagos area
     togglePagosArea?.addEventListener('click', () => {
