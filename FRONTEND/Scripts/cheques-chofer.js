@@ -53,7 +53,7 @@ function renderTablaProximos() {
         containerId: 'tabla-proximos',
         paginacionContainerId: 'paginacion-proximos',
         columnas: [
-            { label: 'Días', key: 'diasRestantes', class: ['text-right'] },
+            { label: 'Días', key: 'diasRestantes', class: ['text-right', 'bold'] },
             { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
             { label: 'Cheque', key: 'nro_cheque', class: [] },
             { label: 'Destinatario', key: 'destinatario', class: [] },

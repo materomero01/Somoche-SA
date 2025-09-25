@@ -1,6 +1,6 @@
 import { renderTabla } from './tabla.js';
 import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchTarifas, fetchClientes } from './api.js';
-import { updateChofer, showConfirmModal } from './apiPublic.js';
+import { updateChofer, showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText } from './apiPublic.js';
 import { inicializarModal, renderizarTablas, handleSaveEditViajes } from './viajes-pagos.js';
 import { parseImporte } from './resumenes.js';
 import { handleSaveEditViajesCliente, inicializarModaCliente, renderizarTablaVC } from './viajes-clientes.js';
@@ -19,6 +19,8 @@ export let editingRowId = null;
 export let currentEditingTableType = null;
 export let originalEditingData = {};
 export let stagedEditingData = {};
+
+const principalContent = document.getElementById('principalContent');
 
 // --- Definición de columnas para las tablas ---
 const choferesColumns = [
@@ -171,7 +173,7 @@ export function renderCurrentTable() {
 }
 
 // --- Lógica de Pestañas ---
-function setupChoferesClientesTabSelector() {
+ async function setupChoferesClientesTabSelector() {
     const tabSelector = document.getElementById('choferesClientesSelector');
     if (!tabSelector) {
         console.warn("Elemento #choferesClientesSelector no encontrado. La funcionalidad de pestañas no se inicializará.");
@@ -192,10 +194,10 @@ function setupChoferesClientesTabSelector() {
 
     const initialActive = tabSelector.querySelector('.tab-item.active');
     if (initialActive) {
-        handleTabContentDisplay(initialActive.dataset.tab);
+        await handleTabContentDisplay(initialActive.dataset.tab);
     } else if (tabItems.length > 0) {
         tabItems[0].classList.add('active');
-        handleTabContentDisplay(tabItems[0].dataset.tab);
+        await handleTabContentDisplay(tabItems[0].dataset.tab);
     }
 }
 
@@ -587,10 +589,14 @@ function setupTableEventListeners() {
 
 // --- Inicialización al cargar el DOM ---
 document.addEventListener('DOMContentLoaded', async function () {
+    const socket = io('http://localhost:3000', {
+        auth: { token: localStorage.getItem('jwtToken') }
+    });
+
     const headerContainer = document.getElementById('header-container');
     const sidebarContainer = document.getElementById('sidebar-container');
     const confirmModal = document.getElementById('confirmModal');
-
+    
     if (confirmModal) {
         confirmModal.style.display = 'none';
     }
@@ -619,12 +625,47 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
+    await createLoadingSpinner(principalContent);
+
+
     setupTableEventListeners();
-    setupChoferesClientesTabSelector();
+    await setupChoferesClientesTabSelector();
     setupSearchBar('choferesSearchBar', 'choferes');
     setupSearchBar('clientesSearchBar', 'clientes');
     setupAddButtons();
     seePassword("password-input");
+
+    toggleSpinnerVisible(principalContent);
+
+    socket.on('nuevoUsuario', async (user) => {
+        mockChoferes.push({id: mockChoferes.length + 1, ...user});
+        console.log("Nuevo chofer añadido");
+        if (currentEditingTableType === "choferes" && editingRowId) return;
+        renderChoferesTable(mockChoferes, currentChoferesPage);
+    });
+
+    socket.on('updateUsuario', async (user) => {
+        let chofer = mockChoferes.find(chofer => chofer.cuil === user.cuilOriginal);
+        const updatedData = user.updatedData;
+        if (chofer){
+            Object.assign(chofer, updatedData);
+            console.log(`Chofer con cuil ${user.cuilOriginal} modificado`);
+            if (currentEditingTableType === "choferes" && editingRowId) {
+                if (mockChoferes.find(chofer => chofer.id === editingRowId).cuil === user.cuilOriginal){
+                    editingRowId = null;
+                    changeSpinnerText(principalContent, "Actualizando datos...");
+                    toggleSpinnerVisible(principalContent);
+                    await renderChoferesTable(mockChoferes, currentChoferesPage);
+                    changeSpinnerText(principalContent);
+                    toggleSpinnerVisible(principalContent);
+                    showConfirmModal("Se han actualizado los datos");
+
+                }
+                return;
+            }
+            renderChoferesTable(mockChoferes, currentChoferesPage);
+        }
+    });
 
     // Add CUIT capture for navigate-btn
     document.querySelectorAll('.navigate-btn').forEach(button => {
@@ -652,7 +693,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const addChoferWrapper = document.getElementById('chofer-wrapper');
         const addChoferCard = document.getElementById('addChoferCard');
         const viajesPagosModal = document.getElementById('viajesPagosModal');
-        const modalConfirmacion = document.getElementById('confirmModal')
+        const modalConfirmacion = document.getElementById('confirmModal');
 
         const isClickOutsideModal = modalContent && !modalContent.contains(event.target);
         const isClickInsideHeader = headerContainer && headerContainer.contains(event.target);

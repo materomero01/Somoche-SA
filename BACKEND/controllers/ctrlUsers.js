@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const userSchema = require('../models/User.js');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer')
+const { getIO } = require('../socket');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -62,6 +63,26 @@ exports.insertUser = async (req, res) => {
 
         await client.query('COMMIT');
 
+        const io = getIO();
+        // Avisar a todos los clientes conectados
+        const authToken = req.headers.authorization?.split(' ')[1];
+        let emitterCuil = null;
+        if (authToken){
+            try {
+                const decoded = jwt.verify(authToken, JWT_SECRET);
+                emitterCuil = decoded.cuil;
+                io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== emitterCuil) {
+                    socket.emit('nuevoUsuario',{nombre: validatedData.nombre_y_apellido, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
+                }
+            });
+            } catch (error) {
+                console.error('Error al verificar token en insertUser:', error);
+            }// Emitir evento a todos los clientes excepto al emisor
+        } else {
+            io.emit('nuevoUsuario',{nombre: validatedData.nombre_y_apellido, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
+        }
+        
         res.status(201).json({ message: 'Usuario registrado con éxito' });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
@@ -165,7 +186,7 @@ exports.getEmailByCuit = async (req, res) => {
         const resetToken = jwt.sign(
             { cuil, scope: 'password_reset' },
             RESET_JWT_SECRET,
-            { expiresIn: '5m' } // Expira en 1 hora
+            { expiresIn: '10m' } // Expira en 1 hora
         );
 
         // Enviar email con el enlace de reinicio
@@ -178,7 +199,7 @@ exports.getEmailByCuit = async (req, res) => {
             html: `
                 <p>Haz clic en el siguiente enlace para restablecer tu contraseña:</p>
                 <a href="${resetLink}">${resetLink}</a>
-                <p>Este enlace expirará en 1 hora.</p>
+                <p>Este enlace expirará en 10 minutos.</p>
             `
         };
 

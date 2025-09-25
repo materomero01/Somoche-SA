@@ -1,5 +1,6 @@
 # Ignorar todos los archivos .env
 *.env
+*loginTicket*
 
 # Ignorar la carpeta node_modules del backend
 BACKEND/node_modules/

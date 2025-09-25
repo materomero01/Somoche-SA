@@ -114,6 +114,45 @@ export function hideConfirmModal() {
     window.onclick = null;
 }
 
+export function createLoadingSpinner(container) {
+    
+    // Verificar si el spinner ya existe como hermano del contenedor
+    let spinner = container.parentNode.querySelector('#loading-spinner');
+    
+    if (!spinner) {
+        // Crear el div del spinner
+        spinner = document.createElement('div');
+        spinner.id = 'loading-spinner';
+        
+        // Crear el div interno del spinner
+        const spinnerInner = document.createElement('div');
+        spinnerInner.className = 'spinner';
+        
+        // Agregar texto de cargando
+        const loadingText = document.createTextNode('Cargando datos...');
+        
+        // Construir la estructura
+        spinner.appendChild(spinnerInner);
+        spinner.appendChild(loadingText);
+        
+        // Insertar el spinner como hermano del contenedor
+        container.parentNode.insertBefore(spinner, container);
+    }
+    spinner.classList.remove("hidden");
+    container.classList.add("hidden");
+}
+
+export function toggleSpinnerVisible(container){
+    container.classList.toggle("hidden");
+    let spinner = container.parentNode.querySelector('#loading-spinner');
+    spinner.classList.toggle("hidden");
+}
+
+export function changeSpinnerText(container, text = 'Cargando datos...'){
+    let spinner = container.parentNode.querySelector("#loading-spinner");
+    spinner.childNodes[1].textContent = text;
+}
+
 export function handleAuthorization () {
     const userRole = localStorage.getItem('userRole');
     if (!userRole || userRole !== 'admin'){

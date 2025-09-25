@@ -38,6 +38,7 @@ export function renderTabla({
 
     // Limpiar contenedores
     container.innerHTML = "";
+    delete container.dataset.currentPage;
     if (!useScrollable && paginacionContainer) {
         paginacionContainer.innerHTML = "";
     }
@@ -125,7 +126,6 @@ export function renderTabla({
             tbody.appendChild(noDataRow);
             return;
         }
-
         currentData.forEach(item => {
             const tr = document.createElement("tr");
             tr.setAttribute('data-id', item.id);
@@ -345,7 +345,6 @@ export function renderTabla({
         if (useScrollable) return;
 
         paginacionContainer.innerHTML = "";
-
         const btnPrev = document.createElement("button");
         btnPrev.textContent = "<";
         btnPrev.classList.add("pagination-button");
@@ -417,7 +416,6 @@ export function renderTabla({
 
     function cambiarPagina(nuevaPagina) {
         nuevaPagina = Math.max(1, Math.min(nuevaPagina, totalPaginas));
-
         if (nuevaPagina === parseInt(container.dataset.currentPage)) {
             return;
         }

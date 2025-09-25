@@ -1,5 +1,6 @@
 const pool = require('../db');
 const userSchema = require('../models/User');
+const { getIO } = require('../socket');
 
 exports.getChoferesAll = async (req, res) => {
     if (req.user.role !== 'admin') {
@@ -107,50 +108,20 @@ exports.updateChofer = async (req, res) => {
                 cuilOriginal
             ]
         );
-
-        if (cuilOriginal !== validatedData.cuil){
-            await client.query(
-                `UPDATE viaje
-                SET chofer_cuil = $1
-                WHERE chofer_cuil = $2`,
-                [
-                    validatedData.cuil,
-                    cuilOriginal
-                ]
-            );
-
-            await client.query(
-                `UPDATE pagos_cheque
-                SET chofer_cuil_c = $1
-                WHERE chofer_cuil_c = $2`,
-                [
-                    validatedData.cuil,
-                    cuilOriginal
-                ]
-            );
-
-            await client.query(
-                `UPDATE pagos_gasoil
-                SET chofer_cuil_g = $1
-                WHERE chofer_cuil_g = $2`,
-                [
-                    validatedData.cuil,
-                    cuilOriginal
-                ]
-            );
-
-            await client.query(
-                `UPDATE pagos_otros
-                SET chofer_cuil_o = $1
-                WHERE chofer_cuil_o = $2`,
-                [
-                    validatedData.cuil,
-                    cuilOriginal
-                ]
-            );
-        }
         
         await client.query('COMMIT');
+        
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('updateUsuario',{cuilOriginal: cuilOriginal, updatedData:{nombre: validatedData.nombre_y_apellido, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email}});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+        }
         
         res.status(201).json({ message: 'Usuario modificado con éxito' });
     } catch (error) {

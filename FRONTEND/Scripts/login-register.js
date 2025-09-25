@@ -4,7 +4,7 @@ import { showConfirmModal } from "./apiPublic.js";
 const formSesion = document.getElementById("formSesion");
 const targetsInputs = document.getElementsByClassName("target-input");
 const regexInputs = {
-    'cuil-input': /^\d{2}-\d{8}-\d{1}$/,
+    'cuil-input': /^\d{2}-\d{7,9}-\d{1}$/,
     'chasis-input': /^(?:[A-Za-z]{3} \d{3}|[A-Za-z]{2} \d{3} [A-Za-z]{2})$/,
     'acoplado-input': /^(?:[A-Za-z]{3} \d{3}|[A-Za-z]{2} \d{3} [A-Za-z]{2})$/,
     'telefono-input': /^\d{10}$/,

@@ -1,12 +1,11 @@
 import { renderTabla } from './tabla.js';
-import { getViajes, getPagosCuil, showConfirmModal } from './apiPublic.js';
+import { getViajes, getPagosCuil, showConfirmModal, toggleSpinnerVisible, changeSpinnerText, createLoadingSpinner } from './apiPublic.js';
 import { addViaje, addPagos, updateViaje, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje } from './api.js';
 import { enterEditMode, handleEdit, editingRowId, originalEditingData, stagedEditingData, mockClientes, tarifasCatac } from './choferes-clientes.js';
 import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos} from './resumenes.js';
 import { viaje, initializeFacturaUpload } from './subir-factura.js';
 
-let loadingSpinner;
-let mainContent;
+
 
 // Datos del chofer
 export let choferData = {};
@@ -17,6 +16,7 @@ let pagosData = [];
 
 let pagosOpen = true;
 
+let mainContent;
 
 // Regex for input validation
 const regexInputs = {
@@ -418,7 +418,7 @@ async function setupAddViajeBtn() {
             const response = await addViaje(payload);
             const data = await response.json();
             if (response.ok) {
-                viajesData.push(parseViaje(viaje));
+                viajesData.push(parseViaje({...viaje, cuil: choferData.cuil}));
                 form.reset();
                 setTodayDate();
                 renderizarTablas();
@@ -721,21 +721,16 @@ async function cerrarCuenta() {
                 importe: -importeRestante
             };
         }
-        if (loadingSpinner) {
-            loadingSpinner.classList.remove("hidden");
-            loadingSpinner.childNodes[2].textContent = "Generando resumen...";
-        }
-        if (mainContent) mainContent.classList.add("hidden");
+
+        changeSpinnerText(mainContent, "Generando resumen...");
+        toggleSpinnerVisible(mainContent);
 
         try {
             const response = await addResumen(choferData.cuil, groupStamp, payloadViajes, payloadPagos, payloadRestante);
             if (!response.ok) {
                 showConfirmModal("No se pudo cerrar el resumen del chofer");
-                if (loadingSpinner) {
-                    loadingSpinner.classList.add("hidden");
-                    loadingSpinner.childNodes[2].textContent = "Cargando datos...";
-                }
-                if (mainContent) mainContent.classList.remove("hidden");
+                changeSpinnerText(mainContent);
+                toggleSpinnerVisible(mainContent);
                 return;
             }
             const dataId = await response.json();
@@ -751,11 +746,8 @@ async function cerrarCuenta() {
         } catch (error) {
             console.log(error.message);
         }
-        if (loadingSpinner) {
-            loadingSpinner.classList.add("hidden");
-            loadingSpinner.childNodes[2].textContent = "Cargando datos...";
-        }
-        if (mainContent) mainContent.classList.remove("hidden");
+        changeSpinnerText(mainContent);
+        toggleSpinnerVisible(mainContent);
     };
     if (comprobantes && comprobantes.length > 0)
         showConfirmModal(`¿Estás seguro de cerrar el resumen del chofer?${saldoRestante}`, "confirm", confirmar);
@@ -803,12 +795,8 @@ export async function inicializarModal(data) {
             deleteModal("viajesPagosModal", "contentModalViajes");
         };
     }
-
-    loadingSpinner = document.getElementById('loading-spinner');
-    mainContent = document.getElementById('content-viajes');
-
-    if (loadingSpinner) loadingSpinner.classList.remove("hidden");
-    if (mainContent) mainContent.classList.add("hidden");
+    mainContent = document.getElementById("content-viajes");
+    await createLoadingSpinner(mainContent);
 
     const fields = {
         cheque: document.getElementById('chequeFields'),
@@ -854,23 +842,18 @@ export async function inicializarModal(data) {
         selectCantidad?.addEventListener("change", () => {
             if (selectCantidad.value !== "Otro"){
                 inputCantResumenes.classList.add("hidden");
+                inputCantResumenes.value = '';
                 historialBtn.click();
             } else 
                 inputCantResumenes.classList.remove("hidden");
         })
 
         historialBtn?.addEventListener("click", async () =>{
-            if (loadingSpinner) {
-                loadingSpinner.classList.remove("hidden");
-                loadingSpinner.childNodes[2].textContent = "Cargando resumenes...";
-            }
-            if (mainContent) mainContent.classList.add("hidden");
+            changeSpinnerText(mainContent, "Cargando resumenes...");
+            toggleSpinnerVisible(mainContent);
             await setHistorial(choferData, cartaPorteFunc, deleteFactura);
-            if (loadingSpinner) {
-                loadingSpinner.classList.add("hidden");
-                loadingSpinner.childNodes[2].textContent = "Cargando datos...";
-            }
-            if (mainContent) mainContent.classList.remove("hidden");
+            changeSpinnerText(mainContent);
+            toggleSpinnerVisible(mainContent);
             document.getElementById("back-historial").classList.remove("hidden");
             headerModal.textContent = "Viajes y Pagos - Resumenes";
             contentResumenes.classList.remove("hidden");
@@ -903,7 +886,6 @@ export async function inicializarModal(data) {
         console.error('Error de red o desconocido al obtener datos de los viajes:', error);
         if (mainContent) mainContent.innerHTML = `<p class="error-message">Error de conexión al cargar los datos.</p>`;
     } finally {
-        if (loadingSpinner) loadingSpinner.classList.add("hidden");
-        if (mainContent) mainContent.classList.remove("hidden");
+        toggleSpinnerVisible(mainContent);
     }
 }

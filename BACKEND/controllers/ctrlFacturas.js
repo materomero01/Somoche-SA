@@ -350,7 +350,7 @@ exports.descargarFactura = async (req, res) => {
         let response = await pool.query(query, params);
 
         if (response.rows.length === 0){
-            if (id && id !== "null" & id !== "undefined")
+            if (req.user.role === "admin" && id && id !== "null" & id !== "undefined")
                 response = await pool.query('SELECT factura_pdf FROM factura_arca WHERE valid = true AND id = $1 AND cliente_cuit = $2', params);
             if (response.rows.length === 0)
                 return res.status(406).json({ message: "No se encontro el documento solicitado para el viaje especificado"});

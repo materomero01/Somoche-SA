@@ -1,12 +1,11 @@
 import { cargarNombreChofer, deleteModal, cartaPorteFunc, deleteFactura, setupPaymentTypeSelector, validateInputs } from "./viajes-pagos.js";
 import { editingRowId, enterEditMode, handleEdit, mockChoferes, originalEditingData, stagedEditingData} from "./choferes-clientes.js";
 import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje } from "./api.js";
-import { showConfirmModal } from "./apiPublic.js";
+import { changeSpinnerText, createLoadingSpinner, showConfirmModal, toggleSpinnerVisible } from "./apiPublic.js";
 import { renderTabla } from "./tabla.js";
 import { columnasPagos, columnasViajes, formatFecha, parsePagos, parseViaje, parseImporte } from "./resumenes.js";
 import { viaje, initializeFacturaUpload } from "./subir-factura.js";
 
-let loadingSpinner;
 let mainContent;
 
 let clienteData = [];
@@ -35,7 +34,6 @@ const accionesViajes = [
         classList: ['edit-btn'],
         id: null,
         handler: (item) => {
-
             enterEditMode({ ...item, clienteCuit: clienteData.cuit }, 'viajesCliente');
         }
     },
@@ -215,7 +213,7 @@ function setupSearchBar(searchBarId) {
                     return console.log("Error al setear el serchbar");
             }
             currentViajesClientesPage = 1;
-            renderizarTablaVC(filteredData, 1, !pagosOpen? 8 : null);
+            renderizarTablaVC(filteredData, 1);
         };
 
         searchIcon.addEventListener('click', performSearch);
@@ -373,20 +371,22 @@ export async function handleSaveEditViajesCliente() {
     }
 }
 
-export function renderizarTablaVC(viajesDataRender = viajesAFacturarData, currentPage = 1, itemsPerPage = 5){
-
+export function renderizarTablaVC(viajesDataRender = viajesAFacturarData, currentPage = 1, itemsPerPage = 8){
     let scrollable = false;
     let checkbox = true;
     let actions = accionesViajes;
     let headerAction = null;
     switch (currentEditingTable){
         case "viajes":
-            currentViajesClientesPage = currentPage;
+            currentPage = currentViajesClientesPage;
             headerAction = checkboxHeaderActionGenerate;
+            itemsPerPage = 8;
             break;
         case "historial":
             currentViajesHistorialPage = currentPage;
             checkbox = false;
+            itemsPerPage = pagosOpen? 3 : 8;
+            scrollable = true
             actions = actions.filter( accion => !(accion.tooltip.includes("Editar") || accion.tooltip.includes("Eliminar")));
             break;
         case "viajesFacturados":
@@ -435,7 +435,7 @@ export function renderizarTablaVC(viajesDataRender = viajesAFacturarData, curren
         checkboxColumnPosition: "end",
         checkboxHeaderAction: headerAction,
         currentPage: currentPage,
-        onPageChange: (page) => { currentEditingTable === 'viajes'? currentViajesClientesPage = page : currentViajesHistorialPage = page; },
+        onPageChange: (page) => { currentViajesClientesPage = page },
         useScrollable: scrollable
     });
 
@@ -724,11 +724,7 @@ async function handleTabContentDisplay(selectedTab){
         const searchInput = document.getElementById('searchInput');
 
         if (searchInput) searchInput.value = '';
-        if (loadingSpinner) {
-            loadingSpinner.classList.remove("hidden");
-            loadingSpinner.childNodes[2].textContent = "Cargando datos...";
-        }
-        if (mainContent) mainContent.classList.add("hidden")
+        toggleSpinnerVisible(mainContent);
         try {
             if (selectedTab === 'aFacturar') {
                 const response = await getViajesCliente(clienteData.cuit, false, null);
@@ -781,11 +777,7 @@ async function handleTabContentDisplay(selectedTab){
             console.log(error.message);
             closeButton.click();
         }
-        if (loadingSpinner) {
-            loadingSpinner.classList.add("hidden");
-            loadingSpinner.childNodes[2].textContent = "Cargando datos...";
-        }
-        if (mainContent) mainContent.classList.remove("hidden")
+        toggleSpinnerVisible(mainContent);
 }
 
 async function setHistorial() {
@@ -838,11 +830,9 @@ export async function inicializarModaCliente(data) {
         };
     }
 
-    loadingSpinner = document.getElementById('loading-spinner');
     mainContent = document.getElementById('content-clientesViajes');
 
-    if (loadingSpinner) loadingSpinner.classList.remove("hidden");
-    if (mainContent) mainContent.classList.add("hidden");
+    createLoadingSpinner(mainContent);
 
     const fields = {
         cheque: document.getElementById('chequeFields'),
@@ -855,7 +845,6 @@ export async function inicializarModaCliente(data) {
     const clienteAddPago = document.getElementById('cliente-pagos-wrapper');
     const searchInput = document.getElementById('searchInput');
     const togglePagosArea = document.getElementById('togglePagosArea');
-    togglePagosArea.style.cursor = 'pointer';
 
     // Toggle pagos area
     togglePagosArea?.addEventListener('click', () => {
@@ -865,10 +854,7 @@ export async function inicializarModaCliente(data) {
         clienteAddPago.classList.toggle('hidden');
         if (searchInput) searchInput.value = '';
         pagosOpen = !pagosOpen;
-        if (pagosOpen)
-            renderizarTablaVC(currentEditingTable !== "historial" ? viajesFacturadosData : viajesHistorialData, 1);
-        else
-            renderizarTablaVC(currentEditingTable !== "historial" ? viajesFacturadosData : viajesHistorialData, 1, 8);
+        renderizarTablaVC(currentEditingTable !== "historial" ? viajesFacturadosData : viajesHistorialData, 1);
     });
 
 
@@ -894,7 +880,8 @@ export async function inicializarModaCliente(data) {
         selectPagosCantidad?.addEventListener("change", () => {
             if (selectPagosCantidad.value !== "Otro"){
                 inputCantPagos.classList.add('hidden');
-                setupTabSelectorCliente();
+                inputCantPagos.value = '';
+                setUltimosPagos(selectPagosCantidad.value);
             } else {
                 inputCantPagos.classList.remove('hidden');
             }
@@ -902,13 +889,14 @@ export async function inicializarModaCliente(data) {
 
         inputCantPagos?.addEventListener("change", () => {
             if (inputCantPagos.value > 0)
-                setupTabSelectorCliente();
+                setUltimosPagos(inputCantPagos.value);
         })
 
 
         selectCantidad?.addEventListener("change", () => {
             if (selectCantidad.value !== "Otro"){
                 inputCantViajes.classList.add("hidden");
+                inputCantViajes.value = '';
                 historialBtn.click();
             } else
                 inputCantViajes.classList.remove("hidden");
@@ -919,19 +907,13 @@ export async function inicializarModaCliente(data) {
         })
 
         historialBtn?.addEventListener("click", async () =>{
-            if (loadingSpinner) {
-                loadingSpinner.classList.remove("hidden");
-                loadingSpinner.childNodes[2].textContent = "Cargando resumenes...";
-            }
-            if (mainContent) mainContent.classList.add("hidden");
+            changeSpinnerText(mainContent, "Cargando resumenes...");
+            toggleSpinnerVisible(mainContent);
             summaryBoxes.classList.add("hidden");
             if (pagosOpen && currentEditingTable !== "historial") togglePagosArea.click();
             await setHistorial();
-            if (loadingSpinner) {
-                loadingSpinner.classList.add("hidden");
-                loadingSpinner.childNodes[2].textContent = "Cargando datos...";
-            }
-            if (mainContent) mainContent.classList.remove("hidden");
+            changeSpinnerText(mainContent);
+            toggleSpinnerVisible(mainContent);
             document.getElementById("back-historial").classList.remove("hidden");
             headerModal.textContent = "Viajes - Historial";
             historialBtn.classList.add("hidden");
@@ -953,7 +935,6 @@ export async function inicializarModaCliente(data) {
         console.error('Error de red o desconocido al obtener datos de los viajes:', error);
         if (mainContent) mainContent.innerHTML = `<p class="error-message">Error de conexión al cargar los datos.</p>`;
     } finally {
-        if (loadingSpinner) loadingSpinner.classList.add("hidden");
-        if (mainContent) mainContent.classList.remove("hidden");
+        toggleSpinnerVisible(mainContent);
     }
 }

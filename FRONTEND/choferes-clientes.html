@@ -26,7 +26,7 @@
     <div id="sidebar-container"></div>
 
     <main class="content" style="overflow: visible;">
-        <section class="gestion-usuarios-section">
+        <section class="gestion-usuarios-section" id="principalContent">
 
             <div class="tab-selector" id="choferesClientesSelector">
                 <div class="tab-item active" data-tab="choferes">Choferes</div>
@@ -158,6 +158,7 @@
 
     <script src="/FRONTEND/scripts/header.js"></script>
     <script src="/FRONTEND/scripts/sidebar.js"></script>
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
     <script type="module" src="/FRONTEND/scripts/viajes-pagos.js"></script>
     <script type="module" src="/FRONTEND/scripts/viajes-clientes.js"></script>
     <script type="module" src="/FRONTEND/scripts/resumenes.js"></script>

@@ -368,6 +368,10 @@
     display: none !important;
 }
 
+.content #loading-spinner {
+    padding: 250px;
+}
+
 /* Para alineación a la derecha de celdas específicas */
 .tabla-dinamica .text-right {
     text-align: right;
