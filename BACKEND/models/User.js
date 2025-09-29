@@ -5,7 +5,7 @@ const validateUser = (data) => {
     // Campos requeridos y sus reglas
     const requiredFields = {
         cuil: { type: 'string', required: true, regex: /^\d{2}-\d{7,9}-\d{1}$/ },
-        nombre_y_apellido: { type: 'string', required: true },
+        nombre: { type: 'string', required: true },
         password: { type: 'string', required: true },
         trabajador: { type: 'string', required: true, enum: ['Monotributista', 'Responsable Inscripto'] },
         patente_chasis: { type: 'string', required: true, regex: /^(?:[A-Za-z]{3} \d{3}|[A-Za-z]{2} \d{3} [A-Za-z]{2})$/ },
@@ -59,7 +59,11 @@ const validateUser = (data) => {
                     errors.push(key);
                     continue;
                 }
-                validatedData[key] = value; // Ya no necesitamos trim() === '' ? null : value; aquí
+
+                if (['patente_chasis', 'patente_acoplado'].includes(key)){
+                    validatedData[key] = value.toUpperCase();
+                }
+                else validatedData[key] = value; // Ya no necesitamos trim() === '' ? null : value; aquí
             } else if (rules.type === 'number') {
                 const parsedValue = typeof value === 'string' ? parseFloat(value) : value;
                 if (isNaN(parsedValue)) { // Esto ahora no debería fallar en '' porque se convierte a null antes

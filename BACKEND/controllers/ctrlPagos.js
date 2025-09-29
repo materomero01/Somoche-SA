@@ -1,5 +1,6 @@
 const pool = require('../db');
 const pagoSchema = require('../models/Pago.js');
+const { getIO } = require('../socket');
 
 exports.insertPagos = async (req, res) => {
     if (req.user.role !== 'admin') {
@@ -21,9 +22,10 @@ exports.insertPagos = async (req, res) => {
             console.log(errors);
             return res.status(400).json({ message: 'Errores de validación', errors });
         }
+        let nombre;
         if (chofer_cuil){
             const userExists = await client.query(
-                'SELECT cuil FROM usuario WHERE cuil = $1',
+                'SELECT cuil, nombre_apellido AS nombre FROM usuario WHERE valid = true AND cuil = $1',
                 [chofer_cuil]
             );
             if (userExists.rows.length === 0) {
@@ -31,11 +33,12 @@ exports.insertPagos = async (req, res) => {
                     message: `El chofer con CUIL ${chofer_cuil} no está registrado.`
                 });
             }
+            nombre = userExists.rows[0].nombre;
         }
 
         if (cliente_cuit){
             const clienteExists = await client.query(
-                'SELECT cuit FROM cliente WHERE cuit = $1',
+                'SELECT cuit FROM cliente WHERE valid = true AND cuit = $1',
                 [cliente_cuit]
             );
             if (clienteExists.rows.length === 0) {
@@ -45,18 +48,30 @@ exports.insertPagos = async (req, res) => {
             }
         }
         let pagoId;
+        let pagosArray = [];
         // Procesar cada pago
         for (const [index, pago] of validatedData.entries()) {
             // Insertar según el tipo de pago
             if (pago.tipo.toLowerCase() === 'cheque') {
+                let responseExists = await client.query("SELECT valid FROM pagos_cheque WHERE nro = $1",
+                    [pago.nroCheque]
+                );
+
+                if (responseExists.rowCount > 0) {
+                    if (responseExists.rows[0].valid)
+                        return res.status(409).json({message: `El cheque con número ${pago.nroCheque} ya se encuentra registrado`});
+                    else 
+                        await client.query("DELETE FROM pagos_cheque WHERE valid = false AND nro = $1", [pago.nroCheque]);
+                };
+
                 const result = await client.query(
                     `INSERT INTO pagos_cheque (
                         chofer_cuil, fecha_pago, fecha_cheque, nro, tercero, destinatario, importe, pagado, cliente_cuit
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING nro AS id`,
                     [
                         chofer_cuil? chofer_cuil : pago.chofer_cuil,
-                        pago.fechaPago,
-                        pago.fechaCheque,
+                        pago.fecha_pago,
+                        pago.fecha_cheque,
                         pago.nroCheque,
                         pago.tercero,
                         pago.destinatario,
@@ -65,8 +80,19 @@ exports.insertPagos = async (req, res) => {
                         cliente_cuit? cliente_cuit : pago.cliente_cuit
                     ]
                 );
+                pagosArray.push({id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, importe: pago.importe, cliente_cuit: cliente_cuit, nombre: nombre})
                 pagoId = result.rows[0];
             } else if (pago.tipo.toLowerCase() === 'gasoil') {
+                let responseExists = await client.query("SELECT valid FROM pagos_gasoil WHERE comprobante = $1",
+                    [pago.comprobante]
+                );
+
+                if (responseExists.rowCount > 0){ 
+                    if (responseExists.rows[0].valid)
+                        return res.status(409).json({message: `El pago de gasoil con comprobante ${pago.comprobante} ya se encuentra registrado`})
+                    else
+                        await client.query("DELETE FROM pagos_gasoil WHERE valid = false AND comprobante = $1", [pago.comprobante]);
+                };
                 const result = await client.query(
                     `INSERT INTO pagos_gasoil (
                         comprobante, chofer_cuil, fecha_pago, precio, litros
@@ -74,13 +100,25 @@ exports.insertPagos = async (req, res) => {
                     [
                         pago.comprobante,
                         chofer_cuil,
-                        pago.fechaPago,
+                        pago.fecha_pago,
                         pago.precioGasoil,
                         pago.litros,
                     ]
                 );
+                pagosArray.push({id: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, importe: pago.precioGasoil * pago.litros, litros: pago.litros});
                 pagoId = result.rows[0];
-            } else if (pago.tipo.toLowerCase() === 'otro') {     
+            } else if (pago.tipo.toLowerCase() === 'otro') {  
+                let responseExists = await client.query("SELECT valid FROM pagos_otro WHERE comprobante = $1",
+                    [pago.comprobante]
+                );
+
+                if (responseExists.rowCount > 0){
+                    if (responseExists.rows[0].valid)
+                        return res.status(409).json({message: `El pago con comprobante ${pago.comprobante} ya se encuentra registrado`})
+                    else
+                        await client.query("DELETE FROM pagos_otro WHERE valid = false AND comprobante = $1", [pago.comprobante]);
+                };  
+                
                 const result = await client.query(
                     `INSERT INTO pagos_otro (
                         comprobante, ${chofer_cuil? 'chofer_cuil' : 'cliente_cuit'}, fecha_pago, detalle, importe
@@ -88,11 +126,12 @@ exports.insertPagos = async (req, res) => {
                     [
                         pago.comprobante,
                         chofer_cuil? chofer_cuil : cliente_cuit,
-                        pago.fechaPago,
+                        pago.fecha_pago,
                         pago.detalle,
                         pago.importe
                     ]
                 );
+                pagosArray.push({id: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, detalle: pago.detalle, importe: pago.importe});
                 pagoId = result.rows[0];
             }
         }
@@ -101,6 +140,19 @@ exports.insertPagos = async (req, res) => {
         res.status(201).json({ 
             message: `Se registraron ${validatedData.length} pago(s) con éxito`, pagoId
         });
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('nuevoPago', {pagosArray: pagosArray, cuil:chofer_cuil? chofer_cuil : cliente_cuit});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en insertPagos", error.stack);
+        }
+
     } catch (error) {
         if (client) await client.query('ROLLBACK');
         console.error('Error en insertPagos:', error);
@@ -394,8 +446,8 @@ exports.updatePagos = async (req, res) => {
                 idColumn = 'nro';
                 const allowedFields = {
                     chofer_cuil_c: choferCuil,
-                    fecha_pago: validatedData[0].fechaPago,
-                    fecha_c: validatedData[0].fechaCheque,
+                    fecha_pago: validatedData[0].fecha_pago,
+                    fecha_c: validatedData[0].fecha_cheque,
                     nro: validatedData[0].nroCheque,
                     tercero: validatedData[0].tercero,
                     destinatario: validatedData[0].destinatario,
@@ -428,7 +480,7 @@ exports.updatePagos = async (req, res) => {
                 idColumn = 'comprobante';
                 const allowedFields = {
                     chofer_cuil_g: choferCuil,
-                    fecha_pago: validatedData[0].fechaPago,
+                    fecha_pago: validatedData[0].fecha_pago,
                     precio: validatedData[0].precioGasoil,
                     litros: validatedData[0].litros,
                     group: validatedData[0].group
@@ -458,7 +510,7 @@ exports.updatePagos = async (req, res) => {
                 idColumn = 'comprobante';
                 const allowedFields = {
                     chofer_cuil_o: choferCuil,
-                    fecha_pago: validatedData[0].fechaPago,
+                    fecha_pago: validatedData[0].fecha_pago,
                     detalle: validatedData[0].detalle,
                     importe: validatedData[0].importe,
                     group: validatedData[0].group
@@ -519,8 +571,6 @@ exports.deletePago = async (req, res) => {
     }
 
     const { id, type } = req.query;
-    console.log(id);
-    console.log(type);
     if (!id || !type || id === "undefined" || type === "undefined" || id === "null" || type === "null"){
         return res.status(404).json({ message: "No se pudo obtener información sobre el pago a eliminar"});
     }
@@ -533,15 +583,15 @@ exports.deletePago = async (req, res) => {
         let querySelect, queryDelete;
         switch (type.toLowerCase()){
             case 'cheque':
-                querySelect = 'SELECT nro FROM pagos_cheque WHERE valid = true AND nro = $1';
+                querySelect = 'SELECT nro, chofer_cuil FROM pagos_cheque WHERE valid = true AND nro = $1';
                 queryDelete = 'UPDATE pagos_cheque SET valid = false WHERE nro = $1';
                 break;
             case 'gasoil':
-                querySelect = 'SELECT comprobante FROM pagos_gasoil WHERE valid = true AND comprobante = $1';
+                querySelect = 'SELECT comprobante, chofer_cuil FROM pagos_gasoil WHERE valid = true AND comprobante = $1';
                 queryDelete = 'UPDATE pagos_gasoil SET valid = false WHERE comprobante = $1';
                 break;
             case 'otro':
-                querySelect = 'SELECT comprobante FROM pagos_otro WHERE valid = true AND comprobante = $1';
+                querySelect = 'SELECT comprobante, chofer_cuil FROM pagos_otro WHERE valid = true AND comprobante = $1';
                 queryDelete = 'UPDATE pagos_otro SET valid = false WHERE comprobante = $1';
                 break;
             default:
@@ -564,6 +614,18 @@ exports.deletePago = async (req, res) => {
 
         client.query("COMMIT");
         client.release();
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('deletePago', {id: id, tipo: type, cuil: responseExists.rows[0].chofer_cuil});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en deletePago", error.stack);
+        }
 
         return res.status(200).json({message: `El pago con comprobante ${id} fue eliminado con exito`});
     } catch (error){

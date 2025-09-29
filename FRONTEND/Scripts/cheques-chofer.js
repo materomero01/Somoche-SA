@@ -1,6 +1,6 @@
 // /FRONTEND/scripts/cheques.js
 
-import { getCheques, showConfirmModal } from './apiPublic.js';
+import { createLoadingSpinner, getCheques, showConfirmModal, toggleSpinnerVisible } from './apiPublic.js';
 import { renderTabla } from './tabla.js'; // Asegúrate que la ruta sea correcta
 
 // Simulamos datos de cheques próximos y pagos
@@ -8,6 +8,8 @@ import { renderTabla } from './tabla.js'; // Asegúrate que la ruta sea correcta
 let datosChequesProximos = [];
 
 let datosChequesPagos = [];
+
+const contentPrincipal = document.getElementById("contentPrincipal");
 
 function generarFechaFutura() {
     const hoy = new Date();
@@ -170,6 +172,8 @@ async function loadChequesData() {
 // Setup general al cargar la página
 
 document.addEventListener('DOMContentLoaded', async function () {
+    await createLoadingSpinner(contentPrincipal);
+
     if (typeof loadHeader === 'function') await loadHeader();
     if (typeof loadSidebar === 'function') {
         const role = localStorage.getItem('userRole') || 'chofer';
@@ -202,4 +206,5 @@ document.addEventListener('DOMContentLoaded', async function () {
         // Fallback si no hay tab activa por defecto, o para la primera carga
         renderTablaProximos();
     }
+    toggleSpinnerVisible(contentPrincipal);
 });

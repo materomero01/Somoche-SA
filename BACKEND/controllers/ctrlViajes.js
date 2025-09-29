@@ -1,5 +1,6 @@
 const pool = require('../db');
 const viajeSchema = require('../models/Viaje.js');
+const { getIO } = require('../socket');
 
 exports.insertViaje = async (req, res) => {
     if (req.user.role !== 'admin') {
@@ -75,6 +76,18 @@ exports.insertViaje = async (req, res) => {
         await client.query('COMMIT');
         client.release();
 
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('nuevoViaje', validatedData);
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+        }
+        
         res.status(201).json({ message: `Viaje cargado con éxito al chofer "${validatedData.nombre}"` });
     } catch (error) {
         if (client) {
@@ -224,7 +237,7 @@ exports.updateViajes = async (req, res) => {
 
             // Verificar si el viaje existe
             const viajeExists = await client.query(
-                'SELECT chofer_cuil FROM viaje WHERE comprobante = $1',
+                'SELECT chofer_cuil AS cuil FROM viaje WHERE comprobante = $1',
                 [comprobante]
             );
 
@@ -259,6 +272,20 @@ exports.updateViajes = async (req, res) => {
             if (result.rowCount === 0) {
                 errors.push({ comprobante, message: `No se pudo actualizar el viaje con comprobante ${comprobante}.` });
                 continue;
+            }
+
+            console.log(validatedData);
+
+            try {
+                const io = getIO();
+                // Avisar a todos los clientes conectados
+                io.sockets.sockets.forEach((socket) => {
+                    if (socket.cuil !== req.user.cuil) {
+                        socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, ...validatedData}});
+                    }
+                });
+            } catch (error){
+                console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
             }
 
             updatedViajes.push(comprobante);
@@ -307,7 +334,7 @@ exports.deleteViaje = async (req, res) => {
         console.log(comprobante);
         // Verificar si el viaje existe y está válido
         const viajeExists = await client.query(
-            'SELECT comprobante FROM viaje WHERE comprobante = $1 AND valid = true',
+            'SELECT chofer_cuil AS cuil FROM viaje WHERE comprobante = $1 AND valid = true',
             [comprobante]
         );
         if (viajeExists.rows.length === 0) {
@@ -333,6 +360,19 @@ exports.deleteViaje = async (req, res) => {
 
         await client.query('COMMIT');
         client.release();
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('deleteViaje',{comprobante: comprobante, cuil: viajeExists.rows[0].cuil});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+        }
+
         return res.status(200).json({
             message: 'Viaje marcado como no válido con éxito.'
         });

@@ -139,24 +139,34 @@ exports.deleteChofer = async (req, res) => {
     }
     const cuil = req.params.cuil;
 
-    try { 
-
-        
-
-        const { rowCount } = await pool.query(
+    try {
+        let { rowCount } = await pool.query(
             'UPDATE usuario SET valid = false WHERE cuil = $1',
             [cuil]
         );
-        const { rowCount2 } = await pool.query(
-            'UPDATE chofer SET valid = false WHERE cuil = $1',
-            [cuil]
-        );
-
+        
         if (rowCount === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
         }
-        if (rowCount2 === 0) {
+        const result = await pool.query(
+            'UPDATE chofer SET valid = false WHERE cuil = $1',
+            [cuil]
+        );
+        
+        if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Chofer no encontrado.' });
+        }
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('deleteUsuario',{cuil: cuil});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
         }
         res.status(200).json({ message: 'Chofer desactivado con éxito' });
     } catch (error) {

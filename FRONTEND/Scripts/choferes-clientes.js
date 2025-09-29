@@ -1,5 +1,5 @@
 import { renderTabla } from './tabla.js';
-import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchTarifas, fetchClientes } from './api.js';
+import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchTarifas, fetchClientes, socket } from './api.js';
 import { updateChofer, showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText } from './apiPublic.js';
 import { inicializarModal, renderizarTablas, handleSaveEditViajes } from './viajes-pagos.js';
 import { parseImporte } from './resumenes.js';
@@ -170,6 +170,10 @@ export function renderCurrentTable() {
     } else if (currentEditingTableType === "viajesCliente") {
         renderizarTablaVC();
     }
+}
+
+export function setEditingRow(valor){
+    editingRowId = valor;
 }
 
 // --- Lógica de Pestañas ---
@@ -589,10 +593,6 @@ function setupTableEventListeners() {
 
 // --- Inicialización al cargar el DOM ---
 document.addEventListener('DOMContentLoaded', async function () {
-    const socket = io('http://localhost:3000', {
-        auth: { token: localStorage.getItem('jwtToken') }
-    });
-
     const headerContainer = document.getElementById('header-container');
     const sidebarContainer = document.getElementById('sidebar-container');
     const confirmModal = document.getElementById('confirmModal');
@@ -647,11 +647,33 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateUsuario', async (user) => {
         let chofer = mockChoferes.find(chofer => chofer.cuil === user.cuilOriginal);
         const updatedData = user.updatedData;
-        if (chofer){
-            Object.assign(chofer, updatedData);
+        if (chofer){    
             console.log(`Chofer con cuil ${user.cuilOriginal} modificado`);
             if (currentEditingTableType === "choferes" && editingRowId) {
                 if (mockChoferes.find(chofer => chofer.id === editingRowId).cuil === user.cuilOriginal){
+                    Object.assign(chofer, updatedData);
+                    editingRowId = null;
+                    changeSpinnerText(principalContent, "Actualizando datos...");
+                    toggleSpinnerVisible(principalContent);
+                    await renderChoferesTable(mockChoferes, currentChoferesPage);
+                    changeSpinnerText(principalContent);
+                    toggleSpinnerVisible(principalContent);
+                    showConfirmModal("Se han actualizado los datos");
+
+                }
+                Object.assign(chofer, updatedData);
+                return;
+            }
+            Object.assign(chofer, updatedData);
+            renderChoferesTable(mockChoferes, currentChoferesPage);
+        }
+    });
+
+    socket.on('deleteUsuario', async (user) => {
+        const chofer = mockChoferes.find(chofer => chofer.cuil === user.cuil);
+        mockChoferes = mockChoferes.filter(chofer => chofer.cuil !== user.cuil);
+        if (currentEditingTableType === "choferes" && editingRowId){
+            if (chofer.id === editingRowId && chofer.cuil === user.cuil){
                     editingRowId = null;
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
@@ -663,8 +685,57 @@ document.addEventListener('DOMContentLoaded', async function () {
                 }
                 return;
             }
-            renderChoferesTable(mockChoferes, currentChoferesPage);
+        renderChoferesTable(mockChoferes, currentChoferesPage);
+    });
+
+    socket.on('nuevoCliente', async (client) => {
+        mockClientes.push({id: mockClientes.length + 1, ...client});
+        console.log("Nuevo cliente añadido");
+        if (currentEditingTableType === "clientes" && editingRowId) return;
+        renderClientesTable(mockClientes, currentClientesPage);
+    });
+
+    socket.on('updateCliente', async (client) => {
+        let cliente = mockClientes.find(cliente => cliente.cuit === client.cuitOriginal);
+        const updatedData = client.updatedData;
+        if (cliente){
+            console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
+            if (currentEditingTableType === "clientes" && editingRowId) {
+                if (mockClientes.find(cliente => cliente.id === editingRowId).cuit === client.cuitOriginal){
+                    Object.assign(cliente, updatedData);
+                    editingRowId = null;
+                    changeSpinnerText(principalContent, "Actualizando datos...");
+                    toggleSpinnerVisible(principalContent);
+                    await renderClientesTable(mockClientes, currentClientesPage);
+                    changeSpinnerText(principalContent);
+                    toggleSpinnerVisible(principalContent);
+                    showConfirmModal("Se han actualizado los datos");
+                }
+                Object.assign(cliente, updatedData);
+                return;
+            }
+            Object.assign(cliente, updatedData);
+            renderClientesTable(mockClientes, currentClientesPage);
         }
+    });
+
+    socket.on('deleteCliente', async (client) => {
+        const cliente = mockClientes.find(cliente => cliente.cuit === client.cuit);
+        mockClientes = mockClientes.filter(cliente => cliente.cuit !== client.cuit);
+        if (currentEditingTableType === "clientes" && editingRowId){
+            if (cliente.id === editingRowId && cliente.cuit === client.cuit){
+                    editingRowId = null;
+                    changeSpinnerText(principalContent, "Actualizando datos...");
+                    toggleSpinnerVisible(principalContent);
+                    await renderClientesTable(mockClientes, currentClientesPage);
+                    changeSpinnerText(principalContent);
+                    toggleSpinnerVisible(principalContent);
+                    showConfirmModal("Se han actualizado los datos");
+
+                }
+                return;
+            }
+        renderClientesTable(mockClientes, currentClientesPage);
     });
 
     // Add CUIT capture for navigate-btn

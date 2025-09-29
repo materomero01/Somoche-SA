@@ -2,6 +2,10 @@ import {getToken, handleAuthorization, handleAuthError, showConfirmModal, setTok
 
 const apiURL = 'http://localhost:3000/api';
 
+export const socket = io('http://localhost:3000', {
+    auth: { token: localStorage.getItem('jwtToken') }
+});
+
 // Setup autocomplete
 export function setupAutocomplete({ inputId, suggestionsId = `${inputId}-suggestions`, filterSuggestions, renderSuggestion, onSelect, dependentInputId, onDependentChange }) {
     const input = document.getElementById(inputId);
@@ -357,10 +361,6 @@ export async function addPagos(payload) {
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-
-        if (!response.ok) {
-            throw new Error('Error al añadir los pagos');
-        }
 
         return response;
     } catch (error) {

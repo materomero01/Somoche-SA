@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { getIO } = require('../socket');
 
 const regexCuit = /^\d{2}-\d{8}-\d{1}$/;
 const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -65,6 +66,17 @@ exports.insertCliente = async (req, res) => {
             [data.cuit, data.nombre, data.email]
         );
 
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('nuevoCliente', data);
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+        }
         res.status(208).json({ message: "El cliente fue registrado con exito"});
 
     } catch (error) {
@@ -105,6 +117,17 @@ exports.updateClientes = async (req, res) => {
             [data.cuit, data.nombre, data.email, cuitOriginal]
         );
 
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('updateCliente',{cuitOriginal: cuitOriginal, updatedData: data});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+        }
         res.status(207).json({ message: "Cliente modificado con exito"});
 
     } catch (error) {
@@ -128,6 +151,17 @@ exports.deleteClientes = async (req, res) => {    if (req.user.role !== 'admin')
             return res.status(404).json({ message: 'Cliente no encontrado.' });
         }
 
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('deleteCliente',{cuit: cuit});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+        }
         res.status(200).json({ message: 'Cliente eliminado lógicamente con éxito.' });
 
     } catch (error) {

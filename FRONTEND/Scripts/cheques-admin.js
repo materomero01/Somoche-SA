@@ -1,8 +1,8 @@
 // /FRONTEND/scripts/cheques-admin.js
 
-import { setChequesPagos } from './api.js';
+import { setChequesPagos, socket } from './api.js';
 import { renderTabla } from './tabla.js';
-import { getCheques, showConfirmModal } from './apiPublic.js';
+import { createLoadingSpinner, getCheques, showConfirmModal, toggleSpinnerVisible } from './apiPublic.js';
 
 // Arrays para almacenar los datos de cheques próximos y pagados
 let datosChequesProximos = [];
@@ -11,6 +11,8 @@ let chequesFueraFecha = [];
 
 // Mapa para mantener el estado de los cheques seleccionados
 const selectedCheques = new Map(); // Map<nro_cheque, chequeObject>
+
+const contentPrincipal = document.getElementById("contentPrincipal");
 
 // Objeto para almacenar los filtros actuales
 let currentFilter = {
@@ -428,12 +430,16 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
+    await createLoadingSpinner(contentPrincipal);
+
     setupChequesTabSelector();
 
     const initialActiveTab = document.querySelector('.tab-item.active');
     if (initialActiveTab) {
-        mostrarContenidoTabCheques(initialActiveTab.dataset.tab);
+        await mostrarContenidoTabCheques(initialActiveTab.dataset.tab);
     }
+
+    toggleSpinnerVisible(contentPrincipal);
 
     const cancelSelectionBtn = document.getElementById('cancel-selection-btn');
     if (cancelSelectionBtn) {
@@ -532,6 +538,20 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (filterCardVisible && currentActiveFilterBtn) {
             const filterCard = document.getElementById('filter-card');
             positionFilterCard(filterCard, currentActiveFilterBtn);
+        }
+    });
+
+    socket.on('nuevoPago', async (pagos) => {
+        let actualizo = false;
+        pagos.pagosArray.forEach( pago => {
+            if (pago.tipo === 'cheque' && !datosChequesProximos.find(c => c.nro_cheque === pago.comprobante) && !pago.cliente_cuit){
+                datosChequesProximos.push(pago);
+                actualizo = true;
+            };
+        });
+        if (actualizo) {
+            await renderTablaProximos();
+            showConfirmModal("Se actualizaron los pagos del chofer");
         }
     });
 

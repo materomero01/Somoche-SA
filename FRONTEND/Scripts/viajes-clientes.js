@@ -452,6 +452,7 @@ function renderPagosVC(pagosData = ultimosPagosCliente){
             descripcion: p.descripcion,
             importe: `$${p.importe.toFixed(2)}`.replace('$-',"-$")
     })),
+        itemsPorPagina: 3,
         columnas: columnasPagos,
         actions: accionesPagos,
         tableType: 'pagos',

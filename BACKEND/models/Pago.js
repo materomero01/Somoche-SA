@@ -7,13 +7,13 @@ const isValidDate = (value) => {
 
 const pagoSchema = {
     tipo: { type: 'string', required: true, enum: ['cheque', 'gasoil', 'otro'], error: 'El tipo debe ser uno de: cheque, gasoil, otro.' },
-    fechaPago: { type: 'date', required: true, validate: isValidDate, error: 'La fechaPago debe ser una fecha válida en formato YYYY-MM-DD.' },
+    fecha_pago: { type: 'date', required: true, validate: isValidDate, error: 'La fechaPago debe ser una fecha válida en formato YYYY-MM-DD.' },
     group: { type: 'date', required: false, validate: isValidDate, error: 'El grupo debe ser una fecha válida en formato YYYY-MM-DD.' }
 };
 
 const pagoChequeSchema = {
     ...pagoSchema,
-    fechaCheque: { type: 'date', required: true, validate: isValidDate, error: 'La fechaCheque debe ser una fecha válida en formato YYYY-MM-DD.' },
+    fecha_cheque: { type: 'date', required: true, validate: isValidDate, error: 'La fechaCheque debe ser una fecha válida en formato YYYY-MM-DD.' },
     nroCheque: { type: 'number', required: true, min: 0, integer: true, error: 'El nroCheque debe ser un número entero mayor o igual a 0.' },
     tercero: { type: 'string', required: true, error: 'El tercero es obligatorio.' },
     destinatario: { type: 'string', required: true, error: 'El destinatario es obligatorio.' },

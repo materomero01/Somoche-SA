@@ -11,7 +11,6 @@ exports.insertUser = async (req, res) => {
     let client;
    try {
         // Validar datos de entrada
-        console.log(req.body);
         const { errors, validatedData } = userSchema(req.body);
         if (errors.length > 0) {
             return res.status(400).json({ message: `Los datos ingresados para ${errors.join(', ')} no son validos` });
@@ -40,7 +39,7 @@ exports.insertUser = async (req, res) => {
             ) VALUES ($1, $2, $3, $4, $5, $6)`,
             [
                 validatedData.cuil,
-                validatedData.nombre_y_apellido? validatedData.nombre_y_apellido : validatedData.nombre,
+                validatedData.nombre,
                 hashedPassword,
                 validatedData.telefono,
                 validatedData.email,
@@ -56,8 +55,8 @@ exports.insertUser = async (req, res) => {
             [
                 validatedData.cuil,
                 validatedData.trabajador,
-                validatedData.patente_chasis.toUpperCase(),
-                validatedData.patente_acoplado?.toUpperCase()
+                validatedData.patente_chasis,
+                validatedData.patente_acoplado
             ]
         );
 
@@ -73,14 +72,14 @@ exports.insertUser = async (req, res) => {
                 emitterCuil = decoded.cuil;
                 io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== emitterCuil) {
-                    socket.emit('nuevoUsuario',{nombre: validatedData.nombre_y_apellido, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
+                    socket.emit('nuevoUsuario',{nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
                 }
             });
             } catch (error) {
                 console.error('Error al verificar token en insertUser:', error);
             }// Emitir evento a todos los clientes excepto al emisor
         } else {
-            io.emit('nuevoUsuario',{nombre: validatedData.nombre_y_apellido, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
+            io.emit('nuevoUsuario',{nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
         }
         
         res.status(201).json({ message: 'Usuario registrado con éxito' });
@@ -186,7 +185,7 @@ exports.getEmailByCuit = async (req, res) => {
         const resetToken = jwt.sign(
             { cuil, scope: 'password_reset' },
             RESET_JWT_SECRET,
-            { expiresIn: '10m' } // Expira en 1 hora
+            { expiresIn: '10m' } // Expira en 10min
         );
 
         // Enviar email con el enlace de reinicio

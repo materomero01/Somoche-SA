@@ -44,11 +44,11 @@ exports.insertResumen = async(req, res) => {
 
             values = [groupStamp, index.split('-')[0]];
             if (tipo.toLowerCase() === 'cheque') {
-                query = `UPDATE pagos_cheque SET group_r = $1 WHERE nro = $2`;
+                query = `UPDATE pagos_cheque SET group_r = $1 WHERE valid = true AND nro = $2 AND group_r IS NULL`;
             } else if (tipo.toLowerCase() === 'gasoil') {
-                query = `UPDATE pagos_gasoil SET group_r = $1 WHERE comprobante = $2`;
+                query = `UPDATE pagos_gasoil SET group_r = $1 WHERE valid = true AND comprobante = $2 AND group_r IS NULL`;
             } else if (tipo.toLowerCase() === 'otro') {
-                query = `UPDATE pagos_otro SET group_r = $1 WHERE comprobante = $2`;
+                query = `UPDATE pagos_otro SET group_r = $1 WHERE valid = true AND comprobante = $2 AND group_r IS NULL`;
             } else {
                 await client.query('ROLLBACK');
                 client.release();
@@ -57,7 +57,17 @@ exports.insertResumen = async(req, res) => {
             // Ejecutar la actualización
             const result = await client.query(query, values);
             if (tipo.toLowerCase() === "otro" && result.rowCount === 0){
-                await client.query('UPDATE pagos_otro SET group_r = $1 WHERE id = $2', values);
+                const resultOtro = await client.query('UPDATE pagos_otro SET group_r = $1 WHERE valid = true AND id = $2 AND group_r IS NULL', values);
+                if (resultOtro.rowCount === 0){
+                    await client.query('ROLLBACK');
+                    client.release();
+                    return res.status(405).json({message: 'No se pudo cerrar el resumen del chofer'});
+                }
+            }
+            if (result.rowCount === 0){
+                await client.query('ROLLBACK');
+                client.release();
+                return res.status(405).json({message: 'No se pudo cerrar el resumen del chofer'});
             }
         }
 

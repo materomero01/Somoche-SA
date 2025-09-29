@@ -48,19 +48,6 @@ formSesion?.addEventListener("submit", async (event) => {
     if (isRegisterForm){
         apiURL = 'http://localhost:3000/api/users/register';
         redirectURL = 'login.html';
-        // Ajustar nombres de campos para el backend y añadir valores por defecto/null
-        payload.nombre_y_apellido = payload.nombre; // Mapear 'nombre' del frontend a 'nombre_y_apellido' del backend
-        payload.trabajador = payload.trabajador_seleccionado || 'Monotributista'; // Usar 'trabajador_seleccionado' o defecto
-        payload.patente_chasis = payload.chasis?.toUpperCase() || null;
-        payload.patente_acoplado = payload.acoplado?.toUpperCase() || null;
-        payload.telefono = payload.telefono || null;
-        payload.email = payload.email || null;
-
-        // Eliminar campos originales del frontend si ya se mapearon o no se necesitan en el backend
-        delete payload.nombre;
-        delete payload.chasis;
-        delete payload.acoplado;
-        delete payload.trabajador_seleccionado;
     } else {
         apiURL = 'http://localhost:3000/api/users/login';
         redirectURL = 'home-admin.html';

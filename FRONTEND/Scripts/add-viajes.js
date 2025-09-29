@@ -1,6 +1,5 @@
 import { fetchAllChoferes, fetchTarifas, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje, setupAutocomplete, setupClienteAutocomplete, setupChoferAutocomplete } from './api.js';
 import { showConfirmModal } from './apiPublic.js';
-// import { mockClientes } from './choferes-clientes.js';
 
 // Global variables
 let allChoferes = [];
@@ -456,8 +455,8 @@ const debugPayload = (payload, tipoPago) => {
         payload.pagos.forEach((cheque, index) => {
             console.log(`Cheque ${index + 1}:`, {
                 tipo: cheque.tipo,
-                fechaPago: cheque.fechaPago,
-                fechaCheque: cheque.fechaCheque,
+                fecha_pago: cheque.fechaPago,
+                fecha_cheque: cheque.fechaCheque,
                 nroCheque: cheque.nroCheque,
                 tercero: cheque.tercero,
                 destinatario: cheque.destinatario,
@@ -510,8 +509,8 @@ const setupAddPagoBtn = () => {
                 // Recopilar datos del cheque original
                 const originalChequeData = {
                     tipo: 'cheque',
-                    fechaPago: fechaPago,
-                    fechaCheque: document.getElementById('fechaCheque')?.value,
+                    fecha_pago: fechaPago,
+                    fecha_cheque: document.getElementById('fechaCheque')?.value,
                     nroCheque: document.getElementById('nroCheque')?.value,
                     tercero: document.getElementById('terceroCheque')?.value,
                     destinatario: document.getElementById('destinatarioCheque')?.value,
@@ -534,8 +533,8 @@ const setupAddPagoBtn = () => {
                     const chequeId = formulario.getAttribute('data-cheque-id');
                     const chequeData = {
                         tipo: 'cheque',
-                        fechaPago: fechaPago,
-                        fechaCheque: document.getElementById(`fechaCheque_${chequeId}`)?.value,
+                        fecha_pago: fechaPago,
+                        fecha_cheque: document.getElementById(`fechaCheque_${chequeId}`)?.value,
                         nroCheque: document.getElementById(`nroCheque_${chequeId}`)?.value,
                         tercero: document.getElementById(`terceroCheque_${chequeId}`)?.value,
                         destinatario: document.getElementById(`destinatarioCheque_${chequeId}`)?.value,
@@ -561,7 +560,7 @@ const setupAddPagoBtn = () => {
                 // Validar que todos los cheques tengan los campos requeridos
                 for (let i = 0; i < payload.pagos.length; i++) {
                     const cheque = payload.pagos[i];
-                    const requiredFields = ['fechaCheque', 'nroCheque', 'tercero', 'destinatario', 'importe'];
+                    const requiredFields = ['fecha_cheque', 'nroCheque', 'tercero', 'destinatario', 'importe'];
                     
                     for (const field of requiredFields) {
                         if (!cheque[field] || cheque[field].trim() === '') {
@@ -594,7 +593,7 @@ const setupAddPagoBtn = () => {
                     ...payload,
                     pagos: {
                         tipo: tipoPago,
-                        fechaPago: fechaPago,
+                        fecha_pago: fechaPago,
                         comprobante: comprobanteGasoil,
                         precioGasoil: precioGasoil,
                         litros: litros,
@@ -622,7 +621,7 @@ const setupAddPagoBtn = () => {
                     ...payload,
                     pagos: {
                         tipo: tipoPago,
-                        fechaPago: fechaPago,
+                        fecha_pago: fechaPago,
                         comprobante: comprobanteOtro,
                         detalle: detalle,
                         importe: importeOtro
@@ -646,8 +645,8 @@ const setupAddPagoBtn = () => {
                 payload.pagos.forEach((cheque, index) => {
                     console.log(`Cheque ${index + 1}:`, {
                         tipo: cheque.tipo,
-                        fechaPago: cheque.fechaPago,
-                        fechaCheque: cheque.fechaCheque,
+                        fecha_pago: cheque.fechaPago,
+                        fecha_cheque: cheque.fechaCheque,
                         nroCheque: cheque.nroCheque,
                         tercero: cheque.tercero,
                         destinatario: cheque.destinatario,

@@ -1,10 +1,49 @@
 import { getCartaPorte, getFactura, showConfirmModal, uploadFactura } from './apiPublic.js';
-//  uploadCartaPorte, downloadDocument, deleteDocument
 
 export let viajesFactura = [];
 export let viaje = [];
 let generatedUrls = [];
 
+let facturaFile = null;
+let cartaPorteFiles = [];
+
+let facturaDropArea;
+let cartaPorteDropArea;
+let toggleFacturaDropbox;
+let toggleCartaPorteDropbox;
+let facturaActions;
+let cartaPorteActions;
+let facturaExists = false;
+let cartaPorteExists = false;
+
+let modal;
+
+export function updateViajeStatus(){
+    if (viaje.length !== 0) {
+        facturaExists = viaje[0].factura_id ? true : false;
+        cartaPorteExists = viaje[0].carta_porte;
+
+        toggleFacturaDropbox.style.display = facturaExists ? 'none' : 'inline';
+        facturaActions.style.display = facturaExists ? 'flex' : 'none';
+        facturaDropArea.classList.toggle('active', !facturaExists);
+
+        toggleCartaPorteDropbox.style.display = cartaPorteExists ? 'none' : 'inline';
+        cartaPorteActions.style.display = cartaPorteExists ? 'flex' : 'none';
+        cartaPorteDropArea.classList.toggle('active', !cartaPorteExists);
+    }
+}
+
+export function closeModalFactura() {
+        modal.remove();
+        cartaPorteFiles = [];
+        viaje = [];
+        facturaFile = null;
+        generatedUrls.forEach(url => {
+            window.URL.revokeObjectURL(url);
+            console.log('URL liberada:', url);
+        });
+        generatedUrls = [];
+    }
 // Initialize the document upload modal
 
 export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc, deleteFunc, tableType = "viajes", selectedRows = []) {
@@ -12,7 +51,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
         return showConfirmModal("Selecciona los viajes para los que desea subir los documentos");
     }
 
-    const modal = document.createElement('div');
+    modal = document.createElement('div');
     modal.id = 'documentUploadModal';
     modal.className = 'modal';
     modal.classList.add('active');
@@ -35,47 +74,27 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
         return showConfirmModal("Error al cargar el modal de documentos");
     }
 
-    const facturaSection = document.getElementById('facturaSection');
-    const cartaPorteSection = document.getElementById('cartaPorteSection');
-    const facturaDropArea = document.getElementById('facturaDropArea');
-    const cartaPorteDropArea = document.getElementById('cartaPorteDropArea');
+    facturaDropArea = document.getElementById('facturaDropArea');
+    cartaPorteDropArea = document.getElementById('cartaPorteDropArea');
     const facturaInput = document.getElementById('facturaInput');
     const cartaPorteInput = document.getElementById('cartaPorteInput');
     const uploadBtn = document.getElementById('uploadDocumentsBtn');
     const cancelBtn = document.getElementById('cancelDocumentsBtn');
     const facturaUploadStatus = document.getElementById('facturaUploadStatus');
     const cartaPorteUploadStatus = document.getElementById('cartaPorteUploadStatus');
-    const toggleFacturaDropbox = document.getElementById('toggleFacturaDropbox');
-    const toggleCartaPorteDropbox = document.getElementById('toggleCartaPorteDropbox');
-    const facturaActions = document.getElementById('facturaActions');
-    const cartaPorteActions = document.getElementById('cartaPorteActions');
+    toggleFacturaDropbox = document.getElementById('toggleFacturaDropbox');
+    toggleCartaPorteDropbox = document.getElementById('toggleCartaPorteDropbox');
+    facturaActions = document.getElementById('facturaActions');
+    cartaPorteActions = document.getElementById('cartaPorteActions');
     const downloadFacturaBtn = document.getElementById('downloadFacturaBtn');
     const deleteFacturaBtn = document.getElementById('deleteFacturaBtn');
     const downloadCartaPorteBtn = document.getElementById('downloadCartaPorteBtn');
     const deleteCartaPorteBtn = document.getElementById('deleteCartaPorteBtn');
 
-    let facturaFile = null;
-    let cartaPorteFiles = [];
-    let currentViajeId = null;
-    let facturaExists = false;
-    let cartaPorteExists = false;
-
     // Check if documents already exist for the viaje
-    if (viaje.length !== 0) {
-        facturaExists = viaje[0].factura_id ? true : false;
-        cartaPorteExists = viaje[0].carta_porte;
+    await updateViajeStatus();
 
-        toggleFacturaDropbox.style.display = facturaExists ? 'none' : 'inline';
-        facturaActions.style.display = facturaExists ? 'flex' : 'none';
-        facturaDropArea.classList.toggle('active', !facturaExists);
-
-        toggleCartaPorteDropbox.style.display = cartaPorteExists ? 'none' : 'inline';
-        cartaPorteActions.style.display = cartaPorteExists ? 'flex' : 'none';
-        cartaPorteDropArea.classList.toggle('active', !cartaPorteExists);
-    }
-    console.log(deleteFunc);
     if (viaje.length > 0 && !cartaPorteFunc && !deleteFunc){
-        
         facturaExists = viaje[0].factura_id ? true : false;
         cartaPorteExists = viaje[0].carta_porte;
 
@@ -204,7 +223,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
             }
             showConfirmModal('Documentos subidos con éxito');
             selectedRows = [];
-            closeModal();
+            closeModalFactura();
         } catch (error) {
             showConfirmModal(`Error al subir los documentos: ${error.message}`);
         }
@@ -282,26 +301,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     });
 
     // Handle cancel
-    cancelBtn?.addEventListener('click', () => { closeModal(); });
-
-    function closeModal() {
-        modal.remove();
-        facturaFile = null;
-        cartaPorteFiles = [];
-        currentViajeId = null;
-        viaje = [];
-        generatedUrls.forEach(url => {
-            window.URL.revokeObjectURL(url);
-            console.log('URL liberada:', url);
-        });
-        generatedUrls = [];
-
-        if (facturaInput) facturaInput.value = '';
-        if (cartaPorteInput) cartaPorteInput.value = '';
-        if (facturaUploadStatus) facturaUploadStatus.textContent = '';
-        if (cartaPorteUploadStatus) cartaPorteUploadStatus.textContent = '';
-        uploadBtn.disabled = true;
-    }
+    cancelBtn?.addEventListener('click', () => { closeModalFactura(); });
 
     // Function to show the modal for a specific viaje
     window.showDocumentUploadModal = async (viajeId) => {

@@ -19,99 +19,101 @@
   <div id="header-container"></div>
   <div id="sidebar-container"></div>
 
-  <div id="loading-spinner hidden">
-    <div class="spinner"></div>
-      Cargando datos...
-  </div>
-
   <main class="content">
-    <div class="tab-selector" id="chequesSelector">
-        <div class="tab-item active" data-tab="proximos">Próximos</div>
-        <div class="tab-item" data-tab="pagos">Pagos</div>
-        <div class="tab-indicator"></div>
-      </div>
-    <section class="cheques-section">
-      <div id="filter-card" class="filter-card hidden">
-        <div class="filter-input-group">
-          <label for="filter-cheque-numero">Número de cheque</label>
-          <input type="text" id="filter-cheque-numero" placeholder="Ej: #12345">
+    <div id="loading-spinner">
+      <div class="spinner"></div>
+        Cargando datos...
+    </div>
+    <div id="contentPrincipal" class="hidden">
+      <div class="tab-selector" id="chequesSelector">
+          <div class="tab-item active" data-tab="proximos">Próximos</div>
+          <div class="tab-item" data-tab="pagos">Pagos</div>
+          <div class="tab-indicator"></div>
         </div>
-        <div class="filter-input-group">
-          <label for="filter-destinatario">Destinatario</label>
-          <input type="text" id="filter-destinatario" placeholder="Ej: Cliente A">
+      <section class="cheques-section">
+        <div id="filter-card" class="filter-card hidden">
+          <div class="filter-input-group">
+            <label for="filter-cheque-numero">Número de cheque</label>
+            <input type="text" id="filter-cheque-numero" placeholder="Ej: #12345">
+          </div>
+          <div class="filter-input-group">
+            <label for="filter-destinatario">Destinatario</label>
+            <input type="text" id="filter-destinatario" placeholder="Ej: Cliente A">
+          </div>
+          <div class="filter-input-group">
+            <label for="filter-tercero">Tercero</label>
+            <input type="text" id="filter-tercero" placeholder="Ej: Empresa Z">
+          </div>
+          <div class="filter-input-group">
+            <label for="filter-fecha-desde">Fecha desde</label>
+            <input type="date" id="filter-fecha-desde">
+          </div>
+          <div class="filter-input-group">
+            <label for="filter-fecha-hasta">Fecha hasta</label>
+            <input type="date" id="filter-fecha-hasta">
+          </div>
+          <div class="filter-input-group">
+            <label for="filter-monto-minimo">Monto mínimo</label>
+            <input type="number" id="filter-monto-minimo" placeholder="0.00">
+          </div>
+          <div class="filter-input-group">
+            <label for="filter-monto-maximo">Monto máximo</label>
+            <input type="number" id="filter-monto-maximo" placeholder="999999.99">
+          </div>
+          <button id="apply-filter-btn" class="btn btn-success apply-button">Aplicar</button>
         </div>
-        <div class="filter-input-group">
-          <label for="filter-tercero">Tercero</label>
-          <input type="text" id="filter-tercero" placeholder="Ej: Empresa Z">
-        </div>
-        <div class="filter-input-group">
-          <label for="filter-fecha-desde">Fecha desde</label>
-          <input type="date" id="filter-fecha-desde">
-        </div>
-        <div class="filter-input-group">
-          <label for="filter-fecha-hasta">Fecha hasta</label>
-          <input type="date" id="filter-fecha-hasta">
-        </div>
-        <div class="filter-input-group">
-          <label for="filter-monto-minimo">Monto mínimo</label>
-          <input type="number" id="filter-monto-minimo" placeholder="0.00">
-        </div>
-        <div class="filter-input-group">
-          <label for="filter-monto-maximo">Monto máximo</label>
-          <input type="number" id="filter-monto-maximo" placeholder="999999.99">
-        </div>
-        <button id="apply-filter-btn" class="btn btn-success apply-button">Aplicar</button>
-      </div>
 
-      <div id="content-proximos">
-        <div class="section-header">
-          <h2>Cheques próximos</h2>
-          <div class="filter-buttons-container">
-            <button id="clear-filter-btn-proximos" class="btn btn-danger btn-sm ms-2 hidden"><i class="bi bi-x-lg"></i></button>
-            <button id="filter-btn-proximos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
+        <div id="content-proximos">
+          <div class="section-header">
+            <h2>Cheques próximos</h2>
+            <div class="filter-buttons-container">
+              <button id="clear-filter-btn-proximos" class="btn btn-danger btn-sm ms-2 hidden"><i class="bi bi-x-lg"></i></button>
+              <button id="filter-btn-proximos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
+            </div>
           </div>
+          <div id="tabla-proximos" class="tabla-dinamica table-auto"></div>
+          
+          <div id="cheques-selection-controls" class="hidden">
+              <div class="cheques-selected-summary">
+                  <span>Cheques seleccionados: <span id="selected-cheques-count">0</span></span>
+                  <span>Total a pagar: $<span id="selected-cheques-total">0.00</span></span>
+              </div>
+              <div class="cheques-actions">
+                  <button id="cancel-selection-btn" class="btn btn-danger">Cancelar</button>
+                  <button id="pay-selected-btn" class="btn btn-success">Pagar</button>
+              </div>
+          </div>
+          <div id="paginacion-proximos" class="pagination-controls"></div> 
         </div>
-        <div id="tabla-proximos" class="tabla-dinamica table-auto"></div>
-        
-        <div id="cheques-selection-controls" class="hidden">
-            <div class="cheques-selected-summary">
-                <span>Cheques seleccionados: <span id="selected-cheques-count">0</span></span>
-                <span>Total a pagar: $<span id="selected-cheques-total">0.00</span></span>
-            </div>
-            <div class="cheques-actions">
-                <button id="cancel-selection-btn" class="btn btn-danger">Cancelar</button>
-                <button id="pay-selected-btn" class="btn btn-success">Pagar</button>
-            </div>
-        </div>
-        <div id="paginacion-proximos" class="pagination-controls"></div> 
-      </div>
 
-      <div id="content-pagos" class="hidden">
-        <div class="section-header">
-          <div style="display: flex; gap: 10px">
-            <h2>Cheques pagos</h2>
-            <select id="selectCheques" class="select-format" style="margin: auto;">
-                <option value="10"> 10 </option>
-                <option value="20"> 20 </option>
-                <option value="30"> 30 </option>
-                <option value="40"> 40 </option>
-                <option value="Otro"> Otro</option>
-            </select>
-            <input type="number" class="select-format input-select hidden" id="inputSelectCheques" placeholder="?">
+        <div id="content-pagos" class="hidden">
+          <div class="section-header">
+            <div style="display: flex; gap: 10px">
+              <h2>Cheques pagos</h2>
+              <select id="selectCheques" class="select-format" style="margin: auto;">
+                  <option value="10"> 10 </option>
+                  <option value="20"> 20 </option>
+                  <option value="30"> 30 </option>
+                  <option value="40"> 40 </option>
+                  <option value="Otro"> Otro</option>
+              </select>
+              <input type="number" class="select-format input-select hidden" id="inputSelectCheques" placeholder="?">
+            </div>
+            <div class="filter-buttons-container">
+              <button id="clear-filter-btn-pagos" class="btn btn-danger btn-sm ms-2 hidden"><i class="bi bi-x-lg"></i></button>
+              <button id="filter-btn-pagos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
+            </div>
           </div>
-          <div class="filter-buttons-container">
-            <button id="clear-filter-btn-pagos" class="btn btn-danger btn-sm ms-2 hidden"><i class="bi bi-x-lg"></i></button>
-            <button id="filter-btn-pagos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
-          </div>
+          <div id="tabla-pagos" class="tabla-dinamica"></div>
+          <div id="paginacion-pagos" class="pagination-controls"></div> 
         </div>
-        <div id="tabla-pagos" class="tabla-dinamica"></div>
-        <div id="paginacion-pagos" class="pagination-controls"></div> 
-      </div>
-    </section>
+      </section>
+    </div>
   </main>
 
   <script src="/FRONTEND/scripts/header.js"></script>
   <script src="/FRONTEND/scripts/sidebar.js"></script>
-  <script type="module" src="/FRONTEND/scripts/cheques-admin.js"></script> 
+  <script type="module" src="/FRONTEND/scripts/cheques-admin.js"></script>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
 </body>
 </html>

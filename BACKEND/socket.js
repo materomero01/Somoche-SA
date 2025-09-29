@@ -7,7 +7,7 @@ let io;
 function initializeSocket(server) {
     io = new Server(server, {
         cors: {
-            origin: 'http://127.0.0.1:5500',
+            origin: 'http://localhost:5500',
             methods: ['GET', 'PUT', 'DELETE', 'POST'],
             allowedHeaders: ['Content-Type', 'Authorization'],
             credentials: true

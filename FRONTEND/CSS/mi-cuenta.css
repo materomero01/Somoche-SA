@@ -10,6 +10,10 @@
     min-height: calc(100vh - 120px);
 }
 
+#loading-spinner {
+    padding: 250px !important;
+}
+
 .account-card {
     background-color: #fff;
     border: 1px solid #ddd;

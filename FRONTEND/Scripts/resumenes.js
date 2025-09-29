@@ -22,8 +22,8 @@ const accionesViajes = [
             viaje.push(item); // Establece el viaje actual
             initializeFacturaUpload(
                 handleFacturaActualization,
-                cartaPorteFunc? (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, () => renderizarTablasResumenes(currentResumenesPage), changeDataDocuments) : null,
-                deleteFactura? (facturaId) => deleteFactura(facturaId, () => renderizarTablasResumenes(currentResumenesPage), changeDataDocuments) : null,
+                cartaPorteFunc? (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, changeDataDocuments) : null,
+                deleteFactura? (facturaId) => deleteFactura(facturaId, changeDataDocuments) : null,
                 "resumenes"
             );
         }
@@ -117,6 +117,7 @@ function changeDataDocuments(){
                 v.factura_id = viaje[0].factura_id? viaje[0].factura_id : null;
             }
         });
+        renderizarTablasResumenes(currentResumenesPage);
     }
 }
 
@@ -172,7 +173,7 @@ export function parsePagos(pago){
     let descripcion;
     switch (pago.tipo) {
         case "Cheque":
-            const fechaCheque = formatFecha(pago.fecha_cheque);
+            const fechaCheque = formatFecha(pago.fecha_cheque? pago.fecha_cheque : pago.fechaCheque);
             descripcion = `${pago.tercero} - Fecha de Cobro: ${fechaCheque} `;
             break;
         case "Gasoil":
@@ -187,7 +188,7 @@ export function parsePagos(pago){
     }
     return {
         id: pago.id,
-        fechaPago: formatFecha(pago.fecha_pago),
+        fechaPago: formatFecha(pago.fecha_pago? pago.fecha_pago : pago.fechaPago),
         tipo: pago.tipo,
         descripcion: descripcion,
         importe: parseImporte(pago.importe)

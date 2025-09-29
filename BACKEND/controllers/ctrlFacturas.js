@@ -1,9 +1,10 @@
-        const { generarFactura } = require('../Factura completo');
+const { generarFactura } = require('../Factura completo');
 const path = require('path');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const pool = require('../db');
 const { PDFDocument, rgb } = require('pdf-lib');
+const { getIO } = require('../socket');
 
 exports.generarFacturaCtrl = async (req, res) => {
     if (req.user.role !== 'admin') {
@@ -221,6 +222,18 @@ exports.uploadFactura = async (req, res) => {
         // Confirmar transacción
         await client.query('COMMIT');
 
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('nuevoFactura', {cuil: cuil, facturaId: facturaId, viajesIds: parsedViajeIds.filter(viaje => !viajesError.includes(viaje.id))});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UploadFactura", error.stack);
+        }
+
         // Enviar respuesta
         return res.status(200).json({ message , facturaId });
     } catch (error) {
@@ -256,7 +269,7 @@ exports.uploadCartaPorte = async (req, res) => {
         client = await pool.connect();
         await client.query('BEGIN');
 
-        const responseCuil = await client.query('SELECT chofer_cuil FROM viaje WHERE valid = true AND comprobante = $1',
+        const responseCuil = await client.query('SELECT chofer_cuil AS cuil FROM viaje WHERE valid = true AND comprobante = $1',
             [viajeIds]
         )
 
@@ -313,6 +326,18 @@ exports.uploadCartaPorte = async (req, res) => {
 
         // Confirmar transacción
         await client.query('COMMIT');
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('nuevoCartaPorte', {cuil: responseCuil.rows[0].cuil, comprobante: viajeIds});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UploadFactura", error.stack);
+        }
 
         // Enviar respuesta
         return res.status(200).json({ message: 'Carta de porte subida con éxito' });
@@ -393,23 +418,30 @@ exports.deleteFactura = async (req, res) => {
             return res.status(405).json({ message: "No se obtuvieron los datos del documento solicitado"});
         }
 
-
-
         params.push(comprobante);
         // Iniciar transacción
         client = await pool.connect();
         await client.query('BEGIN');
         
         await client.query(query, params);
-        console.log(id);
-        const response = await client.query('SELECT id FROM factura');
-        console.log(response.rows);
 
-        const responseCartaPorte = await client.query('SELECT viaje_comprobante FROM carta_porte');
-        console.log(responseCartaPorte.rows);
+        const responseCuil = await client.query('SELECT chofer_cuil AS cuil FROM viaje WHERE valid = true AND comprobante = $1',
+            [comprobante]);
 
         await client.query('COMMIT');
         client.release();
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('deleteFactura', {cuil: responseCuil.rows[0].cuil, facturaId: id, comprobante: comprobante});
+                }
+            });
+        } catch (error) {
+            console.error("Error al sincronizar los datos en deleteFactura", error.stack);
+        }
 
         return res.status(204).json({ message:`${id? "Factura": "Carta de porte"} eliminada con exito` });
         

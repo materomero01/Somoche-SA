@@ -13,29 +13,36 @@
   <link rel="stylesheet" href="/FRONTEND/css/button.css" />
   <link rel="stylesheet" href="/FRONTEND/css/tabla.css" />
   <link rel="stylesheet" href="/FRONTEND/css/modal.css">
+  <link rel="stylesheet" href="/FRONTEND/CSS/loading-spinner.css">
 </head>
 <body>
   <div id="header-container"></div>
   <div id="sidebar-container"></div>
 
   <main class="content">
-    <div class="tab-selector" id="chequesSelector">
-        <div class="tab-item active" data-tab="proximos">Próximos</div>
-        <div class="tab-item" data-tab="pagos">Pagos</div>
-      </div>
-    <section class="cheques-section">
-      <div id="content-proximos">
-        <h2>Cheques próximos</h2>
-        <div id="tabla-proximos" class="tabla-dinamica"></div>
-        <div id="total-a-cobrar" class="total-a-cobrar">Total a cobrar: $0.00</div>
-        <div id="paginacion-proximos" class="pagination-controls"></div> 
-      </div>
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        Cargando datos...
+    </div>
+    <div id="contentPrincipal">
+      <div class="tab-selector" id="chequesSelector">
+          <div class="tab-item active" data-tab="proximos">Próximos</div>
+          <div class="tab-item" data-tab="pagos">Pagos</div>
+        </div>
+      <section class="cheques-section">
+        <div id="content-proximos">
+          <h2>Cheques próximos</h2>
+          <div id="tabla-proximos" class="tabla-dinamica"></div>
+          <div id="total-a-cobrar" class="total-a-cobrar">Total a cobrar: $0.00</div>
+          <div id="paginacion-proximos" class="pagination-controls"></div> 
+        </div>
 
-      <div id="content-pagos" class="hidden">
-        <h2>Cheques pagos</h2>
-        <div id="tabla-pagos" class="tabla-dinamica"></div>
-        <div id="paginacion-pagos" class="pagination-controls"></div> </div>
-    </section>
+        <div id="content-pagos" class="hidden">
+          <h2>Cheques pagos</h2>
+          <div id="tabla-pagos" class="tabla-dinamica"></div>
+          <div id="paginacion-pagos" class="pagination-controls"></div> </div>
+      </section>
+    </div>
   </main>
 
   <script src="/FRONTEND/scripts/header.js"></script>
