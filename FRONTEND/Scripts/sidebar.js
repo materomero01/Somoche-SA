@@ -1,9 +1,9 @@
-// /FRONTEND/js/sidebar.js
+// /js/sidebar.js
 
 async function loadSidebar(role = 'admin ') { // Mantén el default 'admin'
     try {
         const sidebarFile = role === 'chofer' ? 'sidebar-chofer.html' : 'sidebar.html';
-        const response = await fetch(`/FRONTEND/${sidebarFile}`); // Ruta correcta
+        const response = await fetch(`/${sidebarFile}`); // Ruta correcta
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
@@ -41,7 +41,7 @@ function setupSidebarInteractions() {
             
             const targetPage = this.dataset.targetPage;
             if (targetPage) {
-                window.location.href = `/FRONTEND/${targetPage}`;
+                window.location.href = `/${targetPage}`;
             } else {
                 console.warn("El elemento del sidebar no tiene un atributo 'data-target-page'.");
             }

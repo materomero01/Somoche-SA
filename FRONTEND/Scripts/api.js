@@ -1,9 +1,9 @@
 import {getToken, handleAuthorization, handleAuthError, showConfirmModal, setToken} from './apiPublic.js'
 
-const apiURL = 'http://localhost:3000/api';
+const apiURL = '/api';
 export let tarifasCatac = [];
 
-export const socket = io('http://localhost:3000', {
+export const socket = io( {
     auth: { token: localStorage.getItem('jwtToken') }
 });
 
@@ -134,7 +134,7 @@ export const setupChoferAutocomplete = (inputId, dataChoferes) => setupAutocompl
 // Función para cerrar sesión
 export function logout() {
     localStorage.clear();
-    window.location.href = "login.html";
+    window.location.href = "login";
 }
 
 // Obtener todos los choferes
@@ -855,7 +855,7 @@ export async function pagarViajeCliente(viajes) {
 }
 
 socket.on('updateCatac', async ()=> {
-    if (window.location.href.includes("catac.html"))
+    if (window.location.href.includes("catac"))
         return showConfirmModal("Se actualizaron las tarifas de Catac", "aviso", () => {window.location.reload()});
     await loadTarifas();
     showConfirmModal("Se actualizaron las tarifas de Catac");

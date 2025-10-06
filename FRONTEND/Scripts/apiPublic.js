@@ -1,4 +1,4 @@
-const apiURL = 'http://localhost:3000/api';
+const apiURL = '/api';
 
 // Obtener el token desde localStorage
 export function getToken() {
@@ -29,7 +29,7 @@ export async function showConfirmModal(message, type = "", onConfirm = () => {},
             modal = document.createElement('div');
             modal.id = 'confirmModal';
             modal.className = 'modal';
-            const response = await fetch('/FRONTEND/confirmModal.html');
+            const response = await fetch('/confirmModal.html');
             if (!response.ok) {
                 throw new Error(`Error HTTP: ${response.status}`);
             }

@@ -1,8 +1,8 @@
-// /FRONTEND/js/header.js
+// /js/header.js
 
 async function loadHeader() {
     try {
-        const response = await fetch('/FRONTEND/header.html'); // Ruta corregida
+        const response = await fetch('header.html'); // Ruta corregida
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }

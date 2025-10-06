@@ -764,10 +764,10 @@ const setupCargaDescargaAutocomplete = () => {
 document.addEventListener('DOMContentLoaded', async () => {
     await createLoadingSpinner(contentPrincipal);
     if (typeof loadHeader === 'function') await loadHeader();
-    else console.error("loadHeader no está definido. Asegúrate de cargar /FRONTEND/scripts/header.js.");
+    else console.error("loadHeader no está definido. Asegúrate de cargar /scripts/header.js.");
 
     if (typeof loadSidebar === 'function') await loadSidebar(localStorage.getItem('userRole') || 'admin');
-    else console.error("loadSidebar no está definido. Asegúrate de cargar /FRONTEND/scripts/sidebar.js.");
+    else console.error("loadSidebar no está definido. Asegúrate de cargar /scripts/sidebar.js.");
     allChoferes = await fetchAllChoferes();
     allClientes = await fetchClientes();
     await loadTarifas();

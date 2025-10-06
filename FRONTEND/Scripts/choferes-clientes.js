@@ -195,7 +195,7 @@ async function verViajesModal(choferData, tipo) {
         const modalViajesPagos = document.getElementById("viajesPagosModal");
         if (modalViajesPagos) {
             try {
-                const response = await fetch('/FRONTEND/viajes-pagos.html');
+                const response = await fetch('/viajes-pagos.html');
                 if (!response.ok) {
                     throw new Error(`Error HTTP: ${response.status}`);
                 }
@@ -211,7 +211,7 @@ async function verViajesModal(choferData, tipo) {
         const modalViajesClientes = document.getElementById("viajesClientesModal");
         if (modalViajesClientes) {
             try {
-                const response = await fetch('/FRONTEND/viajes-clientes.html');
+                const response = await fetch('/viajes-clientes.html');
                 if (!response.ok) {
                     throw new Error(`Error HTTP: ${response.status}`);
                 }
@@ -594,14 +594,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (typeof loadHeader === 'function') {
         await loadHeader();
     } else {
-        console.error("loadHeader no está definido. Asegúrate de que /FRONTEND/js/header.js se cargue antes.");
+        console.error("loadHeader no está definido. Asegúrate de que /js/header.js se cargue antes.");
     }
 
     if (typeof loadSidebar === 'function') {
         const userRole = localStorage.getItem('userRole');
         await loadSidebar(userRole);
     } else {
-        console.error("loadSidebar no está definido. Asegúrate de que /FRONTEND/js/sidebar.js se cargue antes.");
+        console.error("loadSidebar no está definido. Asegúrate de que /js/sidebar.js se cargue antes.");
     }
 
     const currentPath = window.location.pathname;

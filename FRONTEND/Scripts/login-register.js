@@ -48,11 +48,11 @@ formSesion?.addEventListener("submit", async (event) => {
 
     // Ajustar el payload y la URL según sea formulario de registro o login
     if (isRegisterForm){
-        apiURL = 'http://localhost:3000/api/users/register';
-        redirectURL = 'login.html';
+        apiURL = '/api/users/register';
+        redirectURL = 'login';
     } else {
-        apiURL = 'http://localhost:3000/api/users/login';
-        redirectURL = 'home-admin.html';
+        apiURL = '/api/users/login';
+        redirectURL = 'home-admin';
     }
 
     //console.log("Payload enviado:", payload);
@@ -86,7 +86,7 @@ formSesion?.addEventListener("submit", async (event) => {
                     localStorage.setItem('userTrabajador', data.trabajador);
             }
             if (data.role === "chofer")
-                redirectURL = "home-chofer.html";
+                redirectURL = "home-chofer";
             //showConfirmModal(data.message);
             window.location.href = redirectURL;
         } else {

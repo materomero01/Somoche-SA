@@ -17,7 +17,7 @@ document.getElementById('forgot-password-form').addEventListener('submit', async
         console.log(error.message);
     } finally {
         setTimeout(() => {
-            window.location.href = '/FRONTEND/login.html';
+            window.location.href = '/login.html';
         }, 2000);
     }
 });

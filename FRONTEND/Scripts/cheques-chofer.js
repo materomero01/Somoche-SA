@@ -1,4 +1,4 @@
-// /FRONTEND/scripts/cheques.js
+// /scripts/cheques.js
 
 import { createLoadingSpinner, getCheques, showConfirmModal, toggleSpinnerVisible } from './apiPublic.js';
 import { renderTabla } from './tabla.js'; // Asegúrate que la ruta sea correcta

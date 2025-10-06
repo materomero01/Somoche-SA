@@ -49,7 +49,6 @@ const upload = multer({
 
 // Habilitar CORS para permitir peticiones desde frontend
 app.use(cors({
-    origin: 'http://localhost:5500',
     allowedHeaders: ['Content-Type', 'Authorization'],
     exposedHeaders: ['X-Factura-Id', 'Content-Disposition', 'X-New-Token']
 }));

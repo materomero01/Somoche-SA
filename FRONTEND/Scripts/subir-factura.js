@@ -57,7 +57,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     modal.classList.add('active');
 
     try {
-        let urlFetch = viaje.length > 0 ? '/FRONTEND/documentsBox.html' : '/FRONTEND/facturaBox.html';
+        let urlFetch = viaje.length > 0 ? '/documentsBox.html' : '/facturaBox.html';
         const response = await fetch(urlFetch);
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);

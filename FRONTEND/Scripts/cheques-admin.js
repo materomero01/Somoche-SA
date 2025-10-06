@@ -1,4 +1,4 @@
-// /FRONTEND/scripts/cheques-admin.js
+// /scripts/cheques-admin.js
 
 import { setChequesPagos, socket } from './api.js';
 import { renderTabla } from './tabla.js';
