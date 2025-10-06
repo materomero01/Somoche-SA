@@ -29,7 +29,7 @@ function setupHeaderDynamicContent() {
         dateElement.textContent = formattedDate;
     }
     const storedName = localStorage.getItem('userName');
-    const storedRole = localStorage.getItem('userRole');
+    let storedRole = localStorage.getItem('userRole') === "chofer"? "CHOFER" : "ADMINISTRADOR";
        
     if (userNameElement && storedName) {
        userNameElement.textContent = storedName;
@@ -46,7 +46,7 @@ function setupHeaderInteractions() {
             localStorage.clear();
             //alert('Su sesion ha sido finalizada');
             window.location.href = "login.html";
-            console.log('Se ha hecho clic en el icono de logout.');
+            //console.log('Se ha hecho clic en el icono de logout.');
         });
     }
 }

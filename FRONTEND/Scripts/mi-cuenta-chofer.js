@@ -2,6 +2,10 @@
 
 import { updateChofer, fetchChoferData, logout, showConfirmModal } from './apiPublic.js';
 
+const userNombre = localStorage.getItem('userName');
+const userCuil = localStorage.getItem('userCuil');
+let trabajador = localStorage.getItem('userTrabajador');
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Carga el header
     if (typeof loadHeader === 'function') {
@@ -34,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (targetPage && currentPath.includes(targetPage)) {
             sidebarItems.forEach(el => el.classList.remove('active'));
             item.classList.add('active');
-            console.log(`Sidebar item activo: ${targetPage}`);
+            //console.log(`Sidebar item activo: ${targetPage}`);
         }
     });
     // --- FIN: FUNCIONALIDAD PARA RESALTAR EL ÍTEM ACTIVO EN EL SIDEBAR ---
@@ -98,8 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     cancelButton.addEventListener('click', () => {
         setViewMode(); 
     });
-    const userNombre = localStorage.getItem('userName');
-    const userCuil = localStorage.getItem('userCuil');
+
     // --- INICIO: Lógica para enviar los cambios al backend ---
     accountForm.addEventListener('submit', async (event) => {
         event.preventDefault(); 
@@ -107,22 +110,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const formData = new FormData(accountForm);
         const updatedData = {};
         for (let [key, value] of formData.entries()) {
-            // Mapeo de nombres de campos del frontend a los esperados por el backend
-            if (key === 'nombre') {
-                updatedData['nombre_y_apellido'] = value;
-            } else if (key === 'chasis') {
-                updatedData['patente_chasis'] = value;
-            } else if (key === 'acoplado') {
-                updatedData['patente_acoplado'] = value;
-            }
-            else {
-                updatedData[key] = value;
-            }
+            updatedData[key] = value;
         }
-        
-        console.log('Datos a guardar (frontend):', updatedData);
-
-        
 
         try {
             const response = await updateChofer(userCuil, updatedData);
@@ -134,10 +123,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     initialValues[input.id] = input.value;
                 });
                 showConfirmModal('Cambios guardados exitosamente!');
-                if (updatedData['nombre_y_apellido'] !== userNombre || updatedData['cuil'] !== userCuil){
-                    showConfirmModal("Reinicio requerido, vuelve a iniciar sesión por favor");
-                    logout();
+                if (updatedData['nombre'] !== userNombre || updatedData['cuil'] !== userCuil){
+                    showConfirmModal("Reinicio requerido, vuelve a iniciar sesión por favor", "aviso", () => {logout();});
                 }
+
+                if (updatedData['trabajador'] !== trabajador){
+                    localStorage.setItem('userTrabajador', updatedData['trabajador']);
+                    trabajador = updatedData['trabajador'];
+                }
+
             }
             
             
@@ -161,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             
-            console.log('Datos del chofer obtenidos:', choferData);
+            //console.log('Datos del chofer obtenidos:', choferData);
 
             // Rellenar los inputs del formulario con los datos obtenidos
             document.getElementById('nombre-input').value = choferData.nombre || '';
@@ -171,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('trabajador-input').value = choferData.trabajador || '';
             document.getElementById('chasis-input').value = choferData.patente_chasis || '';
             document.getElementById('acoplado-input').value = choferData.patente_acoplado || '';
-
+                
             // Guardar los valores iniciales después de cargar los datos
             inputs.forEach(input => {
                 initialValues[input.id] = input.value;

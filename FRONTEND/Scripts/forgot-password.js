@@ -13,7 +13,7 @@ document.getElementById('forgot-password-form').addEventListener('submit', async
         else
             showConfirmModal(data.message);
     } catch (error) {
-        showConfirmModal("Ocurrio un error al enviar el mail de recuperación");
+        showConfirmModal("Ocurrio un error al enviar el mail de recuperación. Pidele ayuda a un administrador.");
         console.log(error.message);
     } finally {
         setTimeout(() => {

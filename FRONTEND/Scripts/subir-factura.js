@@ -34,13 +34,13 @@ export function updateViajeStatus(){
 }
 
 export function closeModalFactura() {
-        modal.remove();
+        if (modal) modal.remove();
         cartaPorteFiles = [];
         viaje = [];
         facturaFile = null;
         generatedUrls.forEach(url => {
             window.URL.revokeObjectURL(url);
-            console.log('URL liberada:', url);
+            //console.log('URL liberada:', url);
         });
         generatedUrls = [];
     }
@@ -252,7 +252,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
 
     // Handle delete factura
     deleteFacturaBtn?.addEventListener('click', async () => {
-        console.log(viaje[0]);
+        //console.log(viaje[0]);
         if (viaje.length > 0 && viaje[0].factura_id !== null) {
             showConfirmModal(`¿Está seguro de que desea eliminar la factura del viaje con comprobante ${viaje[0].comprobante}?`, "delete", async () => {
                 await deleteFunc(viaje[0].factura_id);

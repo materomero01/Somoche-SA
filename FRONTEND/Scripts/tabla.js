@@ -145,7 +145,7 @@ export function renderTabla({
                 checkbox.checked = item.selected || false;
                 checkbox.addEventListener('change', (e) => {
                     item.selected = e.target.checked; // Directly update item
-                    console.log(`Checkbox ${item.id} changed: ${item.selected}`); // Debug
+                    //console.log(`Checkbox ${item.id} changed: ${item.selected}`); // Debug
                     if (onCheckboxChange) {
                         onCheckboxChange(item.id, e.target.checked);
                     }
@@ -242,7 +242,7 @@ export function renderTabla({
                     checkbox.checked = item.selected || false;
                     checkbox.addEventListener('change', (e) => {
                         item.selected = e.target.checked; // Directly update item
-                        console.log(`End checkbox ${item.id} changed: ${item.selected}`); // Debug
+                        //console.log(`End checkbox ${item.id} changed: ${item.selected}`); // Debug
                         if (onCheckboxChange) {
                             onCheckboxChange(item.id, e.target.checked);
                         }
@@ -264,9 +264,9 @@ export function renderTabla({
             input.className = 'editable-input editable-select';
             column.options.forEach(option => {
                 const optionElement = document.createElement('option');
-                optionElement.value = option;
-                optionElement.textContent = option;
-                if (option === value) {
+                optionElement.value = option.value;
+                optionElement.textContent = option.text;
+                if (option.value === value) {
                     optionElement.selected = true;
                 }
                 input.appendChild(optionElement);
@@ -406,6 +406,7 @@ export function renderTabla({
     function botonPagina(n, currentPage) {
         const btn = document.createElement("button");
         btn.textContent = n;
+        btn.id = `pagination-button-${n}`;
         btn.classList.add("pagination-button");
         if (n === currentPage) {
             btn.classList.add("active");
@@ -429,6 +430,16 @@ export function renderTabla({
     }
 
     // Inicializa el cuerpo y la paginación con la página actual
+    let paginaEditando = 0;
+    if (editingRowId){
+        let viajeEditando = datos.findIndex(viaje => viaje.id === editingRowId);
+        while (viajeEditando >= 0){
+            paginaEditando = paginaEditando + 1;
+            viajeEditando = viajeEditando - itemsPorPagina;
+        }
+        if (paginaEditando !== currentPage) currentPage = paginaEditando;
+    }
+
     renderBody(currentPage);
     if (!useScrollable) {
         renderPaginacion(currentPage);

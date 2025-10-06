@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { getIO } = require('../socket');
 
 const isValidDate = (value) => {
     if (typeof value !== 'string') return false;
@@ -8,7 +9,7 @@ const isValidDate = (value) => {
 };
 
 exports.insertResumen = async(req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const choferCuil = req.body.choferCuil;
@@ -64,11 +65,6 @@ exports.insertResumen = async(req, res) => {
                     return res.status(405).json({message: 'No se pudo cerrar el resumen del chofer'});
                 }
             }
-            if (result.rowCount === 0){
-                await client.query('ROLLBACK');
-                client.release();
-                return res.status(405).json({message: 'No se pudo cerrar el resumen del chofer'});
-            }
         }
 
         for (const [index, viaje] of Object.entries(viajes)) {
@@ -91,14 +87,42 @@ exports.insertResumen = async(req, res) => {
                 client.release();
                 return res.status(405).json({ message:`El importe del pago para el saldo restante no es valido`});
             }
+
+            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo) VALUES ($1, $2, $3)', [groupStamp, choferCuil, -pagoAdicional.importe]);
+            if (responseResumen.rowCount === 0) {
+                await client.query('ROLLBACK');
+                client.release();
+                return res.status(405).json({ message:`No se pudo cerrar el resumen del chofer`});
+            }
+
             const response = await client.query("INSERT INTO pagos_otro(detalle, importe, chofer_cuil, fecha_pago) VALUES ($1,$2,$3,$4) RETURNING id",
                 [pagoAdicional.detalle, pagoAdicional.importe, choferCuil, groupStamp]
             );
             idPagoAdicional = response.rows[0];
+        } else {
+            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo) VALUES ($1, $2, $3)', [groupStamp, choferCuil, 0]);
+            if (responseResumen.rowCount === 0) {
+                await client.query('ROLLBACK');
+                client.release();
+                return res.status(405).json({ message:`No se pudo cerrar el resumen del chofer`});
+            }
         }
+
 
         client.query('COMMIT');
         client.release();
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('cerrarResumen', {cuil: choferCuil});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en insertResumen", error.stack);
+        }
 
         res.status(202).json({message: "El resumen fue realizado con exito", idPagoAdicional});
     } catch (error) {
@@ -113,12 +137,11 @@ exports.getResumenCuil = async (req, res) => {
     const cuil = req.query.cuil;
     const cantidad = parseInt(req.query.cantidad, 10);
     // Validar permisos
-    if (req.user.role !== 'admin' && req.user.cuil !== cuil) {
+    if (req.user.role === 'chofer' && req.user.cuil !== cuil) {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
-
     // Validar parámetros
-    if (!cuil || !/^\d{2}-\d{8}-\d$/.test(cuil)) {
+    if (!cuil || !/^\d{2}-\d{7,9}-\d$/.test(cuil)) {
         return res.status(400).json({ message: 'El CUIL proporcionado no es válido.' });
     }
     if (isNaN(cantidad) || cantidad <= 0) {
@@ -135,6 +158,7 @@ exports.getResumenCuil = async (req, res) => {
             'SELECT cuil FROM usuario WHERE valid = true AND cuil = $1',
             [cuil]
         );
+
         if (userExists.rows.length === 0) {
             await client.query('ROLLBACK');
             client.release();
@@ -142,74 +166,30 @@ exports.getResumenCuil = async (req, res) => {
         }
 
         // Obtener los últimos n grupos de viajes
-        const viajesQuery = `
-            SELECT group_r, 
-                   ARRAY_AGG(
-                       JSON_BUILD_OBJECT(
-                           'comprobante', comprobante,
-                           'cuil', chofer_cuil,
-                           'fecha', fecha,
-                           'campo', campo,
-                           'kilometros', kilometros,
-                           'tarifa', tarifa,
-                           'variacion', variacion,
-                           'toneladas', toneladas,
-                           'cargado', cargado,
-                           'descargado', descargado,
-                           'factura_id', factura_id,
-                           'carta_porte', EXISTS (
-                                SELECT 1 
-                                FROM carta_porte cp 
-                                WHERE cp.valid = true 
-                                AND cp.viaje_comprobante = comprobante
-                            )
-                       )
-                   ) as viajes
-            FROM viaje
-            WHERE valid = true AND chofer_cuil = $1 AND group_r IS NOT NULL
-            GROUP BY group_r
+        const viajesResult = await client.query(`
+            SELECT group_r, viajes
+            FROM viaje_grouped
+            WHERE $1::text = ANY(chofer_cuil_array)
             ORDER BY group_r DESC
             LIMIT $2
-        `;
-        const viajesResult = await client.query(viajesQuery, [cuil, cantidad]);
+        `, [cuil, cantidad]);
 
         // Obtener los últimos n grupos de pagos (unificados)
-        const pagosQuery = `
-            SELECT group_r,
-                   ARRAY_AGG(
-                       JSON_BUILD_OBJECT(
-                           'tipo', tipo,
-                           'id', id,
-                           'fecha_pago', fecha_pago,
-                           'fecha_cheque', fecha_cheque,
-                           'tercero', tercero,
-                           'descripcion', descripcion,
-                           'importe', importe,
-                           'litros', litros
-                       )
-                   ) as pagos
-            FROM (
-                SELECT 'Cheque' AS tipo, nro::varchar(30) AS id, fecha_pago, 
-                       fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros, group_r
-                FROM pagos_cheque
-                WHERE valid = true AND chofer_cuil = $1 AND group_r IS NOT NULL
-                UNION ALL
-                SELECT 'Gasoil' AS tipo, g.comprobante AS id, fecha_pago, 
-                       NULL AS fecha_cheque, NULL AS tercero, NULL AS descripcion, precio * litros AS importe,
-                       litros, group_r
-                FROM pagos_gasoil g
-                WHERE valid = true AND chofer_cuil = $1 AND group_r IS NOT NULL
-                UNION ALL
-                SELECT 'Otro' AS tipo, COALESCE(o.comprobante, o.id::varchar(30)) AS id, fecha_pago, 
-                       NULL AS fecha_cheque, NULL AS tercero, detalle AS descripcion, importe, NULL AS litros, group_r
-                FROM pagos_otro o
-                WHERE valid = true AND chofer_cuil = $1 AND group_r IS NOT NULL
-            ) AS unified_pagos
-            GROUP BY group_r
+        const pagosResult = await client.query(`
+            SELECT group_r, pagos
+            FROM pagos_grouped
+            WHERE $1::text = ANY(chofer_cuil_array)
             ORDER BY group_r DESC
             LIMIT $2
-        `;
-        const pagosResult = await client.query(pagosQuery, [cuil, cantidad]);
+        `, [cuil, cantidad]);
+
+        const saldosResult = await client.query(`
+            SELECT group_r, saldo
+            FROM saldo_resumen
+            WHERE chofer_cuil = $1
+            ORDER BY group_r DESC
+            LIMIT $2
+            `, [cuil, cantidad])
         
         await client.query('COMMIT');
         client.release();
@@ -223,6 +203,10 @@ exports.getResumenCuil = async (req, res) => {
             pagos: pagosResult.rows.map(row => ({
                 group: row.group_r,
                 pagos: row.pagos
+            })),
+            saldos: saldosResult.rows.map(row => ({
+                group: row.group_r,
+                saldo: row.saldo
             }))
         };
 

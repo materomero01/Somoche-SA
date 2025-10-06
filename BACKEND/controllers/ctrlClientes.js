@@ -13,7 +13,7 @@ function validateEmail(email){
 }
 
 exports.getClientes = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     try {
@@ -21,15 +21,10 @@ exports.getClientes = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(
-            'SELECT razon_social AS nombre, cuit, email, balance FROM cliente WHERE valid = true ORDER BY 1 ASC'
+            'SELECT cuit AS id, razon_social AS nombre, cuit, email, balance FROM cliente WHERE valid = true ORDER BY 1 ASC'
         );
 
-        // Mapear los resultados para agregar un id basado en el índice
-        const clientes = result.rows.map((row, index) => ({
-            id: index + 1, // Genera un id comenzando desde 1
-            ...row
-        }));
-        res.status(208).json({ clientes });
+        res.status(208).json({ clientes: result.rows });
 
     } catch (error) {
         console.error('Error al buscar clientes en la DB:', error);
@@ -38,7 +33,7 @@ exports.getClientes = async (req, res) => {
 }
 
 exports.insertCliente = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const data = req.body;
@@ -48,45 +43,65 @@ exports.insertCliente = async (req, res) => {
         return res.status(405).json({ message: 'El cliente debe llevar el Nombre / Razon Social'});
     if (data.email && data.email !== '' && !validateEmail(data.email))
         return res.status(405).json({ message: 'El email ingresado no es una dirección de email valida'})
+
+    let client;
     try {
+        client = await pool.connect();
+        await client.query('BEGIN');
         // Consulta a la base de datos (PostgreSQL ejemplo)
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         // Verificar si el cuit o email ya están registrados
-        const clientExists = await pool.query(
-            'SELECT cuit FROM cliente WHERE cuit = $1',
+        const clientExists = await client.query(
+            'SELECT cuit, valid FROM cliente WHERE cuit = $1',
             [data.cuit]
         );
+        let clienteRecuperado = false;
         if (clientExists.rows.length > 0) {
-            return res.status(409).json({ message: 'El CUIT ya está registrado.' });
+            if (!clientExists.rows[0].valid){
+                const responseRecuperar = await client.query('UPDATE cliente SET valid = true, razon_social = $2, email = $3 WHERE valid = false AND cuit = $1', [data.cuit, data.nombre, data.email]);
+                if (responseRecuperar.rowCount > 0){
+                    clienteRecuperado = true;
+                    res.status(202).json({message: `Se recupero un cliente anteriormente registrado con el cuit ${data.cuit}, y se actualizaron sus datos`});
+                }
+            }
+            if (!clienteRecuperado){
+                await client.query('ROLLBACK');
+                return res.status(409).json({ message: 'El CUIT ya está registrado.' });
+            }
         }
         
-        const result = await pool.query(
-            'INSERT INTO cliente(cuit, razon_social, email) VALUES($1, $2, $3)',
-            [data.cuit, data.nombre, data.email]
-        );
+        if (!clienteRecuperado)
+            await client.query(
+                'INSERT INTO cliente(cuit, razon_social, email) VALUES($1, $2, $3)',
+                [data.cuit, data.nombre, data.email]
+            );
+
+        await client.query('COMMIT');
 
         try {
             const io = getIO();
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('nuevoCliente', data);
+                    socket.emit('nuevoCliente', {id: data.cuit, ...data});
                 }
             });
         } catch (error){
             console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
         }
-        res.status(208).json({ message: "El cliente fue registrado con exito"});
+        if (!clienteRecuperado) res.status(208).json({ message: "El cliente fue registrado con exito"});
 
     } catch (error) {
         console.error('Error al buscar clientes en la DB:', error);
         res.status(500).json({ message: 'Error interno del servidor al registrar el cliente.' });
+    } finally {
+        client?.release();
     }
 }
 
 exports.updateClientes = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const data = req.body;
@@ -136,7 +151,8 @@ exports.updateClientes = async (req, res) => {
     }
 }
 
-exports.deleteClientes = async (req, res) => {    if (req.user.role !== 'admin') {
+exports.deleteClientes = async (req, res) => {    
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const cuit = req.params.cuit;
@@ -165,7 +181,6 @@ exports.deleteClientes = async (req, res) => {    if (req.user.role !== 'admin')
         res.status(200).json({ message: 'Cliente eliminado lógicamente con éxito.' });
 
     } catch (error) {
-        console.error('Error al eliminar lógicamente el cliente en la DB:', error);
-        res.status(500).json({ message: 'Error interno del servidor al eliminar el cliente.' });
+        res.status(500).json({ message: error.message });
     }
 }   

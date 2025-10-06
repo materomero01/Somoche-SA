@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { getIO } = require('../socket');
 
 async function fetchAllTarifas(client = null) {
     const queryRunner = client || pool;
@@ -19,7 +20,7 @@ exports.getTarifas = async (req, res) => {
 };
 
 exports.updateTarifas = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -43,6 +44,19 @@ exports.updateTarifas = async (req, res) => {
         const updatedTarifas = await fetchAllTarifas(client);
 
         await client.query('COMMIT');
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('updateCatac');
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en updateTarifas", error.stack);
+        }
+
         res.status(200).json({
             message: 'Tarifas modificadas con éxito',
             affectedRows: updateResult.rowCount,

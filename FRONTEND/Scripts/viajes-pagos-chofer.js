@@ -1,4 +1,4 @@
-import { getPagosCuil, getViajes, showConfirmModal } from "./apiPublic.js";
+import { changeSpinnerText, createLoadingSpinner, getPagosCuil, getViajes, showConfirmModal, toggleSpinnerVisible } from "./apiPublic.js";
 import { parsePagos, parseViaje, columnasPagos, columnasViajes, setHistorial } from "./resumenes.js";
 import { renderTabla } from "./tabla.js";
 import { viaje, initializeFacturaUpload} from "./subir-factura.js";
@@ -12,8 +12,7 @@ let choferData = {
 
 let pagosOpen = true;
 
-let loadingSpinner;
-let mainContent;
+const mainContent = document.getElementById('contenido');
 
 const accionesViajes = [
     {
@@ -50,7 +49,7 @@ const checkboxHeaderActionUpload = {
 
 function actualizarTotales(viajes = mockViajes, pagos = mockPagos) {
     const subtotal = viajes.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
-    const iva = viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
+    const iva = choferData.trabajador !== "Monotribustista" ? viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0) : 0;
     const totalViajes = subtotal + iva;
     const totalPagos = pagos?.reduce((sum, pago) => sum + (pago.importe || 0), 0);
     let totalAPagar = totalViajes - totalPagos;
@@ -92,7 +91,7 @@ function renderTables() {
             importe: `$${v.importe.toFixed(2)}`,
             comision: `$${v.comision.toFixed(2)}`.replace('$-','-$'),
             saldo: `$${v.saldo.toFixed(2)}`,
-            iva: v.iva ? `$${v.iva.toFixed(2)}` : undefined,
+            iva: v.iva ? `$${v.iva.toFixed(2)}` : 0,
             factura_id: v.factura_id,
             cuil: v.cuil,
             carta_porte: v.carta_porte
@@ -146,7 +145,7 @@ function changeDataFactura(facturaId, selectedRows){
 }
 
 // --- Lógica de Pestañas ---
-function setupViajesResumenesTabSelector() {
+async function setupViajesResumenesTabSelector() {
     const tabSelector = document.getElementById('viajesResumenesSelector');
     if (!tabSelector) {
         console.warn("Elemento #viajesResumenesSelector no encontrado. La funcionalidad de pestañas no se inicializará.");
@@ -167,10 +166,10 @@ function setupViajesResumenesTabSelector() {
 
     const initialActive = tabSelector.querySelector('.tab-item.active');
     if (initialActive) {
-        handleTabContentDisplay(initialActive.dataset.tab);
+        await handleTabContentDisplay(initialActive.dataset.tab);
     } else if (tabItems.length > 0) {
         tabItems[0].classList.add('active');
-        handleTabContentDisplay(tabItems[0].dataset.tab);
+        await handleTabContentDisplay(tabItems[0].dataset.tab);
     }
 }
 
@@ -178,10 +177,9 @@ async function handleTabContentDisplay(selectedTab) {
     const viajesPagosContent = document.getElementById('content-viajes');
     const resumenesContent = document.getElementById('content-resumenes');
 
-    if (mainContent) mainContent.classList.add("hidden");
-    if (loadingSpinner) loadingSpinner.classList.remove("hidden");
-
     if (selectedTab === 'viajesPagos') {
+        viajesPagosContent.classList.remove('hidden');
+        resumenesContent.classList.add('hidden');
         if (mockViajes?.length === 0) {
             try {
                 const response = await getViajes(choferData.cuil);
@@ -212,22 +210,22 @@ async function handleTabContentDisplay(selectedTab) {
                 return;
             }
         }
-        viajesPagosContent.classList.remove('hidden');
-        resumenesContent.classList.add('hidden');
+
         await renderTables();
     } else if (selectedTab === 'resumenes') {
         viajesPagosContent.classList.add('hidden');
         resumenesContent.classList.remove('hidden');
-        if(loadingSpinner) loadingSpinner.childNodes[2].textContent = "Cargando resumenes...";
+        changeSpinnerText(mainContent, "Cargando resumenes...");
+        toggleSpinnerVisible(mainContent);
         await setHistorial(choferData);
-        if(loadingSpinner) loadingSpinner.childNodes[2].textContent = "Cargando datos...";
+        toggleSpinnerVisible(mainContent);
+        changeSpinnerText(mainContent)
     }
-    if (mainContent) mainContent.classList.remove("hidden");
-    if (loadingSpinner) loadingSpinner.classList.add("hidden");
 }
 
 // Setup general al cargar la página
 document.addEventListener('DOMContentLoaded', async function () {
+    await createLoadingSpinner(mainContent)
     if (typeof loadHeader === 'function') await loadHeader();
     if (typeof loadSidebar === 'function') {
         const role = localStorage.getItem('userRole') || 'chofer';
@@ -244,8 +242,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
-    loadingSpinner = document.getElementById('loading-spinner');
-    mainContent = document.getElementById('contenido');
+    if (choferData.trabajador === "Monotributista"){
+        document.getElementById("subtotal").classList.add("hidden");
+        document.getElementById("iva").classList.add("hidden");
+    }
 
     const togglePagosArea = document.getElementById('togglePagosArea');
     togglePagosArea.style.cursor = 'pointer';
@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     try {
-        setupViajesResumenesTabSelector();
+        await setupViajesResumenesTabSelector();
         const selectCantidad = document.getElementById("selectResumenes");
         const inputCantResumenes = document.getElementById('inputSelectResumenes');
 
@@ -280,5 +280,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     } catch (error){
         console.error('Error de red o desconocido al obtener datos de los viajes:', error);
         if (mainContent) mainContent.innerHTML = `<p class="error-message">Error de conexión al cargar los datos.</p>`;
+    } finally {
+        toggleSpinnerVisible(mainContent);
     }
 });

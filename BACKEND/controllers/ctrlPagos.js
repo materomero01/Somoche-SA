@@ -3,7 +3,7 @@ const pagoSchema = require('../models/Pago.js');
 const { getIO } = require('../socket');
 
 exports.insertPagos = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -13,7 +13,7 @@ exports.insertPagos = async (req, res) => {
         await client.query('BEGIN');
 
         // Asegurar que req.body sea un array
-        const { chofer_cuil, cliente_cuit } = req.body || null;
+        let { chofer_cuil, cliente_cuit } = req.body || null;
         if (!chofer_cuil && !cliente_cuit) return res.status(406).json({ message: 'El chofer o cliente no fue proporcionado' });
         const pagos = Array.isArray(req.body.pagos) ? req.body.pagos : [req.body.pagos];
         // Validar los datos de entrada
@@ -81,6 +81,8 @@ exports.insertPagos = async (req, res) => {
                     ]
                 );
                 pagosArray.push({id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, importe: pago.importe, cliente_cuit: cliente_cuit, nombre: nombre})
+                if (!cliente_cuit)
+                    cliente_cuit = pago.cliente_cuit;
                 pagoId = result.rows[0];
             } else if (pago.tipo.toLowerCase() === 'gasoil') {
                 let responseExists = await client.query("SELECT valid FROM pagos_gasoil WHERE comprobante = $1",
@@ -135,6 +137,7 @@ exports.insertPagos = async (req, res) => {
                 pagoId = result.rows[0];
             }
         }
+
         await client.query('COMMIT');
 
         res.status(201).json({ 
@@ -146,7 +149,7 @@ exports.insertPagos = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('nuevoPago', {pagosArray: pagosArray, cuil:chofer_cuil? chofer_cuil : cliente_cuit});
+                    socket.emit('nuevoPago', {pagosArray: pagosArray, cuil: chofer_cuil , cuit: cliente_cuit});
                 }
             });
         } catch (error){
@@ -164,34 +167,12 @@ exports.insertPagos = async (req, res) => {
 
 exports.getAllPagos = async (req, res) => {
     const cuil = req.params.cuil;
-    if (req.user.role !== 'admin' && req.user.cuil != cuil) {
+    if (req.user.role === 'chofer' && req.user.cuil != cuil) {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
     try {
-        let query = `
-            SELECT 'Cheque' AS tipo, nro::varchar(30) AS id, fecha_pago, 
-                   fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros
-            FROM pagos_cheque
-            WHERE valid = true AND chofer_cuil = $1 AND "group_r" IS NULL
-            UNION ALL
-            SELECT 'Gasoil' AS tipo, g.comprobante AS id, fecha_pago, 
-                   NULL AS fecha_cheque, NULL AS tercero, NULL AS descripcion, precio * litros AS importe,
-                   litros
-            FROM pagos_gasoil g
-            WHERE valid = true AND chofer_cuil = $1 AND "group_r" IS NULL
-            UNION ALL
-            SELECT 'Otro' AS tipo, COALESCE(o.comprobante, o.id::varchar(30)) AS id, fecha_pago, 
-                   NULL AS fecha_cheque, NULL AS tercero, detalle AS descripcion, importe, NULL AS litros
-            FROM pagos_otro o
-            WHERE valid = true AND chofer_cuil = $1 AND "group_r" IS NULL
-        `;
-        const params = [];
-        if (cuil)
-            params.push(cuil);
-        query += ` ORDER BY fecha_pago ASC`;
-
-        const result = await pool.query(query, params);
+        const result = await pool.query('SELECT * FROM pagos_unified WHERE chofer_cuil = $1 ORDER BY fecha_pago ASC', [cuil]);
         return res.status(202).json(result.rows);
     } catch (error) {
         console.error('Error en getAllPagos:', error);
@@ -215,7 +196,7 @@ exports.getPagosCheque = async (req, res) => {
     }
         
     if (!choferCuil || choferCuil != req.user.cuil){
-        if (req.user.role !== 'admin') {
+        if (req.user.role === 'chofer') {
             return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
         }
     }
@@ -225,8 +206,8 @@ exports.getPagosCheque = async (req, res) => {
             SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
                    fecha_cheque, tercero, destinatario, nombre_apellido AS nombre, importe
             FROM pagos_cheque c
-            INNER JOIN (SELECT nombre_apellido, cuil FROM usuario WHERE valid = true) u ON c.valid = true AND c.chofer_cuil = u.cuil
-            WHERE valid = true`;
+            INNER JOIN usuario u ON c.chofer_cuil = u.cuil
+            WHERE c.valid = true`;
         const params = [];
         let conditions = [];
 
@@ -259,7 +240,7 @@ exports.getPagosCheque = async (req, res) => {
 };
 
 exports.setChequesPagos = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -289,6 +270,19 @@ exports.setChequesPagos = async (req, res) => {
         if (result.rowCount === 0) {
             return res.status(404).json({ message: 'No se encontraron cheques para actualizar.' });
         }
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('marcarPago', {nros: data} );
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en deletePago", error.stack);
+        }
+
         return res.status(200).json({message: "Cheques actualizados con exito"});
 
     } catch (error){
@@ -298,7 +292,7 @@ exports.setChequesPagos = async (req, res) => {
 }
 
 exports.getPagosGasoil = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -324,7 +318,7 @@ exports.getPagosGasoil = async (req, res) => {
 };
 
 exports.getPagosOtros = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -354,7 +348,7 @@ exports.getPagosOtros = async (req, res) => {
 };
 
 exports.getPagosCliente = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -364,36 +358,17 @@ exports.getPagosCliente = async (req, res) => {
         return res.status(405).json({message: "No se reconocieron los datos para obtener los pagos del cliente"});
     }
 
-    let client;
     try {
-        client = await pool.connect();
-        const choferCuil = req.query.choferCuil || null;
-        let query = `
-            SELECT 'Cheque' AS tipo, nro::varchar(30) AS id, NULL::NUMERIC AS idAlternativo, fecha_pago, 
-                   fecha_cheque, tercero, NULL AS descripcion, importe, NULL AS litros
-            FROM pagos_cheque
-            WHERE valid = true AND cliente_cuit = $1
-            UNION ALL
-            SELECT 'Otro' AS tipo, o.comprobante AS id, o.id AS idAlternativo, fecha_pago, 
-                   NULL AS fecha_cheque, NULL AS tercero, detalle AS descripcion, importe, NULL AS litros
-            FROM pagos_otro o
-            WHERE valid = true AND cliente_cuit = $1
-            ORDER BY fecha_pago ASC
-            LIMIT $2
-        `;
-
-        const result = await client.query(query, [cuit, cantidad]);
+        const result = await pool.query('SELECT * FROM pagos_cliente_unified WHERE cliente_cuit = $1 LIMIT $2', [cuit, cantidad]);
         res.status(200).json(result.rows);
     } catch (error) {
         console.error('Error en getPagosOtro:', error);
         res.status(500).json({ message: 'Error interno del servidor al obtener los pagos de otro.' });
-    } finally {
-        client?.release();
     }
 };
 
 exports.updatePagos = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -566,7 +541,7 @@ exports.updatePagos = async (req, res) => {
 };
 
 exports.deletePago = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -583,7 +558,7 @@ exports.deletePago = async (req, res) => {
         let querySelect, queryDelete;
         switch (type.toLowerCase()){
             case 'cheque':
-                querySelect = 'SELECT nro, chofer_cuil FROM pagos_cheque WHERE valid = true AND nro = $1';
+                querySelect = 'SELECT nro, chofer_cuil, cliente_cuit FROM pagos_cheque WHERE valid = true AND nro = $1';
                 queryDelete = 'UPDATE pagos_cheque SET valid = false WHERE nro = $1';
                 break;
             case 'gasoil':
@@ -591,7 +566,7 @@ exports.deletePago = async (req, res) => {
                 queryDelete = 'UPDATE pagos_gasoil SET valid = false WHERE comprobante = $1';
                 break;
             case 'otro':
-                querySelect = 'SELECT comprobante, chofer_cuil FROM pagos_otro WHERE valid = true AND comprobante = $1';
+                querySelect = 'SELECT comprobante, chofer_cuil, cliente_cuit FROM pagos_otro WHERE valid = true AND comprobante = $1';
                 queryDelete = 'UPDATE pagos_otro SET valid = false WHERE comprobante = $1';
                 break;
             default:
@@ -620,7 +595,8 @@ exports.deletePago = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('deletePago', {id: id, tipo: type, cuil: responseExists.rows[0].chofer_cuil});
+                    socket.emit('deletePago', {id: id.trim(), tipo: type.trim(), cuil: responseExists.rows[0].chofer_cuil, cuit: type.toLowerCase() === "cheque"? responseExists.rows[0].cliente_cuit : null});
+                    socket.emit('deletePagoCliente', {id: id.trim(), cuit: type.toLowerCase() !== "gasoil" ? responseExists.rows[0].cliente_cuit : null, tipo: type.trim()});
                 }
             });
         } catch (error){

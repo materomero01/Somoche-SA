@@ -1,6 +1,6 @@
 // /FRONTEND/js/sidebar.js
 
-async function loadSidebar(role = 'admin') { // Mantén el default 'admin'
+async function loadSidebar(role = 'admin ') { // Mantén el default 'admin'
     try {
         const sidebarFile = role === 'chofer' ? 'sidebar-chofer.html' : 'sidebar.html';
         const response = await fetch(`/FRONTEND/${sidebarFile}`); // Ruta correcta

@@ -1,10 +1,10 @@
 // /FRONTEND/catac.js
-import { fetchTarifas, updateTarifas} from './api.js';
-import { showConfirmModal } from './apiPublic.js';
+import { updateTarifas, tarifasCatac, loadTarifas} from './api.js';
+import { showConfirmModal, createLoadingSpinner,toggleSpinnerVisible, changeSpinnerText} from './apiPublic.js';
 
-let datosCatac = [];
 let paginaActual = 1;
 
+const contentPrincipal = document.getElementById("catac-section");
 
 function renderTabla({ containerId, datos, filas = 10, columnas = 5, pageNum = 1 }) {
     const container = document.getElementById(containerId);
@@ -152,26 +152,32 @@ function configurarInteraccionesCatac() {
 
             showConfirmModal(`Estas seguro de que desea actualizar las tarifas de Catac en un ${textoPorcentaje}%?`, 'confirm', async () => {
                 try {
+                    changeSpinnerText(contentPrincipal, "Actualizando tarifas de Catac...");
+                    toggleSpinnerVisible(contentPrincipal);
                     const data = await updateTarifas(payload);
-                    datosCatac = data.tarifas;
                     const updateInput = document.getElementById('catac-update');
                     updateInput.value = '';
-                    const container = document.getElementById('tabla-catac');
-                    if (!container) {
-                        console.error('Contenedor tabla-catac no encontrado.');
-                        showConfirmModal('Error: No se pudo actualizar la tabla.');
-                        return;
-                    }
+                    if (data.tarifas.length > 0){
+                        const container = document.getElementById('tabla-catac');
+                        if (!container) {
+                            console.error('Contenedor tabla-catac no encontrado.');
+                            showConfirmModal('Error: No se pudo actualizar la tabla.');
+                            return;
+                        }
 
-                    paginaActual = parseInt(container.dataset.currentPage) || 1;
-                    renderTabla({
-                        containerId: 'tabla-catac',
-                        datos: datosCatac,
-                        filas: 10,
-                        columnas: 5,
-                        pageNum: paginaActual
-                    });
-                    showConfirmModal(`Valores de la tabla actualizados con un ${porcentaje}% de variación.`);
+                        paginaActual = parseInt(container.dataset.currentPage) || 1;
+                        renderTabla({
+                            containerId: 'tabla-catac',
+                            datos: tarifasCatac,
+                            filas: 10,
+                            columnas: 5,
+                            pageNum: paginaActual
+                        });
+                        showConfirmModal(`Valores de la tabla actualizados con un ${porcentaje}% de variación.`);
+                    } else 
+                        showConfirmModal('Ocurrio un error al actualizar las tarifas de Catac');
+                    toggleSpinnerVisible(contentPrincipal);
+                    changeSpinnerText(contentPrincipal);
                 } catch (error) {
                     console.error('Error en tarifasCatac:', error.message);
                     return [];
@@ -203,11 +209,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (sidebar) sidebar.innerHTML = '<p>Error al cargar la barra lateral.</p>';
         }
 
-        datosCatac = localStorage.getItem('tarifasCatac');
-        if (datosCatac && datosCatac !== "undefined" && datosCatac.length > 0)
-            datosCatac = JSON.parse(datosCatac);
-        else
-            datosCatac = await fetchTarifas();
+        await loadTarifas();
 
         const currentPath = window.location.pathname;
         const sidebarItems = document.querySelectorAll('.sidebar-item');
@@ -226,15 +228,19 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.body.innerHTML += '<p>Error: No se pudo cargar la tabla.</p>';
             return;
         }
+        await createLoadingSpinner(contentPrincipal);
+
         renderTabla({
             containerId: 'tabla-catac',
-            datos: datosCatac,
+            datos: tarifasCatac,
             filas: 10,
             columnas: 5,
             pageNum: paginaActual
         });
 
         configurarInteraccionesCatac();
+
+        toggleSpinnerVisible(contentPrincipal);
     } catch (error) {
         console.error('Error durante la inicialización:', error);
         document.body.innerHTML += '<p>Error inesperado al cargar la página.</p>';

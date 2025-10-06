@@ -141,3 +141,7 @@
 .suggestion-item:hover, .suggestion-item.active {
     background-color: #f0f0f0;
 }
+
+#loading-spinner {
+    padding: 250px !important;
+}

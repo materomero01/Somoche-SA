@@ -1,10 +1,11 @@
-import { fetchAllChoferes, fetchTarifas, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje, setupAutocomplete, setupClienteAutocomplete, setupChoferAutocomplete } from './api.js';
-import { showConfirmModal } from './apiPublic.js';
+import { fetchAllChoferes, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje, setupAutocomplete, setupClienteAutocomplete, setupChoferAutocomplete, loadTarifas, tarifasCatac } from './api.js';
+import { showConfirmModal, createLoadingSpinner, toggleSpinnerVisible } from './apiPublic.js';
 
 // Global variables
 let allChoferes = [];
 let allClientes = [];
-let tarifasCatac = [];
+
+const contentPrincipal = document.getElementById("add-viajes-section");
 
 // Regex for input validation
 const regexInputs = {
@@ -199,6 +200,11 @@ const setupViajesSearchBar = () => {
             const buttonsAddViaje = document.getElementById("añadirViaje");
             const buttonsEditViaje = document.getElementById("editarViaje");
 
+            const editViajeBtn = document.getElementById("editViajeBtn");
+
+            if (data.group_r)
+                editViajeBtn.classList.add("hidden");
+
             buttonsAddViaje.classList.add("hidden");
             buttonsEditViaje.classList.remove("hidden");
 
@@ -214,12 +220,15 @@ const setupViajesSearchBar = () => {
             const inputVariacion = document.getElementById("variacion");
             const inputDescargado = document.getElementById("descargado");
             const inputCampo = document.getElementById("campo");
-            console.log(data);
 
-            const chofer = allChoferes.filter(chofer => chofer.cuil === data.cuil)[0];
-            inputChofer.value = chofer.nombre;
-            inputChofer.dataset.selectedChoferNombre = chofer.nombre;
-            inputChofer.dataset.selectedChoferCuil = chofer.cuil;
+            const chofer = allChoferes.find(chofer => chofer.cuil === data.cuil);
+            if (chofer){
+                inputChofer.value = chofer.nombre;
+                inputChofer.dataset.selectedChoferNombre = chofer.nombre;
+            } else {
+                inputChofer.value = "CHOFER ELIMINADO";
+            }
+            inputChofer.dataset.selectedChoferCuil = data.cuil;
 
             const cliente = data.cuit ? allClientes.filter(cliente => cliente.cuit === data.cuit) : null;
             if (cliente){
@@ -227,9 +236,12 @@ const setupViajesSearchBar = () => {
                 inputCliente.dataset.selectedClienteNombre = cliente[0].nombre;
                 inputCliente.dataset.selectedClienteCuit = cliente[0].cuit;
             } else {
-                inputCliente.value = "";
+                inputCliente.value = data.cuit? "CLIENTE ELIMINADO" : '';
                 inputCliente.removeAttribute('data-selected-cliente-nombre');
-                inputCliente.removeAttribute('data-selected-cliente-cuit');
+                if (data.cuit)
+                    inputCliente.dataset.selectedClienteCuit = data.cuit;
+                else 
+                    inputCliente.removeAttribute('data-selected-cliente-cuit');
             }
 
             inputKilometro.value = data.kilometros;
@@ -246,7 +258,6 @@ const setupViajesSearchBar = () => {
                 input.setAttribute('readonly', true);
             });
 
-            const editViajeBtn = document.getElementById("editViajeBtn");
             const acceptViajeBtn = document.getElementById("acceptViajeBtn");
             const cancelViajeBtn = document.getElementById("cancelViajeBtn");
 
@@ -275,16 +286,14 @@ const setupViajesSearchBar = () => {
                         campo: inputCampo.value.trim()
                     }
                 }
-
+                console.log(payload);
                 if (!validarInputs(payload[data.comprobante])) return;
 
                 try {
                     showConfirmModal(`Esta seguro de que desea editar el viaje con comprobante ${data.comprobante}?`, "confirm", async () => {
                         const response = await updateViaje(payload);
-                        if (response)
-                            showConfirmModal("El viaje fue editado con exito");
-                        else
-                            showConfirmModal("Ocurrio un error al editar el viaje");
+                        const data = await response.json();
+                        showConfirmModal(data.message);
                         cancelViajeBtn.click();
                         });
                 } catch (error){
@@ -323,9 +332,9 @@ const setupViajesSearchBar = () => {
 const setupPaymentTypeSelector = () => {
     const tipoPagoSelect = document.getElementById('tipoPago');
     const fields = {
-        cheque: document.getElementById('chequeFields'),
-        gasoil: document.getElementById('gasoilFields'),
-        otro: document.getElementById('otroFields')
+        Cheque: document.getElementById('chequeFields'),
+        Gasoil: document.getElementById('gasoilFields'),
+        Otro: document.getElementById('otroFields')
     };
     const addChequeBtn = document.getElementById('addChequeBtn');
     const chequeFieldsContainer = document.getElementById('chequeFieldsContainer');
@@ -333,7 +342,7 @@ const setupPaymentTypeSelector = () => {
     const showPaymentFields = type => {
         Object.values(fields).forEach(field => field?.classList.add('hidden'));
         fields[type]?.classList.remove('hidden');
-        if (type === 'cheque') {
+        if (type === 'Cheque') {
             addChequeBtn?.classList.remove('hidden');
             chequeFieldsContainer?.classList.remove('hidden');
         } else {
@@ -341,7 +350,7 @@ const setupPaymentTypeSelector = () => {
             chequeFieldsContainer?.classList.add('hidden');
         }
         setTodayDate();
-        if (type === 'gasoil') calculateGasoilImporte();
+        if (type === 'Gasoil') calculateGasoilImporte();
     };
 
     if (tipoPagoSelect) {
@@ -409,7 +418,7 @@ const setupAddChequeBtn = () => {
                 </div>
                 <div class="form-group autocomplete-container">
                         <label for="clienteCheque_${chequeCounter}">Asignar Cliente?</label>
-                        <input type="text" id="clienteCheque_${chequeCounter}" name="clienteCheque_${chequeCounter}" placeholder="Razon social">
+                        <input type="search" id="clienteCheque_${chequeCounter}" name="clienteCheque_${chequeCounter}" placeholder="Razon social">
                 </div>
             </div>
             <div style="text-align: center; margin: 10px 0;">
@@ -450,7 +459,7 @@ const debugPayload = (payload, tipoPago) => {
     console.log('Tipo de pago:', tipoPago);
     console.log('Payload completo:', JSON.stringify(payload, null, 2));
     
-    if (tipoPago === 'cheque') {
+    if (tipoPago.toLowerCase() === 'cheque') {
         console.log('Número de cheques:', payload.pagos.length);
         payload.pagos.forEach((cheque, index) => {
             console.log(`Cheque ${index + 1}:`, {
@@ -469,7 +478,7 @@ const debugPayload = (payload, tipoPago) => {
     // Verificar que el payload coincida con lo que espera el backend
     const backendExpected = {
         choferCuil: 'string',
-        pagos: tipoPago === 'cheque' ? 'array' : 'object'
+        pagos: tipoPago.toLowerCase() === 'cheque' ? 'array' : 'object'
     };
     
     console.log('Estructura esperada por backend:', backendExpected);
@@ -499,7 +508,7 @@ const setupAddPagoBtn = () => {
             return;
         }
 
-        switch (tipoPago) {
+        switch (tipoPago.toLowerCase()) {
             case 'cheque':
                 payload = {
                     ...payload,
@@ -508,7 +517,7 @@ const setupAddPagoBtn = () => {
                 
                 // Recopilar datos del cheque original
                 const originalChequeData = {
-                    tipo: 'cheque',
+                    tipo: tipoPago,
                     fecha_pago: fechaPago,
                     fecha_cheque: document.getElementById('fechaCheque')?.value,
                     nroCheque: document.getElementById('nroCheque')?.value,
@@ -640,7 +649,7 @@ const setupAddPagoBtn = () => {
             console.log('Tipo de pago:', tipoPago);
             console.log('Payload completo:', JSON.stringify(payload, null, 2));
             
-            if (tipoPago === 'cheque') {
+            if (tipoPago.toLowerCase() === 'cheque') {
                 console.log('Número de cheques:', payload.pagos.length);
                 payload.pagos.forEach((cheque, index) => {
                     console.log(`Cheque ${index + 1}:`, {
@@ -662,7 +671,7 @@ const setupAddPagoBtn = () => {
             
             // Limpiar formularios después del éxito
             if (response.ok)
-                if (tipoPago === 'cheque') {
+                if (tipoPago.toLowerCase() === 'cheque') {
                     // Limpiar el formulario original
                     ['fechaCheque', 'nroCheque', 'terceroCheque', 'destinatarioCheque', 'importeCheque', 'clienteCheque'].forEach(id => {
                         const input = document.getElementById(id);
@@ -676,7 +685,7 @@ const setupAddPagoBtn = () => {
                     setTodayDate();
                 } else {
                     // Limpiar otros formularios
-                    const formFields = tipoPago === 'gasoil' 
+                    const formFields = tipoPago.toLowerCase() === 'gasoil' 
                         ? ['comprobanteGasoil','precioGasoil', 'litrosGasoil', 'importeGasoil']
                         : ['comprobanteOtro','detalleOtro', 'importeOtro'];
                         
@@ -753,6 +762,7 @@ const setupCargaDescargaAutocomplete = () => {
 
 // DOMContentLoaded initialization
 document.addEventListener('DOMContentLoaded', async () => {
+    await createLoadingSpinner(contentPrincipal);
     if (typeof loadHeader === 'function') await loadHeader();
     else console.error("loadHeader no está definido. Asegúrate de cargar /FRONTEND/scripts/header.js.");
 
@@ -760,7 +770,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     else console.error("loadSidebar no está definido. Asegúrate de cargar /FRONTEND/scripts/sidebar.js.");
     allChoferes = await fetchAllChoferes();
     allClientes = await fetchClientes();
-    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac')) || await fetchTarifas();
+    await loadTarifas();
     const sidebarItems = document.querySelectorAll('.sidebar-item');
     sidebarItems.forEach(item => {
         if (item.dataset.targetPage && window.location.pathname.includes(item.dataset.targetPage)) {
@@ -769,10 +779,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    
+
     setTodayDate();
     setupTabSelectors();
+
+    
+    
     setupAddViajeBtn();
     setupViajesSearchBar();
     setupAddPagoBtn();
     setupAddChequeBtn();
+
+    toggleSpinnerVisible(contentPrincipal);
 });

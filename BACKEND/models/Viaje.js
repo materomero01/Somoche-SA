@@ -18,8 +18,8 @@ const validateViaje = (data, partial = false) => {
 
     // Campos y sus reglas de validación
     const fields = {
-        cuil: { type: 'string', required: true, error: 'El CUIL es obligatorio.' },
-        cuit_cliente: { type: 'string', required: true, error: 'El CUIT del cliente es obligatorio.' },
+        chofer_cuil: { type: 'string', required: true, regex: /^\d{2}-\d{7,9}-\d{1}$/, error: 'El CUIL es obligatorio.' },
+        cliente_cuit: { type: 'string', required: true, regex: /^\d{2}-\d{7,9}-\d{1}$/, error: 'El CUIT del cliente es obligatorio.' },
         nombre: { type: 'string', required: true, error: 'El nombre es obligatorio.' },
         fecha: { type: 'string', required: true, error: 'La fecha es obligatoria.', validate: isValidDate },
         comprobante: { type: 'string', required: true, regex: /^(\d{4}-\d{8}|\d{11})$/, error: 'El comprobante debe cumplir con el formato XXXX-XXXXXXXX o 11 dígitos.' },

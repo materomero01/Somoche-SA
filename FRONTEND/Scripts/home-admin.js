@@ -1,7 +1,3 @@
-function setupLayoutPruebaInteractions() {
-    console.log("Interacciones específicas de Layout Prueba inicializadas.");
-}
-
 document.addEventListener('DOMContentLoaded', async function() {
     if (typeof loadHeader === 'function') {
         await loadHeader();
@@ -27,5 +23,4 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
-    setupLayoutPruebaInteractions();
 });

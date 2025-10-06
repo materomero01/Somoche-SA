@@ -1,4 +1,4 @@
-import { showConfirmModal } from "./apiPublic.js";
+import { showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText} from "./apiPublic.js";
 
 // FRONTEND/scripts/login-register.js
 const formSesion = document.getElementById("formSesion");
@@ -24,6 +24,8 @@ function seePassword(passwordId) {
     }
     });
 }
+const contentPrincipal = document.getElementById("contentPrincipal");
+
 
 formSesion?.addEventListener("submit", async (event) => {
     event.preventDefault(); // Evita que el formulario se envíe por defecto
@@ -53,11 +55,15 @@ formSesion?.addEventListener("submit", async (event) => {
         redirectURL = 'home-admin.html';
     }
 
-    console.log("Payload enviado:", payload);
-    console.log("URL de la API:", apiURL);
+    //console.log("Payload enviado:", payload);
+    //console.log("URL de la API:", apiURL);
 
     // --- Enviar datos al Backend ---
     try {
+        createLoadingSpinner(contentPrincipal);
+        isRegisterForm? changeSpinnerText(contentPrincipal,"Registrando usuario..."): changeSpinnerText(contentPrincipal, "Iniciando Sesion...");
+        
+
         const response = await fetch(apiURL, {
             method: 'POST', // El método es siempre POST para login y register
             headers: {
@@ -84,12 +90,16 @@ formSesion?.addEventListener("submit", async (event) => {
             //showConfirmModal(data.message);
             window.location.href = redirectURL;
         } else {
+            toggleSpinnerVisible(contentPrincipal);
             showConfirmModal(data.message);
             console.error('Error del backend:', data);
         }
     } catch (error) {
         console.error('Error de red al registrar o iniciar sesión:', error);
         console.error('Error de conexión con el servidor.');
+    }
+    finally {
+        changeSpinnerText(contentPrincipal);
     }
 });
 

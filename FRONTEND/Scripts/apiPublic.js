@@ -150,12 +150,15 @@ export function toggleSpinnerVisible(container){
 
 export function changeSpinnerText(container, text = 'Cargando datos...'){
     let spinner = container.parentNode.querySelector("#loading-spinner");
-    spinner.childNodes[1].textContent = text;
+    for (let node of spinner.childNodes){
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '')
+            node.textContent = text;
+    }
 }
 
 export function handleAuthorization () {
     const userRole = localStorage.getItem('userRole');
-    if (!userRole || userRole !== 'admin'){
+    if (!userRole || userRole === 'chofer'){
         showConfirmModal("No tienes autorización para realizar esta acción");
     }
 }

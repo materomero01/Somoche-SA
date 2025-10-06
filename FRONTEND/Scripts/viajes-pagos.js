@@ -1,9 +1,9 @@
 import { renderTabla } from './tabla.js';
 import { getViajes, getPagosCuil, showConfirmModal, toggleSpinnerVisible, changeSpinnerText, createLoadingSpinner } from './apiPublic.js';
-import { addViaje, addPagos, updateViaje, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje, socket} from './api.js';
-import { enterEditMode, handleEdit, editingRowId, originalEditingData, stagedEditingData, mockClientes, tarifasCatac, currentEditingTableType, setEditingRow } from './choferes-clientes.js';
+import { addViaje, addPagos, updateViaje, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje, socket, tarifasCatac} from './api.js';
+import { enterEditMode, handleEdit, editingRowId, originalEditingData, stagedEditingData, mockClientes, currentEditingTableType, resetEditingState } from './choferes-clientes.js';
 import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos} from './resumenes.js';
-import { viaje, initializeFacturaUpload, updateViajeStatus } from './subir-factura.js';
+import { viaje, initializeFacturaUpload, updateViajeStatus, closeModalFactura } from './subir-factura.js';
 
 
 
@@ -262,7 +262,7 @@ export async function deleteFactura(facturaId = null, changeDataDocuments, table
 // Función para actualizar los totales
 export function actualizarTotales(viajesData) {
     const subtotal = viajesData.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
-    const iva = viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
+    const iva = choferData.trabajador !== "Monotributista"? viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0) : 0;
     const totalViajes = subtotal + iva;
     let totalPagos;
     let totalAPagar;
@@ -362,7 +362,6 @@ async function setupAddViajeBtn() {
     const btn = document.getElementById('addViajeBtn');
     setupClienteAutocomplete('nuevoCliente', mockClientes);
     btn?.addEventListener('click', async () => {
-        const choferInput = document.getElementById('chofer');
         const clienteInput = document.getElementById('nuevoCliente');
         const fechaInput = document.getElementById('fecha');
         
@@ -381,13 +380,13 @@ async function setupAddViajeBtn() {
             pagado: false
         };
         const payload = {
-            cuil: choferData?.cuil,
+            chofer_cuil: choferData?.cuil,
             nombre: choferData?.nombre,
-            cuit_cliente: clienteInput?.dataset.selectedClienteCuit,
+            cliente_cuit: clienteInput?.dataset.selectedClienteCuit,
             ...viaje
         };
 
-        if (!payload.cuit_cliente) {
+        if (!payload.cliente_cuit) {
             showConfirmModal('Por favor, selecciona un cliente de la lista de sugerencias.');
             return;
         }
@@ -453,6 +452,21 @@ const setupAddPagoBtn = () => {
     btn?.addEventListener('click', async () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPagoInput = document.getElementById('fechaPago')?.value;
+
+        const nroCheque = document.getElementById('nroCheque');
+        const tercero = document.getElementById('terceroCheque');
+        const destinatario = document.getElementById('destinatarioCheque');
+        const importeCheque = document.getElementById('importeCheque');
+
+        const comprobanteGasoil = document.getElementById('comprobanteGasoil');
+        const precioGasoil = document.getElementById('precioGasoil');
+        const litros = document.getElementById('litrosGasoil');
+        const importeGasoil = document.getElementById('importeGasoil');
+
+        const comprobanteOtro = document.getElementById('comprobanteOtro');
+        const detalle = document.getElementById('detalleOtro');
+        const importeOtro =  document.getElementById('importeOtro');
+
         let fechaPago;
         try {
             fechaPago = fechaPagoInput ? new Date(`${fechaPagoInput}T00:00:00-03:00`).toISOString() : new Date().toISOString();
@@ -481,10 +495,10 @@ const setupAddPagoBtn = () => {
                         tipo: 'Cheque',
                         fecha_pago: fechaPago,
                         fecha_cheque: fechaCheque,
-                        nroCheque: document.getElementById('nroCheque')?.value,
-                        tercero: document.getElementById('terceroCheque')?.value,
-                        destinatario: document.getElementById('destinatarioCheque')?.value,
-                        importe: document.getElementById('importeCheque')?.value,
+                        nroCheque: nroCheque?.value,
+                        tercero: tercero?.value,
+                        destinatario: destinatario?.value,
+                        importe: importeCheque?.value,
                         cliente_cuit: cuitCliente?.dataset.selectedClienteCuit
                     }
                 };
@@ -500,10 +514,10 @@ const setupAddPagoBtn = () => {
                     pagos: {
                         tipo: 'Gasoil',
                         fecha_pago: fechaPago,
-                        comprobante: document.getElementById('comprobanteGasoil')?.value,
-                        precioGasoil: document.getElementById('precioGasoil')?.value,
-                        litros: document.getElementById('litrosGasoil')?.value,
-                        importe: document.getElementById('importeGasoil')?.value
+                        comprobante: comprobanteGasoil?.value,
+                        precioGasoil: precioGasoil?.value,
+                        litros: litros?.value,
+                        importe: importeGasoil?.value
                     }
                 };
 
@@ -524,9 +538,9 @@ const setupAddPagoBtn = () => {
                     pagos: {
                         tipo: 'Otro',
                         fecha_pago: fechaPago,
-                        comprobante: document.getElementById('comprobanteOtro')?.value,
-                        detalle: document.getElementById('detalleOtro')?.value,
-                        importe: document.getElementById('importeOtro')?.value,
+                        comprobante: comprobanteOtro?.value,
+                        detalle: detalle?.value,
+                        importe: importeOtro?.value,
                     }
                 };
 
@@ -553,6 +567,15 @@ const setupAddPagoBtn = () => {
                 pagosData.push(parsePagos({id: data.pagoId.id, ...payload.pagos}));
                 //reset de los fields aca
                 renderizarTablas();
+
+                [comprobanteGasoil, litros, precioGasoil, comprobanteOtro, detalle, importeOtro, nroCheque, tercero, destinatario, importeCheque, cuitCliente].forEach( input => {
+                    input.value = '';
+                    input.removeAttribute('data-selected-cliente-nombre');
+                    input.removeAttribute('data-selected-cliente-cuit');
+                });
+
+                importeGasoil.value = '0.00';
+
             } else {
                 const data = await response.json();
                 showConfirmModal(data.message);
@@ -616,7 +639,7 @@ async function cargarTablas() {
             });
             if (choferData.trabajador === "Monotributista") {
                 document.getElementById("iva").classList.add("hidden");
-                document.getElementById("iva-resumen").classList.add("hidden");
+                document.getElementById("subtotal").classList.add("hidden");
             }
             const responsePagos = await getPagosCuil(choferData.cuil);
             const dataPagos = await responsePagos.json();
@@ -747,8 +770,8 @@ async function cerrarCuenta() {
             const response = await addResumen(choferData.cuil, groupStamp, payloadViajes, payloadPagos, payloadRestante);
             if (!response.ok) {
                 showConfirmModal("No se pudo cerrar el resumen del chofer");
-                changeSpinnerText(mainContent);
                 toggleSpinnerVisible(mainContent);
+                changeSpinnerText(mainContent);
                 return;
             }
             const dataId = await response.json();
@@ -764,14 +787,15 @@ async function cerrarCuenta() {
         } catch (error) {
             console.log(error.message);
         }
-        changeSpinnerText(mainContent);
         toggleSpinnerVisible(mainContent);
+        changeSpinnerText(mainContent);
     };
     if (comprobantes && comprobantes.length > 0)
         showConfirmModal(`¿Estás seguro de cerrar el resumen del chofer?${saldoRestante}`, "confirm", confirmar);
     else
         showConfirmModal("No hay viajes disponibles para realizar un resumen");
 }
+
 
 // Cargar el nombre del chofer
 export function cargarNombreChofer(nombre) {
@@ -815,9 +839,11 @@ export async function inicializarModal(data) {
             socket.off('nuevoFactura');
             socket.off('nuevoCartaPorte');
             socket.off('updateViaje');
+            socket.off('updateUsuario');
             socket.off('deleteViaje');
             socket.off('deletePago');
             socket.off('deleteFactura');
+            socket.off('deleteUsuario');
             socket.off('cerrarResumen');
             deleteModal("viajesPagosModal", "contentModalViajes");
         };
@@ -859,6 +885,14 @@ export async function inicializarModal(data) {
         }
     });
 
+    socket.on('deleteUsuario', (user) => {
+        if (user.cuil === choferData.cuil){
+            closeModalFactura();
+            showConfirmModal(`El chofer ${choferData.nombre} fue eliminado`)
+            closeButton.click();
+        }
+    });
+
     socket.on('nuevoViaje', async (viaje) => {
         if (viaje.cuil === choferData.cuil){
             let viajeParseado = parseViaje(viaje);
@@ -874,7 +908,7 @@ export async function inicializarModal(data) {
             if (index !== -1) {
                 viajesData[index] = parseViaje(viaje.updatedData);
                 console.log(`Se modifico el viaje con comprobante ${viaje.comprobanteOriginal}`);
-                if (currentEditingTableType === 'viajes' && editingRowId) await setEditingRow(null);
+                if (currentEditingTableType === 'viajes' && editingRowId) await resetEditingState();
                 await renderizarTablas();
                 showConfirmModal("Se actualizaron los viajes del chofer");
             }
@@ -884,7 +918,7 @@ export async function inicializarModal(data) {
     socket.on('deleteViaje', async (viaje) => {
         if (viaje.cuil === choferData.cuil){
             viajesData = viajesData.filter(v => v.id !== viaje.comprobante);
-            if (currentEditingTableType === "viajes" && editingRowId) await setEditingRow(null);
+            if (currentEditingTableType === "viajes" && editingRowId) await resetEditingState();
             await renderizarTablas();
             showConfirmModal("Se actualizaron los viajes del chofer");
         }
@@ -892,7 +926,7 @@ export async function inicializarModal(data) {
 
     socket.on('nuevoPago', async (pagos) => {
         let actualizo = false;
-        if (pagos.cuil === choferData.cuil){
+        if (pagos.cuil && pagos.cuil === choferData.cuil){
             pagos.pagosArray.forEach( pago => {
                     let pagoParseado = parsePagos(pago);
                     console.log('pago parseado', pagoParseado);
@@ -907,12 +941,13 @@ export async function inicializarModal(data) {
     });
 
     socket.on('deletePago', async (pago) => {
-        if (pago.cuil === choferData.cuil){
+        if (pago.cuil && pago.cuil === choferData.cuil){
             pagosData = pagosData.filter(p => p.id !== pago.id || p.tipo !== pago.tipo);
             await renderizarTablas();
             showConfirmModal("Se actualizaron los pagos del chofer");
         }
     });
+    
 
     try {
         await cargarTablas();
@@ -945,8 +980,8 @@ export async function inicializarModal(data) {
             changeSpinnerText(mainContent, "Cargando resumenes...");
             toggleSpinnerVisible(mainContent);
             await setHistorial(choferData, cartaPorteFunc, deleteFactura);
-            changeSpinnerText(mainContent);
             toggleSpinnerVisible(mainContent);
+            changeSpinnerText(mainContent);
             document.getElementById("back-historial").classList.remove("hidden");
             headerModal.textContent = "Viajes y Pagos - Resumenes";
             contentResumenes.classList.remove("hidden");
@@ -970,7 +1005,7 @@ export async function inicializarModal(data) {
                 showConfirmModal("Se actualizaron los documentos del chofer");
                 if (currentEditingTableType === "viajes" && editingRowId) return;
                 renderizarTablas();
-                if (mainContent.classList.contains("hidden") && !viajesEditados){
+                if (historialBtn.classList.contains("hidden") && !viajesEditados){
                     historialBtn.click()
                 }
             }
@@ -992,7 +1027,7 @@ export async function inicializarModal(data) {
                 showConfirmModal("Se actualizaron los documentos del chofer");
                 if (currentEditingTableType === "viajes" && editingRowId) return;
                 renderizarTablas();
-                if (mainContent.classList.contains("hidden") && !viajeEditado){
+                if (historialBtn.classList.contains("hidden") && !viajeEditado){
                     historialBtn.click()
                 }
             }
@@ -1024,15 +1059,25 @@ export async function inicializarModal(data) {
                 showConfirmModal("Se actualizaron los documentos del chofer");
                 if (currentEditingTableType === "viajes" && editingRowId) return;
                 renderizarTablas();
-                if (mainContent.classList.contains("hidden") && !viajeEditado){
+                if (historialBtn.classList.contains("hidden") && !viajeEditado){
                     historialBtn.click()
                 }
 
             }
         });
 
-        socket.on('cerrarResumen', (resumen) => {
-
+        socket.on('cerrarResumen', async (resumen) => {
+            if (resumen.cuil === choferData.cuil){
+                changeSpinnerText(mainContent, "Actualizando datos...");
+                toggleSpinnerVisible(mainContent);
+                await resetEditingState();
+                await cargarTablas();
+                changeSpinnerText(mainContent);
+                toggleSpinnerVisible(mainContent);
+                
+                if (historialBtn.classList.contains("hidden")) historialBtn.click();
+                showConfirmModal("Se actualizo el resumen del chofer");
+            }
         });
 
         backHistorialBtn?.addEventListener("click", () =>{

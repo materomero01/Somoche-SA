@@ -1,6 +1,7 @@
 import {getToken, handleAuthorization, handleAuthError, showConfirmModal, setToken} from './apiPublic.js'
 
 const apiURL = 'http://localhost:3000/api';
+export let tarifasCatac = [];
 
 export const socket = io('http://localhost:3000', {
     auth: { token: localStorage.getItem('jwtToken') }
@@ -252,7 +253,7 @@ export async function updateTarifas(payload) {
             console.log(data.message);
         }
         
-        localStorage.setItem('tarifasCatac', JSON.stringify(data.tarifas));
+       tarifasCatac = data.tarifas;
 
         return data;
     } catch (error) {
@@ -302,17 +303,15 @@ export async function updateViaje(payload) {
             },
             body: JSON.stringify(payload)
         });
-        const data = await response.json();
-        if(response.status === 403) {
+
+        if(response.status === 403) {   
+            const data = await response.json();
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
 
-        if (!response.ok){
-            console.log(data.message);
-        }
-        return response.ok;
+        return response
     } catch (error){
         console.log(error.message);
     }
@@ -494,7 +493,7 @@ export async function insertChofer(payload) {
     try {
         const token = getToken();
         handleAuthorization();
-        const response = await fetch(`${apiURL}/users/register`, {
+        const response = await fetch(`${apiURL}/users/register?admin=${encodeURIComponent(true)}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -503,18 +502,13 @@ export async function insertChofer(payload) {
             body: JSON.stringify(payload)
         });
         
-        const data = await response.json();
         if(response.status === 403) {
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-
-        if (!response.ok){
-            showConfirmModal(data.message);
-        }
         
-        return response.ok;
+        return response;
     } catch (error) {
         console.log(error.message);
     }
@@ -602,14 +596,13 @@ export async function insertCliente(payload){
             },
             body: JSON.stringify(payload)
         });
-        const data = await response.json();
         if(response.status === 403) {
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
         
-        return response.ok;
+        return response;
     } catch (error) {
         console.log(error.message);
     }
@@ -861,4 +854,13 @@ export async function pagarViajeCliente(viajes) {
     }
 }
 
+socket.on('updateCatac', async ()=> {
+    if (window.location.href.includes("catac.html"))
+        return showConfirmModal("Se actualizaron las tarifas de Catac", "aviso", () => {window.location.reload()});
+    await loadTarifas();
+    showConfirmModal("Se actualizaron las tarifas de Catac");
+});
 
+export async function loadTarifas(){
+    tarifasCatac = await fetchTarifas();
+}

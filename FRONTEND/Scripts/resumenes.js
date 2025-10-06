@@ -9,6 +9,8 @@ let choferData = {};
 
 export let currentResumenesPage = 1;
 
+let saldosResumenes = [];
+
 let cartaPorteFunc;
 let deleteFactura;
 
@@ -77,11 +79,11 @@ export function formatFecha(fecha) {
     return new Date(fecha).toISOString().split('T')[0];
 }
 
-export function actualizarValores(resumenViajes, resumenPagos){
+export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo){
     // Calcular totales
-    const subtotal = resumenViajes.viajes.reduce((sum, viaje) => sum + (viaje.importe || 0), 0);
+    const subtotal = resumenViajes.viajes.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
     const iva = resumenViajes.viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
-    const totalViajes = subtotal + iva;
+    let totalViajes = subtotal + iva;
     let totalPagos;
     let totalResumen;
     if (resumenPagos) {
@@ -89,13 +91,27 @@ export function actualizarValores(resumenViajes, resumenPagos){
         totalResumen = totalViajes - totalPagos;
         if (Math.abs(totalResumen) < 0.01) totalResumen = 0;
     }
+    
+    const subtotalContainer = document.getElementById("subtotal-resumen");
+    const ivaContainer = document.getElementById("iva-resumen");
+    ivaContainer.classList.remove("hidden");
+    subtotalContainer.classList.remove("hidden");
+    console.log(parseImporte(resumenSaldo.saldo).toFixed(2));
+    console.log(totalResumen.toFixed(2));
+    if (parseImporte(resumenSaldo.saldo).toFixed(2) !== totalResumen.toFixed(2)){
+        totalViajes = totalViajes - iva;
+        totalResumen = totalViajes - totalPagos;
+        if (Math.abs(totalResumen) < 0.01) totalResumen = 0;
+        ivaContainer.classList.add("hidden");
+        subtotalContainer.classList.add("hidden");
+    }
 
     // Actualizar contenedores de totales
-    const subtotalContainer = document.getElementById("subtotal-resumen");
+    
     if (subtotalContainer) {
         subtotalContainer.textContent = `Subtotal: $${subtotal.toFixed(2)}`;
     }
-    const ivaContainer = document.getElementById("iva-resumen");
+    
     if (ivaContainer) {
         ivaContainer.textContent = `IVA (21%): $${iva.toFixed(2)}`;
     }
@@ -111,6 +127,7 @@ export function actualizarValores(resumenViajes, resumenPagos){
 
 function changeDataDocuments(){
     if (viajesResumenes.length > 0){
+        //console.log(viajesResumenes);
         viajesResumenes[currentResumenesPage - 1].viajes.forEach( v => {
             if (v.comprobante === viaje[0].comprobante){
                 v.carta_porte = viaje[0].carta_porte;
@@ -156,16 +173,11 @@ export function parseViaje(viaje) {
         importe: processed.importe,
         comision: processed.comision,
         saldo: processed.importe + processed.comision,
+        iva: processed.iva,
         factura_id: processed.factura_id,
         cuil: processed.cuil,
         carta_porte: processed.carta_porte
     };
-    if (choferData.trabajador !== "Monotributista") {
-        retornar = {
-            ...retornar,
-            iva: processed.iva
-        };
-    }
     return retornar;
 }
 
@@ -200,12 +212,6 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null)
     cartaPorteFunc = cartaPorte;
     deleteFactura = deleteFunc;
     const selectCantidad = document.getElementById("selectResumenes");
-    // const inputCantResumenes = document.getElementById('inputSelectResumenes');
-
-    // inputCantResumenes?.addEventListener("change", () => {
-    //     if (inputCantResumenes.value > 0)
-    //         handleTabContentDisplay('resumenes');
-    // })
 
     const cantidad = selectCantidad.value !== "Otro"? selectCantidad.value : document.getElementById("inputSelectResumenes").value;
     if (!cantidad) {
@@ -226,6 +232,9 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null)
             group: resumen.group,
             viajes: resumen.viajes.map(v => parseViaje(v))
         }));
+
+        saldosResumenes = data.saldos;
+        console.log(data);
         renderizarTablasResumenes();
     } catch (error) {
         console.error('Error en setHistorial:', error.message);
@@ -247,7 +256,8 @@ function renderizarTablasResumenes(currentPage = 1) {
     // Obtener todos los grupos únicos, ordenados de más reciente a más antiguo
     const grupos = [...new Set([
         ...viajesResumenes.map(v => v.group),
-        ...pagosResumenes.map(p => p.group)
+        ...pagosResumenes.map(p => p.group),
+        ...saldosResumenes.map(s => s.group)
     ])].sort().reverse();
 
     // Seleccionar el grupo actual según la página (1-based index)
@@ -257,6 +267,7 @@ function renderizarTablasResumenes(currentPage = 1) {
     // Filtrar viajes y pagos para el grupo actual
     const resumenViajes = viajesResumenes.find(r => r.group === grupoActual) || { viajes: [] };
     const resumenPagos = pagosResumenes.find(r => r.group === grupoActual) || { pagos: [] };
+    const resumenSaldo = saldosResumenes.find (s => s.group === grupoActual) || { saldo: 0};
 
     // Renderizar tabla de viajes
     let columnasViajesResumen = choferData.trabajador !== 'Monotributista'
@@ -321,7 +332,7 @@ function renderizarTablasResumenes(currentPage = 1) {
         useScrollable: true
     });
 
-    actualizarValores(resumenViajes, resumenPagos);
+    actualizarValores(resumenViajes, resumenPagos, resumenSaldo);
 
     // Renderizar paginación
     renderPaginacionResumenes(currentPage, grupos.length > 0? grupos.length : 1);

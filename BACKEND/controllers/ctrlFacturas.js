@@ -7,7 +7,7 @@ const { PDFDocument, rgb } = require('pdf-lib');
 const { getIO } = require('../socket');
 
 exports.generarFacturaCtrl = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -49,6 +49,7 @@ exports.generarFacturaCtrl = async (req, res) => {
             // Validate numeric fields
             const numericFields = ['subtotal', 'precioUnit', 'cantidad', 'subtotalConIVA'];
             for (const field of numericFields) {
+                //console.log(`Validating field ${field} with value:`, servicio[field]);
                 const value = typeof servicio[field] === 'string' ? parseFloat(servicio[field].replace(/[^0-9.]/g, '')) : parseFloat(servicio[field]);
                 if (isNaN(value)) {
                     console.error(`Invalid ${field} in servicio:`, servicio[field]);
@@ -92,6 +93,7 @@ exports.generarFacturaCtrl = async (req, res) => {
 
         // Obtener el factura_id insertado
         const facturaId = response.rows[0].id;
+        const viajesIds = [];
 
         // Actualizar la tabla viaje con el factura_id para cada comprobante
         for (const c of invoiceData.comprobante) {
@@ -99,7 +101,10 @@ exports.generarFacturaCtrl = async (req, res) => {
                 'UPDATE viaje_cliente SET factura_id = $1 WHERE viaje_comprobante = $2',
                 [facturaId, c.id]
             );
+            viajesIds.push(c.id);
         }
+
+        const responseClient = await client.query('SELECT balance FROM cliente WHERE valid = true AND cuit = $1', [cuit]);
 
         await client.query('COMMIT');
         client.release();
@@ -112,6 +117,18 @@ exports.generarFacturaCtrl = async (req, res) => {
         // Incluir facturaId en un encabezado personalizado
         res.setHeader('X-Factura-Id', facturaId.toString());
         
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('actualizarFacturaCliente', {cuit: cuit, balance: responseClient.rows[0].balance});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en UploadFactura", error.stack);
+        }
+
         // Send the PDF directly
         return res.status(200).send(pdfBuffer);
     } catch (error) {
@@ -126,7 +143,7 @@ exports.uploadFactura = async (req, res) => {
     let client;
     try {
         // Verificar autorización
-        if ((req.user.role !== 'admin' && req.user.cuil !== req.body.cuil) || (req.user.role !== 'admin' && req.user.type === 'viajeCliente')) {
+        if ((req.user.role === 'chofer' && req.user.cuil !== req.body.cuil) || (req.user.role === 'chofer' && req.user.type === 'viajeCliente')) {
             return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
         }
 
@@ -155,8 +172,27 @@ exports.uploadFactura = async (req, res) => {
             return res.status(400).json({ error: 'El archivo debe ser PDF, JPG o PNG' });
         }
 
-        // Convertir archivo a buffer
-        const pdfBuffer = facturaFile[0].buffer;
+        let pdfBuffer = facturaFile[0].buffer;
+        if (facturaFile.length > 0 && ['image/jpeg', 'image/png'].includes(facturaFile[0].mimetype)) {
+            // Crear un nuevo documento PDF
+            const pdfDoc = await PDFDocument.create();
+            // Si es una imagen, agregarla como una página
+            const imageBytes = facturaFile[0].buffer;
+            let image;
+            if (facturaFile[0].mimetype === 'image/jpeg') {
+                image = await pdfDoc.embedJpg(imageBytes);
+            } else {
+                image = await pdfDoc.embedPng(imageBytes);
+            }
+            const page = pdfDoc.addPage([600, 800]); // Tamaño de página (ajústalos según necesites)
+            page.drawImage(image, {
+                x: 0,
+                y: 0,
+                width: 600,
+                height: 800,
+            });
+            pdfBuffer = await pdfDoc.save();
+        }
 
         // Validar el buffer
         if (!pdfBuffer || pdfBuffer.length === 0) {
@@ -205,8 +241,6 @@ exports.uploadFactura = async (req, res) => {
                 viajesError.push(id);
         }
 
-        
-
 
         if (viajesError.length === parsedViajeIds.length){
             await client.query('ROLLBACK');
@@ -219,6 +253,8 @@ exports.uploadFactura = async (req, res) => {
             message+= ` Los siguientes viajes no se encuentran registrados: ${viajesError.join(', ')}`;
         }
 
+        const responseClient = await client.query('SELECT balance FROM cliente WHERE valid = true AND cuit = $1', [cuil]);
+
         // Confirmar transacción
         await client.query('COMMIT');
 
@@ -227,7 +263,10 @@ exports.uploadFactura = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('nuevoFactura', {cuil: cuil, facturaId: facturaId, viajesIds: parsedViajeIds.filter(viaje => !viajesError.includes(viaje.id))});
+                    if (type !== "viajeCliente")
+                        socket.emit('nuevoFactura', {cuil: cuil, facturaId: facturaId, viajesIds: parsedViajeIds.filter(viaje => !viajesError.includes(viaje.id))});
+                    else
+                        socket.emit('actualizarFacturaCliente', {cuit: cuil, balance: responseClient.rows[0].balance});
                 }
             });
         } catch (error){
@@ -237,10 +276,8 @@ exports.uploadFactura = async (req, res) => {
         // Enviar respuesta
         return res.status(200).json({ message , facturaId });
     } catch (error) {
-        if (client) {
+        if (client)
             await client.query('ROLLBACK');
-            client.release();
-        }
         console.error('Error en uploadFactura:', error.message, error.stack);
         return res.status(500).json({ error: `Error al subir la factura: ${error.message}` });
     } finally {
@@ -252,7 +289,7 @@ exports.uploadCartaPorte = async (req, res) => {
    let client;
     try {
         // Verificar autorización
-        if (req.user.role !== 'admin') {
+        if (req.user.role === 'chofer') {
             return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
         }
 
@@ -355,7 +392,7 @@ exports.uploadCartaPorte = async (req, res) => {
 
 exports.descargarFactura = async (req, res) => {
     const { cuil, id, comprobante } = req.query;
-    if (req.user.role !== 'admin' && req.user.cuil !== cuil) {
+    if (req.user.role === 'chofer' && req.user.cuil !== cuil) {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -375,7 +412,7 @@ exports.descargarFactura = async (req, res) => {
         let response = await pool.query(query, params);
 
         if (response.rows.length === 0){
-            if (req.user.role === "admin" && id && id !== "null" & id !== "undefined")
+            if (req.user.role !== "chofer" && id && id !== "null" & id !== "undefined")
                 response = await pool.query('SELECT factura_pdf FROM factura_arca WHERE valid = true AND id = $1 AND cliente_cuit = $2', params);
             if (response.rows.length === 0)
                 return res.status(406).json({ message: "No se encontro el documento solicitado para el viaje especificado"});
@@ -398,7 +435,7 @@ exports.descargarFactura = async (req, res) => {
 }
 
 exports.deleteFactura = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const { id, comprobante, type } = req.query;
@@ -425,8 +462,10 @@ exports.deleteFactura = async (req, res) => {
         
         await client.query(query, params);
 
-        const responseCuil = await client.query('SELECT chofer_cuil AS cuil FROM viaje WHERE valid = true AND comprobante = $1',
+        const responseCuil = await client.query('SELECT chofer_cuil AS cuil, cliente_cuit AS cuit FROM viaje WHERE valid = true AND comprobante = $1',
             [comprobante]);
+            
+        const responseClient = await client.query('SELECT balance FROM cliente WHERE valid = true AND cuit = $1', [responseCuil.rows[0].cuit]);
 
         await client.query('COMMIT');
         client.release();
@@ -436,7 +475,13 @@ exports.deleteFactura = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('deleteFactura', {cuil: responseCuil.rows[0].cuil, facturaId: id, comprobante: comprobante});
+                    if (type !== "viajeCliente")
+                        socket.emit('deleteFactura', {cuil: responseCuil.rows[0].cuil, facturaId: id, comprobante: comprobante});
+                    else
+                        if (id && id !== "null" & id !== "undefined")
+                            socket.emit('actualizarFacturaCliente', {cuit: responseCuil.rows[0].cuit, balance: responseClient.rows[0].balance});
+                        else
+                            socket.emit('deleteCartaPorte', {cuit: responseCuil.rows[0].cuit, comprobante: comprobante});
                 }
             });
         } catch (error) {

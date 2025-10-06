@@ -12,7 +12,7 @@ const validateUser = (data) => {
         patente_acoplado: { type: 'string', required: false, default: null, regex: /^(?:[A-Za-z]{3} \d{3}|[A-Za-z]{2} \d{3} [A-Za-z]{2})$/ },
         telefono: { type: 'number', required: false, default: null },
         email: { type: 'string', required: false, default: null, regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
-        role: { type: 'string', required: false, default: 'chofer', enum: ['chofer', 'admin'] }
+        role: { type: 'string', required: false, default: 'chofer', enum: ['chofer', 'admin', 'admChofer'] }
     };
 
     // Validar solo los campos presentes en data

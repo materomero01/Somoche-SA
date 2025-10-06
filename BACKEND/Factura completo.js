@@ -26,6 +26,13 @@ function limpiarXML(xmlContent) {
   return cleaned;
 }
 
+function formatDate(dateString) {
+  const year = dateString.slice(0, 4);
+  const month = dateString.slice(4, 6);
+  const day = dateString.slice(6, 8);
+  return `${day}/${month}/${year}`;
+}
+
 // Función para verificar si el TA es válido (no vencido)
 async function esTAValido(responseFile) {
   try {
@@ -498,8 +505,8 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   // ORIGINAL header
   doc.lineWidth(1.5);
   doc.rect(PADDING_X, currentY, PAGE_WIDTH - (2 * PADDING_X), 20).stroke();
-  doc.font('Helvetica-Bold').fontSize(20).text('ORIGINAL', PADDING_X, currentY + 3, { align: 'center', width: PAGE_WIDTH - (2 * PADDING_X) });
-  currentY += 25;
+  doc.font('Helvetica-Bold').fontSize(16).text('ORIGINAL', PADDING_X, currentY + 3, { align: 'center', width: PAGE_WIDTH - (2 * PADDING_X) });
+  currentY += 21;
 
   // Box structure for company and invoice details
   const headerBoxWidth = (PAGE_WIDTH - (2 * PADDING_X)) / 2;
@@ -508,12 +515,12 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
 
   // Somoche S.A. Box
   doc.rect(PADDING_X, headerBoxStartY, headerBoxWidth, headerBoxMinHeight).stroke();
-  doc.font('Helvetica-Bold').fontSize(24).text('Somoche S.A.', PADDING_X, headerBoxStartY + 5, { align: 'center', width: headerBoxWidth });
+  doc.font('Helvetica-Bold').fontSize(20).text('SOMOCHE S.A.', PADDING_X, headerBoxStartY + 5, { align: 'center', width: headerBoxWidth });
   doc.font('Helvetica').fontSize(10);
   let somocheTextY = headerBoxStartY + 45;
-  doc.font('Helvetica-Bold').text(`Razón Social: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`Somoche S.A.`, { width: headerBoxWidth - 10 });
+  doc.font('Helvetica-Bold').text(`Razón Social: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`SOMOCHE S.A.`, { width: headerBoxWidth - 10 });
   somocheTextY += 12;
-  doc.font('Helvetica-Bold').text(`Domicilio Comercial: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`550 - Quequen, Buenos Aires`, { width: headerBoxWidth - 10 });
+  doc.font('Helvetica-Bold').text(`Domicilio Comercial: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`541 2050 - Quequen, Buenos Aires`, { width: headerBoxWidth - 10 });
   somocheTextY += 12;
   doc.font('Helvetica-Bold').text(`Condición frente al IVA: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`IVA Responsable Inscripto`, { width: headerBoxWidth - 10 });
 
@@ -524,13 +531,13 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   let facturaTextY = headerBoxStartY + 45;
   doc.font('Helvetica-Bold').text(`Punto de Venta: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`${datosFactura.ptoVta.toString().padStart(5, '0')}    Comp. Nro: ${datosFactura.cbteNro.toString().padStart(8, '0')}`);
   facturaTextY += 12;
-  doc.font('Helvetica-Bold').text(`Fecha de Emisión: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`${datosFactura.fechaEmision}`);
+  doc.font('Helvetica-Bold').text(`Fecha de Emisión: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(formatDate(datosFactura.fechaEmision));
   facturaTextY += 12;
-  doc.font('Helvetica-Bold').text(`CUIT: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`20433059221`);
+  doc.font('Helvetica-Bold').text(`CUIT: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`30714965006`);
   facturaTextY += 12;
-  doc.font('Helvetica-Bold').text(`Ingresos Brutos: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`Exento`);
+  doc.font('Helvetica-Bold').text(`Ingresos Brutos: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`30714965006`);
   facturaTextY += 12;
-  doc.font('Helvetica-Bold').text(`Fecha de Inicio de Actividades: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`10/10/2015`);
+  doc.font('Helvetica-Bold').text(`Fecha de Inicio de Actividades: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`01/11/2015`);
 
   // Floating 'A COD. 01' Box
   const floatingBoxWidth = 75;
@@ -550,7 +557,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   currentY += 1;
   const periodosHeight = 20;
   doc.rect(PADDING_X, currentY, PAGE_WIDTH - (2 * PADDING_X), periodosHeight).stroke();
-  doc.font('Helvetica-Bold').fontSize(11).text(`Período Facturado Desde: `, PADDING_X + 5, currentY + 5, { continued: true }).font('Helvetica').text(`${datosFactura.periodoDesde}  `, { continued: true });
+  doc.font('Helvetica-Bold').fontSize(11).text(`Período Facturado Desde: `, PADDING_X + 5, currentY + 5, { continued: true }).font('Helvetica').text(`01${datosFactura.periodoDesde.slice(2)}  `, { continued: true });
   doc.font('Helvetica-Bold').text(`Hasta: `, { continued: true }).font('Helvetica').text(`${datosFactura.periodoHasta}  `, { continued: true });
   doc.font('Helvetica-Bold').text(`Fecha de Vto. para el pago: `, { continued: true }).font('Helvetica').text(`${datosFactura.fechaVtoPago}`);
   currentY += periodosHeight + 1;
@@ -600,13 +607,13 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   const tableColumnWidths = [40, 100, 50, 50, 55, 40, 60, 60, 80];
   const tableStartX = PADDING_X;
   const tableWidth = PAGE_WIDTH - (2 * PADDING_X);
-  const headerRowHeight = 27;
+  const headerRowHeight = 24;
   const dataRowHeight = 40;
 
   function drawTableHeader(y) {
     doc.lineWidth(1);
     doc.rect(tableStartX, y, tableWidth, headerRowHeight).fill('#ccc').stroke();
-    doc.fillColor('black').font('Helvetica-Bold').fontSize(10);
+    doc.fillColor('black').font('Helvetica-Bold').fontSize(9);
     let currentColumnX = tableStartX;
     tableHeaders.forEach((header, i) => {
       doc.text(header, currentColumnX + 2, y + 5, { width: tableColumnWidths[i] - 4, align: 'center' });
@@ -618,7 +625,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
 
   currentY = drawTableHeader(currentY);
 
-  doc.font('Helvetica').fontSize(9);
+  doc.font('Helvetica').fontSize(8);
   datosFactura.servicios.forEach((s, index) => {
     if (currentY + dataRowHeight > PAGE_HEIGHT - PADDING_X - 150) {
       doc.addPage({ margin: 0 });
@@ -626,7 +633,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
       currentY = drawTableHeader(currentY);
     }
 
-    const ivaRateDisplay = s.ivaId === 5 ? '1,21' : s.ivaId === 4 ? '1,105' : '0,00';
+    const ivaRateDisplay = s.ivaId === 5 ? '21%' : s.ivaId === 4 ? '10.5%' : '0%';
     const rowData = [
       s.codigo,
       s.descripcion,
@@ -752,7 +759,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   doc.font('Helvetica').text(`${impTotal}`, totalesBoxX + totalesLabelWidth, totalesCurrentY, { align: 'right', width: totalesValueWidth - 10 });
   totalesCurrentY += 16;
 
-  currentY = footerSectionStartY + overallFooterBoxHeight + 20;
+  currentY = footerSectionStartY + overallFooterBoxHeight + 3;
 
   // Bottom section (QR, AFIP text, CAE)
   const qrWidth = (PAGE_WIDTH - (2 * PADDING_X)) * 0.20;
@@ -766,35 +773,54 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
 
   const bottomSectionStartY = currentY;
 
+  // caja de "tansportes"
+  const transportesBoxWidth = (PAGE_WIDTH - (2 * PADDING_X));
+  const transportesBoxX = PADDING_X;
+  const transportesBoxY = bottomSectionStartY;
+  const transportesText = '"Transportes"';
+  doc.font('Helvetica-Bold').fontSize(11);
+  const transportesTextHeight = doc.heightOfString(transportesText, { width: transportesBoxWidth, align: 'center' });
+  const transportesBoxHeight = transportesTextHeight + 6// 6px padding arriba y abajo
+
+  doc.rect(transportesBoxX, transportesBoxY, transportesBoxWidth, transportesBoxHeight).stroke();
+  doc.text(transportesText, transportesBoxX, transportesBoxY + 6, {
+    width: transportesBoxWidth,
+    align: 'center'
+  });
+
+
+
   // Generar e insertar el QR
   try {
     const { qrUrl, constatacionUrl } = await generarEnlaceQR(datosFactura, impTotal);
     console.log('QR generado para el PDF');
     const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 120, margin: 6, errorCorrectionLevel: 'M', scale: 8 });
-    doc.image(qrBuffer, PADDING_X + 5, bottomSectionStartY + 5, { width: 120 });
+    doc.image(qrBuffer, PADDING_X + 5, bottomSectionStartY + 25, { width: 120 });
     
   } catch (e) {
     console.warn('Error al generar el QR:', e.message || e);
   }
 
+
   // AFIP text (centrado)
   const afipInfoX = (PAGE_WIDTH - afipInfoWidth) / 2;
-  doc.font('Helvetica-BoldOblique').fontSize(11).text('Comprobante Autorizado', afipInfoX, bottomSectionStartY + 45, { width: afipInfoWidth, align: 'center' });
-  doc.font('Helvetica-Oblique').fontSize(8).text('Esta Administración Federal no se responsabiliza por los datos ingresados en el detalle de la operación', afipInfoX, bottomSectionStartY + 60, { width: afipInfoWidth, align: 'center' });
+  doc.font('Helvetica-BoldOblique').fontSize(11).text('Comprobante Autorizado', afipInfoX, bottomSectionStartY + 65, { width: afipInfoWidth, align: 'left' });
+  doc.font('Helvetica-Oblique').fontSize(8).text('Esta Agencia no se responsabiliza por los datos ingresados en el detalle de la operación', afipInfoX, bottomSectionStartY + 80, { width: afipInfoWidth, align: 'left' });
 
   // CAE Info
   const caeInfoX = PADDING_X + qrWidth + afipInfoWidth - 40;
   doc.font('Helvetica-Bold').fontSize(10);
-  let caeTextY = bottomSectionStartY + 10;
+  let caeTextY = bottomSectionStartY + 35;
   const caeLabelOffsetX = 5;
   const caeValueOffsetX = 120;
 
-  doc.text(`CAE N°:`, caeInfoX + caeLabelOffsetX, caeTextY);
+  doc.text(`CAE N°:`, caeInfoX + caeLabelOffsetX, caeTextY,);
   doc.font('Helvetica').text(`${datosFactura.cae}`, caeInfoX + caeValueOffsetX, caeTextY, { width: 100 });
   caeTextY += 12;
 
+
   doc.font('Helvetica-Bold').text(`Fecha de Vto. de CAE:`, caeInfoX + caeLabelOffsetX, caeTextY);
-  doc.font('Helvetica').text(`${datosFactura.caeFchVto}`, caeInfoX + caeValueOffsetX, caeTextY, { width: 100 });
+  doc.font('Helvetica').text(formatDate(datosFactura.caeFchVto), caeInfoX + caeValueOffsetX, caeTextY, { width: 100 });
 
   // Page 1/1
   const pageCount = doc.bufferedPageRange().count;

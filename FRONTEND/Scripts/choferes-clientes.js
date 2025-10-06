@@ -1,5 +1,5 @@
 import { renderTabla } from './tabla.js';
-import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchTarifas, fetchClientes, socket } from './api.js';
+import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchClientes, socket, loadTarifas, tarifasCatac } from './api.js';
 import { updateChofer, showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText } from './apiPublic.js';
 import { inicializarModal, renderizarTablas, handleSaveEditViajes } from './viajes-pagos.js';
 import { parseImporte } from './resumenes.js';
@@ -8,8 +8,6 @@ import { handleSaveEditViajesCliente, inicializarModaCliente, renderizarTablaVC 
 // --- Datos de ejemplo (sustituir con datos reales del backend) ---
 export let mockChoferes = [];
 export let mockClientes = [];
-
-export let tarifasCatac = [];
 
 let currentChoferesPage = 1;
 let currentClientesPage = 1;
@@ -26,11 +24,11 @@ const principalContent = document.getElementById('principalContent');
 const choferesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido', class: [] },
     { key: 'cuil', label: 'CUIL/CUIT', class: [] },
-    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: ['Monotributista', 'Responsable Inscripto', 'Autónomo', 'Exento'] },
+    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{value: 'Monotributista', text:'Monotributista'} , {value: 'Responsable Inscripto', text: 'Responsable Inscripto'}] },
     { key: 'patente_chasis', label: 'Chasis', class: [] },
     { key: 'patente_acoplado', label: 'Acoplado', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
-    { key: 'email', label: 'Email', class: [] }
+    { key: 'email', label: 'Email', class: [] },
 ];
 
 const clientesColumns = [
@@ -95,16 +93,7 @@ const clientesActions = [
         classList: ['navigate-btn'],
         id: null,
         handler: (rowData) => {
-            // Store CUIT before opening modal
-            const cleanCUIT = rowData.cuit.replace(/[^0-9]/g, '');
-            if (cleanCUIT.length === 11) {
-                localStorage.setItem('selectedClientCUIT', cleanCUIT);
-                console.log('Stored CUIT:', cleanCUIT);
-                verViajesModal(rowData, "cliente");
-            } else {
-                console.error('Invalid CUIT:', rowData.cuit);
-                showConfirmModal('Error: CUIT inválido en la fila seleccionada.');
-            }
+            verViajesModal(rowData, "cliente");
         }
     }
 ];
@@ -160,7 +149,7 @@ function renderClientesTable(data, currentPage = 1) {
 
 // --- Función para renderizar la tabla actual ---
 export function renderCurrentTable() {
-    console.log(currentEditingTableType);
+    //console.log(currentEditingTableType);
     if (currentEditingTableType === 'choferes') {
         renderChoferesTable(mockChoferes, currentChoferesPage);
     } else if (currentEditingTableType === 'clientes') {
@@ -170,10 +159,6 @@ export function renderCurrentTable() {
     } else if (currentEditingTableType === "viajesCliente") {
         renderizarTablaVC();
     }
-}
-
-export function setEditingRow(valor){
-    editingRowId = valor;
 }
 
 // --- Lógica de Pestañas ---
@@ -206,7 +191,6 @@ export function setEditingRow(valor){
 }
 
 async function verViajesModal(choferData, tipo) {
-    tarifasCatac = JSON.parse(localStorage.getItem('tarifasCatac')) || fetchTarifas();
     if (tipo === "chofer") {
         const modalViajesPagos = document.getElementById("viajesPagosModal");
         if (modalViajesPagos) {
@@ -341,9 +325,9 @@ function setupAddButtons() {
                 email: choferData['email'] || null
             };
             const response = await insertChofer(payload);
-            if (response) {
+            if (response.ok) {
                 const nuevoChofer = {
-                    id: mockChoferes.length + 1,
+                    id: payload.cuil,
                     nombre: payload.nombre,
                     cuil: payload.cuil,
                     trabajador: payload.trabajador,
@@ -356,7 +340,11 @@ function setupAddButtons() {
                 renderChoferesTable(mockChoferes);
                 formChofer.reset();
                 formCardChofer.classList.toggle('hidden');
-                showConfirmModal('Nuevo chofer añadido exitosamente.');
+                const data = await response.json();
+                showConfirmModal(data.message);
+            } else {
+                const dataError = await response.json();
+                showConfirmModal(dataError.message);
             }
         });
     }
@@ -386,9 +374,9 @@ function setupAddButtons() {
                 email: email !== ''? email : null
             };
             const response = await insertCliente(payload);
-            if (response) {
+            if (response.ok) {
                 const nuevoCliente = {
-                    id: mockClientes.length + 1,
+                    id: payload.cuit,
                     nombre,
                     cuit,
                     email
@@ -399,7 +387,11 @@ function setupAddButtons() {
                 document.getElementById('nuevoClienteCuit').value = '';
                 document.getElementById('nuevoClienteEmail').value = '';
                 formCard.classList.add('hidden');
-                showConfirmModal('Nuevo cliente añadido exitosamente.');
+                const data = await response.json();
+                showConfirmModal(data.message);
+            } else {
+                const dataError = await response.json();
+                showConfirmModal(dataError.message);
             }
         });
     }
@@ -452,8 +444,6 @@ export function enterEditMode(rowData, tableType) {
 export function handleEdit(id, field, value, tableType) {
     if (id === editingRowId && tableType === currentEditingTableType) {
         stagedEditingData[field] = value;
-        console.log(`Campo ${field} de ID ${id} actualizado a ${value}`);
-
         // Lógica específica para actualizar tarifa cuando se cambia km en la tabla de viajes
         if ((tableType === 'viajes' || tableType === 'viajesCliente') && field === 'km') {
             const currentKm = parseInt(value.trim(), 10);
@@ -461,7 +451,7 @@ export function handleEdit(id, field, value, tableType) {
                 ? parseImporte(tarifasCatac[currentKm - 1].valor)
                 : parseImporte(tarifasCatac[tarifasCatac.length - 1]?.valor) || 0;
             stagedEditingData['tarifa'] = tarifaCatacCalculada;
-            console.log(`Tarifa actualizada a ${tarifaCatacCalculada} para km ${value}`);
+            //console.log(`Tarifa actualizada a ${tarifaCatacCalculada} para km ${value}`);
             
             // Actualizar el input de tarifa en el DOM
             const tarifaInput = document.getElementById('tarifaEdit');
@@ -527,7 +517,7 @@ export async function handleSaveEdit() {
 }
 
 export function handleCancelEdit() {
-    console.log('Cancelando edición');
+    //console.log('Cancelando edición');
     exitEditMode();
 }
 
@@ -627,7 +617,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     await createLoadingSpinner(principalContent);
 
-
+    await loadTarifas();
     setupTableEventListeners();
     await setupChoferesClientesTabSelector();
     setupSearchBar('choferesSearchBar', 'choferes');
@@ -638,8 +628,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     toggleSpinnerVisible(principalContent);
 
     socket.on('nuevoUsuario', async (user) => {
-        mockChoferes.push({id: mockChoferes.length + 1, ...user});
-        console.log("Nuevo chofer añadido");
+        mockChoferes.push(user);
+        //console.log("Nuevo chofer añadido");
         if (currentEditingTableType === "choferes" && editingRowId) return;
         renderChoferesTable(mockChoferes, currentChoferesPage);
     });
@@ -647,24 +637,23 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateUsuario', async (user) => {
         let chofer = mockChoferes.find(chofer => chofer.cuil === user.cuilOriginal);
         const updatedData = user.updatedData;
-        if (chofer){    
-            console.log(`Chofer con cuil ${user.cuilOriginal} modificado`);
+        if (chofer){
+            //console.log(`Chofer con cuil ${user.cuilOriginal} modificado`);
             if (currentEditingTableType === "choferes" && editingRowId) {
-                if (mockChoferes.find(chofer => chofer.id === editingRowId).cuil === user.cuilOriginal){
+                if (editingRowId === user.cuilOriginal){
                     Object.assign(chofer, updatedData);
-                    editingRowId = null;
+                    resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
                     await renderChoferesTable(mockChoferes, currentChoferesPage);
-                    changeSpinnerText(principalContent);
                     toggleSpinnerVisible(principalContent);
+                    changeSpinnerText(principalContent);
                     showConfirmModal("Se han actualizado los datos");
-
                 }
-                Object.assign(chofer, updatedData);
+                Object.assign(mockChoferes[choferIndex], updatedData);
                 return;
             }
-            Object.assign(chofer, updatedData);
+            Object.assign(mockChoferes[choferIndex], updatedData);
             renderChoferesTable(mockChoferes, currentChoferesPage);
         }
     });
@@ -673,15 +662,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         const chofer = mockChoferes.find(chofer => chofer.cuil === user.cuil);
         mockChoferes = mockChoferes.filter(chofer => chofer.cuil !== user.cuil);
         if (currentEditingTableType === "choferes" && editingRowId){
-            if (chofer.id === editingRowId && chofer.cuil === user.cuil){
-                    editingRowId = null;
+            if (chofer.id === editingRowId){
+                    resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
                     await renderChoferesTable(mockChoferes, currentChoferesPage);
-                    changeSpinnerText(principalContent);
                     toggleSpinnerVisible(principalContent);
+                    changeSpinnerText(principalContent);
                     showConfirmModal("Se han actualizado los datos");
-
                 }
                 return;
             }
@@ -689,8 +677,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     socket.on('nuevoCliente', async (client) => {
-        mockClientes.push({id: mockClientes.length + 1, ...client});
-        console.log("Nuevo cliente añadido");
+        mockClientes.push(client);
+        //console.log("Nuevo cliente añadido");
         if (currentEditingTableType === "clientes" && editingRowId) return;
         renderClientesTable(mockClientes, currentClientesPage);
     });
@@ -699,16 +687,16 @@ document.addEventListener('DOMContentLoaded', async function () {
         let cliente = mockClientes.find(cliente => cliente.cuit === client.cuitOriginal);
         const updatedData = client.updatedData;
         if (cliente){
-            console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
+            //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
             if (currentEditingTableType === "clientes" && editingRowId) {
-                if (mockClientes.find(cliente => cliente.id === editingRowId).cuit === client.cuitOriginal){
+                if (editingRowId === client.cuitOriginal){
                     Object.assign(cliente, updatedData);
-                    editingRowId = null;
+                    resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
                     await renderClientesTable(mockClientes, currentClientesPage);
-                    changeSpinnerText(principalContent);
                     toggleSpinnerVisible(principalContent);
+                    changeSpinnerText(principalContent);
                     showConfirmModal("Se han actualizado los datos");
                 }
                 Object.assign(cliente, updatedData);
@@ -723,35 +711,19 @@ document.addEventListener('DOMContentLoaded', async function () {
         const cliente = mockClientes.find(cliente => cliente.cuit === client.cuit);
         mockClientes = mockClientes.filter(cliente => cliente.cuit !== client.cuit);
         if (currentEditingTableType === "clientes" && editingRowId){
-            if (cliente.id === editingRowId && cliente.cuit === client.cuit){
-                    editingRowId = null;
-                    changeSpinnerText(principalContent, "Actualizando datos...");
-                    toggleSpinnerVisible(principalContent);
-                    await renderClientesTable(mockClientes, currentClientesPage);
-                    changeSpinnerText(principalContent);
-                    toggleSpinnerVisible(principalContent);
-                    showConfirmModal("Se han actualizado los datos");
+            if (cliente.id === editingRowId){
+                resetEditingState();
+                changeSpinnerText(principalContent, "Actualizando datos...");
+                toggleSpinnerVisible(principalContent);
+                await renderClientesTable(mockClientes, currentClientesPage);
+                toggleSpinnerVisible(principalContent);
+                changeSpinnerText(principalContent);
+                showConfirmModal("Se han actualizado los datos");
 
-                }
-                return;
             }
+            return;
+        }
         renderClientesTable(mockClientes, currentClientesPage);
-    });
-
-    // Add CUIT capture for navigate-btn
-    document.querySelectorAll('.navigate-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const row = e.target.closest('tr');
-            const cuit = row.querySelector('td:nth-child(2)').getAttribute('title');
-            const cleanCUIT = cuit.replace(/[^0-9]/g, '');
-            if (cleanCUIT.length === 11) {
-                localStorage.setItem('selectedClientCUIT', cleanCUIT);
-                console.log('Stored CUIT:', cleanCUIT);
-            } else {
-                console.error('Invalid CUIT:', cuit);
-                showConfirmModal('Error: CUIT inválido en la fila seleccionada.');
-            }
-        });
     });
 
     document.addEventListener('click', function (event) {
@@ -763,7 +735,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         const addClienteCard = document.getElementById('addClienteCard');
         const addChoferWrapper = document.getElementById('chofer-wrapper');
         const addChoferCard = document.getElementById('addChoferCard');
-        const viajesPagosModal = document.getElementById('viajesPagosModal');
         const modalConfirmacion = document.getElementById('confirmModal');
 
         const isClickOutsideModal = modalContent && !modalContent.contains(event.target);
@@ -771,7 +742,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         const isClickInsideSidebar = sidebarContainer && sidebarContainer.contains(event.target);
         const isClickInsideAddCliente = (addClienteWrapper && addClienteWrapper.contains(event.target)) || (modalConfirmacion && modalConfirmacion.contains(event.target));
         const isClickInsideAddChofer = (addChoferWrapper && addChoferWrapper.contains(event.target)) || (modalConfirmacion && modalConfirmacion.contains(event.target));
-        const isClickInsideViajesModal = viajesPagosModal && viajesPagosModal.contains(event.target);
 
         if (addChoferCard && !isClickInsideAddChofer && !isClickInsideHeader && !isClickInsideSidebar) {
             addChoferCard.classList.add('hidden');
@@ -786,6 +756,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         const editingRowElement = document.querySelector(`.data-table tr[data-id="${editingRowId}"]`);
+        //console.log(editingRowElement);
         const isClickInsideEditingRow = editingRowElement && editingRowElement.contains(event.target);
         const isActionButton = event.target.closest('.action-icons i');
         const isInputInTable = event.target.matches('.editable-input');
@@ -801,8 +772,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             isPaginationControl ||
             isClickInsideHeader ||
             isClickInsideSidebar ||
-            isClickInsideAddCliente ||
-            isClickInsideViajesModal
+            isClickInsideAddCliente
         ) {
             return;
         }

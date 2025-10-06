@@ -12,6 +12,7 @@ exports.insertUser = async (req, res) => {
    try {
         // Validar datos de entrada
         const { errors, validatedData } = userSchema(req.body);
+        const { admin } = req.query;
         if (errors.length > 0) {
             return res.status(400).json({ message: `Los datos ingresados para ${errors.join(', ')} no son validos` });
         }
@@ -21,44 +22,60 @@ exports.insertUser = async (req, res) => {
 
         // Verificar si el CUIL o email ya están registrados
         const userExists = await client.query(
-            'SELECT cuil FROM usuario WHERE cuil = $1 OR email = $2',
+            'SELECT cuil, valid FROM usuario WHERE cuil = $1 OR email = $2',
             [validatedData.cuil, validatedData.email]
         );
-        if (userExists.rows.length > 0) {
-            return res.status(409).json({ message: 'El CUIL o el Email ya están registrados.' });
-        }
-
+        
         // Hash de la contraseña
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(validatedData.password, salt);
+        let usuarioRecuperado = false;
+        if (userExists.rows.length > 0) {
+            console.log(admin);
+            if(!userExists.rows[0].valid && admin === "true"){
+                const responseRecuperar = await client.query('UPDATE usuario SET valid = true, nombre_apellido = $2, password = $3, telefono = $4, email = $5 WHERE valid = false AND cuil = $1', [validatedData.cuil, validatedData.nombre, hashedPassword, validatedData.telefono, validatedData.email]);
+                const responseRecuperarChofer = await client.query('UPDATE chofer SET valid = true, tipo_trabajador = $2, patente_chasis = $3, patente_acoplado = $4 WHERE valid = false AND cuil = $1', [validatedData.cuil, validatedData.trabajador, validatedData.patente_chasis, validatedData.patente_acoplado]);
+                if (responseRecuperar.rowCount > 0 && responseRecuperarChofer.rowCount > 0)
+                    usuarioRecuperado = true;
+                    res.status(202).json({ message: `Se recupero un usuario anteriormente registrado con el cuit ${validatedData.cuil}, y se actualizaron sus datos`});
 
-        // Insertar en la tabla usuario
-        await client.query(
-            `INSERT INTO usuario (
-                cuil, nombre_apellido, password, telefono, email, role
-            ) VALUES ($1, $2, $3, $4, $5, $6)`,
-            [
-                validatedData.cuil,
-                validatedData.nombre,
-                hashedPassword,
-                validatedData.telefono,
-                validatedData.email,
-                'chofer'
-            ]
-        );
+            }
+            if (!usuarioRecuperado) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({ message: 'El CUIL o el Email ya están registrados.' });
+            }
+        }
 
-        // Insertar en la tabla chofer
-        await client.query(
-            `INSERT INTO chofer (
-                cuil, tipo_trabajador, patente_chasis, patente_acoplado
-            ) VALUES ($1, $2, $3, $4)`,
-            [
-                validatedData.cuil,
-                validatedData.trabajador,
-                validatedData.patente_chasis,
-                validatedData.patente_acoplado
-            ]
-        );
+        
+        if (!usuarioRecuperado){
+            // Insertar en la tabla usuario
+            await client.query(
+                `INSERT INTO usuario (
+                    cuil, nombre_apellido, password, telefono, email, role
+                ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                [
+                    validatedData.cuil,
+                    validatedData.nombre,
+                    hashedPassword,
+                    validatedData.telefono,
+                    validatedData.email,
+                    'chofer'
+                ]
+            );
+
+            // Insertar en la tabla chofer
+            await client.query(
+                `INSERT INTO chofer (
+                    cuil, tipo_trabajador, patente_chasis, patente_acoplado
+                ) VALUES ($1, $2, $3, $4)`,
+                [
+                    validatedData.cuil,
+                    validatedData.trabajador,
+                    validatedData.patente_chasis,
+                    validatedData.patente_acoplado
+                ]
+            );
+        }
 
         await client.query('COMMIT');
 
@@ -72,7 +89,7 @@ exports.insertUser = async (req, res) => {
                 emitterCuil = decoded.cuil;
                 io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== emitterCuil) {
-                    socket.emit('nuevoUsuario',{nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
+                    socket.emit('nuevoUsuario',{id: validatedData.cuil,nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
                 }
             });
             } catch (error) {
@@ -82,7 +99,7 @@ exports.insertUser = async (req, res) => {
             io.emit('nuevoUsuario',{nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
         }
         
-        res.status(201).json({ message: 'Usuario registrado con éxito' });
+        if (!usuarioRecuperado) res.status(201).json({ message: 'Usuario registrado con éxito' });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
         console.error('Error en insertUser:', error);
@@ -155,9 +172,8 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         //user: process.env.EMAIL_USER,
-        user: "matetornikato@gmail.com",
-        pass: "qkyb shiz lxvr rghy"
-        //pass: process.env.EMAIL_PASS
+        user: "somochesa.soporte@gmail.com",
+        pass: process.env.EMAIL_PASS
     }
 });
 

@@ -254,7 +254,6 @@
     padding: 6px;
     text-align: left;
     white-space: normal;
-    word-break: break-word;
     font-size: 0.9em;
 }
 
@@ -441,7 +440,6 @@
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
-    /* Las reglas de media query para .filter-card fueron movidas a filter-component.css */
     
     .section-header {
         flex-direction: column;

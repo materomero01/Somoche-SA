@@ -544,16 +544,43 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('nuevoPago', async (pagos) => {
         let actualizo = false;
         pagos.pagosArray.forEach( pago => {
-            if (pago.tipo === 'cheque' && !datosChequesProximos.find(c => c.nro_cheque === pago.comprobante) && !pago.cliente_cuit){
+            if (pago.tipo.toLowerCase() === 'cheque' && !datosChequesProximos.find(c => c.nro_cheque === pago.comprobante) && !pago.cuit){
                 datosChequesProximos.push(pago);
                 actualizo = true;
             };
         });
         if (actualizo) {
             await renderTablaProximos();
-            showConfirmModal("Se actualizaron los pagos del chofer");
+            showConfirmModal("Se actualizaron los cheques próximos");
         }
     });
+
+    socket.on('deletePago', async (pago) => {
+        console.log("Cheque eliminado recibido por socket:", pago);
+        if (!pago.cuit && pago.tipo.toLowerCase() === 'cheque'){
+            datosChequesProximos = datosChequesProximos.filter(c => c.nro_cheque !== pago.id);
+            await renderTablaProximos();
+            showConfirmModal("Se actualizaron los cheques próximos");
+        }
+    });
+
+    socket.on('marcarPago', async (pago) => {
+        length = datosChequesProximos.length;
+        datosChequesProximos = datosChequesProximos.filter(p => {
+            if (pago.nros.includes(p.nro_cheque)){
+                datosChequesPagos.push(p);
+                return false;
+            }
+            return true;
+        });
+        datosChequesPagos.sort((a, b) => new Date(a.fecha_cheque) - new Date(b.fecha_cheque) );
+        if (length !== datosChequesProximos.length){
+            await renderTablaProximos();
+            await renderTablaPagos();
+            showConfirmModal("Se marcaron cheques como pagos y se actualizaron las tablas");
+        }
+    });
+
 
     document.addEventListener('click', handleClickOutsideFilterCard);
     updateClearFilterButtonVisibility();

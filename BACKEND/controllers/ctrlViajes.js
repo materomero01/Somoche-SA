@@ -3,7 +3,7 @@ const viajeSchema = require('../models/Viaje.js');
 const { getIO } = require('../socket');
 
 exports.insertViaje = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     let client;
@@ -19,7 +19,7 @@ exports.insertViaje = async (req, res) => {
         // Verificar si el chofer existe
         const userExists = await client.query(
             'SELECT cuil FROM usuario WHERE valid = true AND cuil = $1',
-            [validatedData.cuil]
+            [validatedData.chofer_cuil]
         );
         if (userExists.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -30,7 +30,7 @@ exports.insertViaje = async (req, res) => {
         // Verificar si el cliente existe
         const clientExists = await client.query(
             'SELECT cuit FROM cliente WHERE cuit = $1',
-            [validatedData.cuit_cliente]
+            [validatedData.cliente_cuit]
         );
         if (clientExists.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -59,7 +59,7 @@ exports.insertViaje = async (req, res) => {
                 chofer_cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, cliente_cuit
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
-                validatedData.cuil,
+                validatedData.chofer_cuil,
                 validatedData.comprobante,
                 validatedData.fecha,
                 validatedData.campo,
@@ -69,7 +69,7 @@ exports.insertViaje = async (req, res) => {
                 validatedData.toneladas,
                 validatedData.cargado,
                 validatedData.descargado,
-                validatedData.cuit_cliente
+                validatedData.cliente_cuit
             ]
         );
 
@@ -101,7 +101,7 @@ exports.insertViaje = async (req, res) => {
 
 exports.getViajeCuil = async (req, res) => {
     const cuil = req.params.cuil;
-    if (req.user.role !== 'admin' && req.user.cuil !== cuil) {
+    if (req.user.role === 'chofer' && req.user.cuil !== cuil) {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     try {
@@ -131,15 +131,17 @@ exports.getViajeCuil = async (req, res) => {
 
 
 exports.getViajeComprobante = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const { comprobante } = req.params;
 
     try {
-        const response = await pool.query(`SELECT chofer_cuil AS cuil, comprobante, fecha, campo, 
-            kilometros, tarifa, variacion, toneladas, cargado, descargado, cliente_cuit AS cuit
-            FROM viaje WHERE valid = true AND comprobante = $1`,
+        const response = await pool.query(`SELECT chofer_cuil AS cuil, u.nombre_apellido AS nombre, comprobante, fecha, campo, 
+            kilometros, tarifa, variacion, toneladas, cargado, descargado, cliente_cuit AS cuit, group_r
+            FROM viaje v
+            LEFT JOIN usuario u ON v.chofer_cuil = u.cuil
+            WHERE v.valid = true AND v.comprobante = $1`,
         [comprobante]);
 
         if (response.rows.length === 0)
@@ -154,7 +156,7 @@ exports.getViajeComprobante = async (req, res) => {
 
 exports.getViajeCuit = async (req, res) => {
     const { cuit, facturados, cantidad, pagados } = req.query;
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -203,7 +205,7 @@ exports.getViajeCuit = async (req, res) => {
 };
 
 exports.updateViajes = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     let client;
@@ -212,7 +214,6 @@ exports.updateViajes = async (req, res) => {
         await client.query('BEGIN'); // Iniciar transacción
 
         const viajes = req.body; // Objeto con formato { [comprobante]: { comprobante, group, ... }, ... }
-        console.log(viajes);
         if (!viajes || typeof viajes !== 'object' || Object.keys(viajes).length === 0) {
             client.release();
             return res.status(400).json({ message: 'Se debe proporcionar un objeto con viajes a actualizar.' });
@@ -229,15 +230,30 @@ exports.updateViajes = async (req, res) => {
 
             // Validar datos de entrada con viajeSchema (validación parcial)
             const { errors: validationErrors, validatedData } = viajeSchema(data, true); // true indica validación parcial
-            console.log(validationErrors);
+
             if (validationErrors.length > 0) {
                 errors.push({ comprobante, message: 'Errores de validación', errors: validationErrors });
                 continue;
             }
+            console.log(validatedData);
+
+            // Verificar si el nuevo comprobante ya existe
+            if (comprobante !== validatedData.comprobante){
+                const viajeExistsNuevo = await client.query('SELECT valid FROM viaje WHERE comprobante = $1', [validatedData.comprobante]);
+                
+                if (viajeExistsNuevo.rows.length > 0){
+                    if (viajeExistsNuevo.rows[0].valid) {
+                        errors.push({comprobante, message: `Ya se encuentra registrado un viaje con el comprobante ${validatedData.comprobante}`});
+                        continue;
+                    } else {
+                        await client.query('DELETE FROM viaje WHERE valid = false AND comprobante = $1', [validatedData.comprobante]);
+                    }
+                }
+            }
 
             // Verificar si el viaje existe
             const viajeExists = await client.query(
-                'SELECT chofer_cuil AS cuil FROM viaje WHERE comprobante = $1',
+                'SELECT chofer_cuil AS cuil, cliente_cuit AS cuit, kilometros, tarifa, variacion, toneladas, update_at FROM viaje WHERE valid = true AND comprobante = $1',
                 [comprobante]
             );
 
@@ -274,18 +290,22 @@ exports.updateViajes = async (req, res) => {
                 continue;
             }
 
-            console.log(validatedData);
-
+            const viajeUpdateado = await client.query('SELECT update_at FROM viaje WHERE valid = true AND comprobante = $1', [comprobante]);
             try {
                 const io = getIO();
                 // Avisar a todos los clientes conectados
                 io.sockets.sockets.forEach((socket) => {
                     if (socket.cuil !== req.user.cuil) {
-                        socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, ...validatedData}});
+                        if (tablaUpdate === "viaje")
+                            socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData}});
+                        else {
+                            if (new Date(viajeExists.rows[0].update_at) < new Date(viajeUpdateado.rows[0].update_at)) socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, kilometros: viajeExists.rows[0].kilometros, tarifa: viajeExists.rows[0].tarifa, variacion: viajeExists.rows[0].variacion, toneladas: viajeExists.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado}});
+                            socket.emit('updateViajeCliente',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData}});
+                        }
                     }
                 });
             } catch (error){
-                console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+                console.error("Error al sincronizar los datos en UpdateViajes", error.stack);
             }
 
             updatedViajes.push(comprobante);
@@ -311,12 +331,12 @@ exports.updateViajes = async (req, res) => {
         if (client) await client.query('ROLLBACK'); // Revertir cambios en caso de error
         client?.release();
         console.error('Error en updateViajes:', error);
-        res.status(500).json({ message: 'Error interno del servidor al actualizar los viajes.' });
+        res.status(500).json({ message: error.message });
     }
 };
 
 exports.deleteViaje = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -334,13 +354,32 @@ exports.deleteViaje = async (req, res) => {
         console.log(comprobante);
         // Verificar si el viaje existe y está válido
         const viajeExists = await client.query(
-            'SELECT chofer_cuil AS cuil FROM viaje WHERE comprobante = $1 AND valid = true',
+            'SELECT chofer_cuil AS cuil, group_r FROM viaje WHERE comprobante = $1 AND valid = true',
             [comprobante]
         );
         if (viajeExists.rows.length === 0) {
             await client.query('ROLLBACK');
             client.release();
             return res.status(404).json({ message: `El viaje con comprobante ${comprobante} no existe o ya está marcado como no válido.` });
+        }
+
+        if (viajeExists.rows[0].group_r) {
+            await client.query('ROLLBACK');
+            client.release();
+            return res.status(405).json({ message: `El viaje con comprobante ${comprobante} no puede ser eliminado, ya que pertenece a un resumen pasado.`});
+        }
+
+        const viajeClienteExists = await client.query (`
+            SELECT cliente_cuit AS cuit, factura_id
+            FROM viaje_cliente
+            WHERE valid = true AND viaje_comprobante = $1
+            `,
+            [comprobante]);
+        
+        if (viajeClienteExists.rows[0].factura_id){
+            await client.query('ROLLBACK');
+            client.release();
+            return res.status(405).json({ message: `El viaje con comprobante ${comprobante} no puede ser eliminado, ya que fue facturado.`});
         }
 
                 
@@ -355,7 +394,7 @@ exports.deleteViaje = async (req, res) => {
         if (result.rowCount === 0) {
             await client.query('ROLLBACK');
             client.release();
-            return res.status(400).json({ message: `No se pudo realizar el soft delete del viaje con comprobante ${comprobante}.` });
+            return res.status(400).json({ message: `No se pudo eliminar el viaje con comprobante ${comprobante}.` });
         }
 
         await client.query('COMMIT');
@@ -366,7 +405,7 @@ exports.deleteViaje = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('deleteViaje',{comprobante: comprobante, cuil: viajeExists.rows[0].cuil});
+                    socket.emit('deleteViaje',{comprobante: comprobante, cuil: viajeExists.rows[0].cuil, cuit: viajeClienteExists.rows[0].cuit});
                 }
             });
         } catch (error){
@@ -387,7 +426,7 @@ exports.deleteViaje = async (req, res) => {
 };
 
 exports.pagarViajeCliente = async (req, res) => {
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
@@ -401,10 +440,12 @@ exports.pagarViajeCliente = async (req, res) => {
         client =  await pool.connect();
         await client.query('BEGIN');
 
+        const viajesPagados = [];
         const updatedRows = [];
+        let cuit;
         for (const viaje of viajes) {
             const { viaje_comprobante, cliente_cuit } = viaje;
-
+            cuit = cliente_cuit;
             // Validate input fields
             if (!viaje_comprobante || !cliente_cuit) {
                 throw new Error('Faltan viaje_comprobante o cliente_cuit en uno de los viajes');
@@ -416,6 +457,7 @@ exports.pagarViajeCliente = async (req, res) => {
                 [viaje_comprobante, cliente_cuit]
             );
 
+            
             console.log(result.rowCount);
             if (result.rowCount === 0) {
                 updatedRows.push({
@@ -430,6 +472,7 @@ exports.pagarViajeCliente = async (req, res) => {
                     cliente_cuit,
                     success: true
                 });
+                viajesPagados.push(viaje_comprobante);
             }
         }
 
@@ -442,6 +485,18 @@ exports.pagarViajeCliente = async (req, res) => {
                 message: 'Ningún viaje fue actualizado. Verifica los datos enviados.',
                 details: updatedRows
             });
+        }
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('updatePagados', {cuit: cuit, viajesPagados: viajesPagados});
+                }
+            });
+        } catch (error){
+            console.error("Error al sincronizar los datos en pagarViajeCliente", error.stack);
         }
 
         res.status(202).json({

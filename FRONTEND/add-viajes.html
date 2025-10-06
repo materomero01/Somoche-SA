@@ -15,6 +15,7 @@
  <link rel="stylesheet" href="/FRONTEND/css/input.css" />
  <link rel="stylesheet" href="/FRONTEND/css/searchbar.css" />
  <link rel="stylesheet" href="/FRONTEND/css/modal.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/loading-spinner.css" />
 </head>
 <body>
 
@@ -22,7 +23,12 @@
  <div id="sidebar-container"></div>
 
  <main class="content">
-  <section class="add-viajes-section">
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        Cargando datos...
+    </div>
+
+  <section id="add-viajes-section" class="add-viajes-section hidden">
 
       <div class="tab-selector" id="viajesPagosSelector" style="margin-top:20px;">
         <div class="tab-item active" data-tab="viajes">Viajes</div>
@@ -118,9 +124,9 @@
             <div class="form-group">
                 <label for="tipoPago" style="font-weight: bold;">Tipo de Pago</label>
                 <select id="tipoPago">
-                    <option value="cheque">Cheque</option>
-                    <option value="gasoil">Gasoil</option>
-                    <option value="otro">Otro</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Gasoil">Gasoil</option>
+                    <option value="Otro">Otro</option>
                 </select>
             </div>
         </div>
@@ -151,7 +157,7 @@
                     </div>
                     <div class="form-group autocomplete-container">
                         <label for="clienteCheque">Asignar Cliente?</label>
-                        <input type="text" id="clienteCheque" placeholder="Razon social">
+                        <input type="search" id="clienteCheque" placeholder="Razon social">
                     </div>
                 </div>
             </div>
