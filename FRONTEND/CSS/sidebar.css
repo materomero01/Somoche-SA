@@ -127,3 +127,67 @@
 .sidebar-item.active .sidebar-text {
     color: #007bff; /* Color para el estado activo */
 }
+
+/* --- Media Query para dispositivos pequeños (max-width: 767px) --- */
+@media (max-width: 1000px) {
+    /* ================================================= */
+    /* A. ESTILOS BASE DEL SIDEBAR (Despliegue Vertical) */
+    /* ================================================= */
+    .sidebar {
+        /* Despliegue Vertical: Oculto y anclado debajo del header */
+        width: 150px; 
+        height: 0; /* Oculto por defecto */
+        left: 0; 
+        top: 50px; /* Anclado justo debajo del header fijo */
+        overflow-y: auto; /* Permite desplazamiento si el contenido es largo */
+        
+        /* Modificamos la transición para que sea SÓLO de altura */
+        transition: height 0.3s ease; 
+        
+        /* Mantenemos estas propiedades */
+        z-index: 900; 
+        box-shadow: 0 4px 5px rgba(0, 0, 0, 0.1); 
+        padding-top: 0;
+        scrollbar-width: 0px;
+    }
+
+    .sidebar.expanded {
+        /* Altura total de la vista menos el header */
+        height: calc(100vh - 50px); 
+        width: 150px; 
+    }
+
+    /* ---------------------------------------------------- */
+    /* B. CORRECCIÓN DEL DESTELLO DE ICONOS (Anular Colapsado de Escritorio) */
+    /* ---------------------------------------------------- */
+
+    /* Anular el comportamiento de 60px/centrado del modo colapsado de escritorio */
+    .sidebar-item {
+        justify-content: flex-start; /* Evita que los iconos se centren */
+        padding-left: 15px; /* Padding para alinear al texto */
+        height: 50px; /* Mantiene la altura consistente con el estado expandido */
+    }
+
+    /* Anular el width: 60px fijo del icono wrapper de escritorio */
+    .icon-wrapper {
+        width: auto !important; 
+        height: auto !important;
+        margin-right: 10px; /* Separación del texto */
+    }
+
+    /* Asegurar que el texto se muestre/oculte suavemente (sin depender del width del sidebar) */
+    .sidebar-text {
+        opacity: 0;
+        visibility: hidden;
+        width: 0;
+        transition: opacity 0.2s ease, width 0.2s ease; 
+        flex-grow: 0;
+    }
+
+    .sidebar.expanded .sidebar-text {
+        opacity: 1;
+        visibility: visible;
+        width: auto;
+        flex-grow: 1;
+    }
+}

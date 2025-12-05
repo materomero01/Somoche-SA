@@ -40,3 +40,12 @@
     text-align: right;
 }
 
+@media (max-width: 768px) {
+    .add-card{
+        right: inherit;
+    }
+
+    .form-grid{
+        padding: 0px;
+    }
+}

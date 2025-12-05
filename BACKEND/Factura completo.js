@@ -33,31 +33,15 @@ function formatDate(dateString) {
   return `${day}/${month}/${year}`;
 }
 
-// Función para verificar si el TA es válido (no vencido)
-async function esTAValido(responseFile) {
-  try {
-    let xmlContent = fs.readFileSync(path.join(certDir, responseFile), 'utf16le');
-    xmlContent = limpiarXML(xmlContent);
-    const parsed = await parseString(xmlContent, { explicitArray: false });
-    const expirationTime = new Date(parsed.loginTicketResponse.header.expirationTime);
-    const now = new Date();
-    return expirationTime > now;
-  } catch (error) {
-    console.warn(`Error al verificar TA en ${responseFile}: ${error.message}`);
-    return false;
-  }
-}
-
-// Función para generar o leer el TA
 async function generarTA(servicioId) {
   const cuitRepresentada = '20433059221';
   const responseFileSuffix = `-loginTicketResponse_${servicioId}.xml`;
-  const scriptName = servicioId === 'wsfe' ? 'scriptFactura.ps1' : 'scriptPadron.ps1';
+  const scriptName = servicioId === 'wsfe' ? 'scriptFactura.sh' : 'scriptPadron.sh';
   const files = fs.readdirSync(certDir).filter(f => f.endsWith(responseFileSuffix)).sort().reverse();
   const latestResponse = files[0];
 
   if (latestResponse && await esTAValido(latestResponse)) {
-    let xmlContent = fs.readFileSync(path.join(certDir, latestResponse), 'utf16le');
+    let xmlContent = fs.readFileSync(path.join(certDir, latestResponse), 'utf8');
     xmlContent = limpiarXML(xmlContent);
     const parsed = await parseString(xmlContent, { explicitArray: false });
     const credentials = parsed.loginTicketResponse.credentials;
@@ -90,22 +74,37 @@ async function generarTA(servicioId) {
     });
   }
 
-  const command = `powershell -File ${path.join(certDir, scriptName)}`;
+  // CAMBIO PRINCIPAL: Ejecutar bash en lugar de PowerShell
+  const scriptPath = path.join(certDir, scriptName);
+  
+  // Dar permisos de ejecución al script (por si acaso)
+  try {
+    execSync(`chmod +x ${scriptPath}`, { cwd: certDir });
+  } catch (error) {
+    console.warn(`No se pudieron establecer permisos: ${error.message}`);
+  }
+
+  // Ejecutar el script bash
+  const command = `bash ${scriptPath}`;
+  
   try {
     execSync(command, { stdio: 'inherit', cwd: certDir });
     const newFiles = fs.readdirSync(certDir).filter(f => f.endsWith(responseFileSuffix)).sort().reverse();
-    console.log(responseFileSuffix);
     const newResponse = newFiles[0];
+    
     if (!newResponse) {
       throw new Error(`No se encontró el nuevo archivo de respuesta del WSAA para ${servicioId}`);
     }
-    let xmlContent = fs.readFileSync(path.join(certDir, newResponse), 'utf16le');
+    
+    let xmlContent = fs.readFileSync(path.join(certDir, newResponse), 'utf8');
     xmlContent = limpiarXML(xmlContent);
     const parsed = await parseString(xmlContent, { explicitArray: false });
     const credentials = parsed.loginTicketResponse.credentials;
+    
     if (!credentials || !credentials.token || !credentials.sign) {
       throw new Error(`No se encontraron token o sign en la respuesta del WSAA para ${servicioId}`);
     }
+    
     console.log(`Nuevo TA generado para ${servicioId}: ${newResponse}`);
     return {
       token: credentials.token,
@@ -114,6 +113,21 @@ async function generarTA(servicioId) {
     };
   } catch (error) {
     throw new Error(`Error al generar TA para ${servicioId}: ${error.message}`);
+  }
+}
+
+// También actualiza la función esTAValido para leer UTF-8 en lugar de UTF-16LE
+async function esTAValido(responseFile) {
+  try {
+    let xmlContent = fs.readFileSync(path.join(certDir, responseFile), 'utf8');
+    xmlContent = limpiarXML(xmlContent);
+    const parsed = await parseString(xmlContent, { explicitArray: false });
+    const expirationTime = new Date(parsed.loginTicketResponse.header.expirationTime);
+    const now = new Date();
+    return expirationTime > now;
+  } catch (error) {
+    console.warn(`Error al verificar TA en ${responseFile}: ${error.message}`);
+    return false;
   }
 }
 

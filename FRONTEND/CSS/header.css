@@ -159,17 +159,16 @@
 }
 
 /* --- Estilos para dispositivos móviles --- */
-@media (max-width: 768px) {
-    /* / Ajusta el padding del header para móvil / */
-    .header {
-        padding: 10px 15px; /* Menor padding horizontal */
-        padding-left: 50px; /* Reducimos el espacio para el menu-toggle */
+@media (max-width: 1000px) {
+ .header {
+        /* ELIMINAMOS el padding-left de 60px que reservaba espacio para el sidebar */
+        padding: 10px 15px; 
+        padding-left: 15px; /* Solo padding base, el toggle se superpone */
     }
 
     /* / Ocultamos elementos que no caben en móvil / */
     .header-logo,
     .header-date,
-
     /* / Ocultamos el rol del usuario para simplificar / */
     .header-user-role {
         display: none;
@@ -177,17 +176,23 @@
 
     /* / Ajustamos el tamaño del icono de menú y su contenedor / */
     .menu-toggle {
-        width: 50px; /* Un poco más pequeño */
-        font-size: 1.3rem;
+        position: fixed; 
+        left: 0;
+        top: 0;
+        width: 80px; /* Ancho colapsado */
+        height: 50px; 
+        z-index: 1000;
+        /* CLAVE: Añadir transición de ancho aquí */
+        transition: width 0.3s ease, background-color 0.3s ease; 
+    }
+    
+    /* Regla para expandir el botón de menú cuando el sidebar está abierto */
+    .header.expanded-sidebar .menu-toggle {
+        width: 150px; /* Se expande al ancho deseado */
     }
 
-    /* / Ajusta el contenedor de la información del usuario / */
-    .user-info-inline {
-        margin: 0 5px; /* Menos margen */
-    }
-
-    /* / Ajustamos los íconos de la derecha */
-    .logout-icon-wrapper i {
-        font-size: 1.2rem;
+    /* El header no necesita padding extra */
+    .header.expanded-sidebar {
+        padding-left: 15px; /* Vuelve a tu padding base o 0px, si es necesario */
     }
 }

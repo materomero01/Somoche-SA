@@ -119,7 +119,7 @@ const setupAddViajeBtn = () => {
             campo: formData.campo?.trim(),
             kilometros: parseFloat(formData.kilometro),
             tarifa: formData.tarifa,
-            variacion: parseFloat(formData.variacion) || 0.1,
+            variacion: parseFloat(formData.variacion) > 1 ? parseFloat(formData.variacion) / 100 : parseFloat(formData.variacion),
             toneladas: parseFloat(formData.toneladas),
             cargado: parseFloat(formData.cargado) || parseFloat(formData.toneladas),
             descargado: parseFloat(formData.descargado) || parseFloat(formData.toneladas),
@@ -282,7 +282,7 @@ const setupViajesSearchBar = () => {
                         cargado: parseFloat(inputCargado.value) || parseFloat(inputToneladas.value),
                         comprobante: inputComprobante.value.trim(),
                         descargado: parseFloat(inputDescargado.value) || parseFloat(inputToneladas.value),
-                        variacion: parseFloat(inputVariacion.value),
+                        variacion: parseFloat(inputVariacion.value) > 1 ? parseFloat(inputVariacion.value) / 100 : parseFloat(inputVariacion.value),
                         campo: inputCampo.value.trim()
                     }
                 }
@@ -405,8 +405,8 @@ const setupAddChequeBtn = () => {
                     <input type="number" id="nroCheque_${chequeCounter}" name="nroCheque_${chequeCounter}" placeholder="Número de Cheque">
                 </div>
                 <div class="form-group">
-                    <label for="terceroCheque_${chequeCounter}">Tercero</label>
-                    <input type="text" id="terceroCheque_${chequeCounter}" name="terceroCheque_${chequeCounter}" placeholder="Nombre del Tercero">
+                    <label for="terceroCheque_${chequeCounter}">Banco</label>
+                    <input type="text" id="terceroCheque_${chequeCounter}" name="terceroCheque_${chequeCounter}" placeholder="Nombre del Banco">
                 </div>
                 <div class="form-group">
                     <label for="destinatarioCheque_${chequeCounter}">Destinatario</label>
@@ -621,7 +621,7 @@ const setupAddPagoBtn = () => {
                     return;
                 }
                 
-                if (isNaN(importeOtro) || parseFloat(importeOtro) <= 0) {
+                if (isNaN(importeOtro)) {
                     showConfirmModal('El valor ingresado para el importe no es válido');
                     return;
                 }

@@ -7,6 +7,9 @@ let io;
 function initializeSocket(server) {
     io = new Server(server, {
         cors: {
+	    origin: ['https://somochesa.online',
+		     'https://www.somochesa.online'
+		],
             methods: ['GET', 'PUT', 'DELETE', 'POST'],
             allowedHeaders: ['Content-Type', 'Authorization'],
             credentials: true

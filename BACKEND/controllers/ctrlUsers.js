@@ -141,7 +141,7 @@ exports.loginUser = async (req, res) => {
             if (choferResult.rows.length === 0) {
                 return res.status(401).json({ message: 'El CUIL proporcionado no se encuentra registrado como chofer.' });
             }
-            choferTrabajador = choferResult.rows[0];
+            choferTrabajador = choferResult.rows[0].tipo_trabajador;
         }
 
         // Generar token JWT
@@ -205,8 +205,8 @@ exports.getEmailByCuit = async (req, res) => {
         );
 
         // Enviar email con el enlace de reinicio
-        const apiURL = 'http://localhost:5500';
-        const resetLink = `${apiURL}/FRONTEND/reset-password.html?token=${resetToken}`;
+        const apiURL = 'http://somochesa.online';
+        const resetLink = `${apiURL}/reset-password.html?token=${resetToken}`;
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,

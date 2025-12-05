@@ -137,7 +137,7 @@ const setTodayDate = () => {
 
 // Función para renderizar las tablas
 export function renderizarTablas() {
-    let columnas = choferData.trabajador !== 'Monotributista'
+    let columnas = choferData.trabajador === 'Responsable Inscripto'
         ? columnasViajes
         : columnasViajes.filter(col => col.key !== "iva");
 
@@ -262,7 +262,7 @@ export async function deleteFactura(facturaId = null, changeDataDocuments, table
 // Función para actualizar los totales
 export function actualizarTotales(viajesData) {
     const subtotal = viajesData.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
-    const iva = choferData.trabajador !== "Monotributista"? viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0) : 0;
+    const iva = choferData.trabajador === "Responsable Inscripto"? viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0) : 0;
     const totalViajes = subtotal + iva;
     let totalPagos;
     let totalAPagar;
@@ -281,6 +281,12 @@ export function actualizarTotales(viajesData) {
     const totalViajesContainer = document.getElementById("total-viajes");
     if (totalViajesContainer)
         totalViajesContainer.textContent = `Total Viajes: $${totalViajes.toFixed(2)}`;
+    const porcentajeChofer = document.getElementById("porcentaje-chofer");
+    if (porcentajeChofer && choferData.trabajador === "Chofer"){
+        porcentajeChofer.classList.remove("hidden");
+        porcentajeChofer.textContent = `Porcentaje Chofer: $${(totalViajes * 0.2).toFixed(2)}`;
+    }
+
     const totalPagarContainer = document.getElementById("total-pagar");
     if (totalPagarContainer)
         totalPagarContainer.textContent = `Total a Pagar: ${("$" + totalAPagar.toFixed(2)).replace("$-", "-$")}`;
@@ -305,7 +311,7 @@ export async function handleSaveEditViajes() {
             campo: stagedEditingData.campo || null,
             kilometros: parseInt(stagedEditingData.km) || null,
             tarifa: parseImporte(stagedEditingData.tarifa) || null,
-            variacion: parseFloat(stagedEditingData.variacion) > 1? parseFloat(stagedEditingData.variacion) /100 : parseFloat(stagedEditingData.variacion) || 0.1,
+            variacion: parseFloat(stagedEditingData.variacion) > 1? parseFloat(stagedEditingData.variacion) /100 : parseFloat(stagedEditingData.variacion),
             toneladas: parseFloat(stagedEditingData.toneladas) || null,
             cargado: parseFloat(stagedEditingData.cargado) || null,
             descargado: parseFloat(stagedEditingData.descargado) || null,
@@ -363,7 +369,7 @@ async function setupAddViajeBtn() {
     setupClienteAutocomplete('nuevoCliente', mockClientes);
     btn?.addEventListener('click', async () => {
         const clienteInput = document.getElementById('nuevoCliente');
-        const fechaInput = document.getElementById('fecha');
+        const fechaInput = document.getElementById('nuevoFecha');
         
         const formData = Object.fromEntries(new FormData(form).entries());
         const fechaISO = fechaInput?.value ? `${fechaInput.value}T00:00:00-03:00` : new Date().toISOString().split('T')[0] + 'T00:00:00-03:00';
@@ -373,7 +379,7 @@ async function setupAddViajeBtn() {
             campo: formData.campo?.trim(),
             kilometros: parseFloat(formData.kilometro),
             tarifa: formData.tarifa,
-            variacion: parseFloat(formData.variacion) || 0.1,
+            variacion: parseFloat(formData.variacion) > 1 ? parseFloat(formData.variacion) / 100 : parseFloat(formData.variacion),
             toneladas: parseFloat(formData.toneladas),
             cargado: parseFloat(formData.cargado) || parseFloat(formData.toneladas),
             descargado: parseFloat(formData.descargado) || parseFloat(formData.toneladas),
@@ -549,7 +555,7 @@ const setupAddPagoBtn = () => {
                     return;
                 }
                 
-                if (isNaN(payload.pagos.importe) || payload.pagos.importe <= 0) {
+                if (isNaN(payload.pagos.importe)) {
                     showConfirmModal(`El valor ingresado para el importe no es válido`);
                     return;
                 }
@@ -564,7 +570,8 @@ const setupAddPagoBtn = () => {
             if (response.ok){
                 const data = await response.json();
                 showConfirmModal(data.message);
-                pagosData.push(parsePagos({id: data.pagoId.id, ...payload.pagos}));
+                if (new Date(payload.pagos.fecha_pago) < new Date())
+                    pagosData.push(parsePagos({id: data.pagoId.id, ...payload.pagos}));
                 //reset de los fields aca
                 renderizarTablas();
 
@@ -637,7 +644,7 @@ async function cargarTablas() {
             viajesData = data.viajes.map(c => {
                 return parseViaje(c);
             });
-            if (choferData.trabajador === "Monotributista") {
+            if (choferData.trabajador !== "Responsable Inscripto") {
                 document.getElementById("iva").classList.add("hidden");
                 document.getElementById("subtotal").classList.add("hidden");
             }
@@ -745,7 +752,7 @@ async function cerrarCuenta() {
 
         let payloadPagos = {};
         pagos.forEach(p => {
-            const idCompuesto = p.id + "-" + p.tipo;
+            const idCompuesto = p.id + "°" + p.tipo;
             payloadPagos = {
                 ...payloadPagos,
                 [idCompuesto]: {
@@ -928,10 +935,11 @@ export async function inicializarModal(data) {
         let actualizo = false;
         if (pagos.cuil && pagos.cuil === choferData.cuil){
             pagos.pagosArray.forEach( pago => {
-                    let pagoParseado = parsePagos(pago);
-                    console.log('pago parseado', pagoParseado);
-                    pagosData.push(pagoParseado);
-                    actualizo = true;
+                    if (new Date(pago.fecha_pago) < new Date()){
+                        let pagoParseado = parsePagos(pago);
+                        pagosData.push(pagoParseado);
+                        actualizo = true;
+                    }
                 });
             if (actualizo) {
                 await renderizarTablas();

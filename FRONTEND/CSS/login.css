@@ -9,7 +9,7 @@ body {
 }
 
 .rectangle-9 {
-    width: 1366px;
+    width: auto;
     padding: 8px;
     background: #EBEBEB;
     border-color: #F7F6F600; /* Transparent border, effectively no border */
@@ -43,6 +43,7 @@ body {
     line-height: 1.28;
     letter-spacing: -0.2px;
     text-align: center;
+    white-space: nowrap;
 }
 
 .subtext {
@@ -146,4 +147,140 @@ a {
     display: flex;
     justify-content: center;
     align-items: center;
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+
+    /*
+    0. CORRECCIÓN DEL CONTENEDOR PRINCIPAL Y CUERPO (BODY)
+    ------------------------------------------------------
+    Anulamos el width: 1366px fijo y usamos anchos relativos.
+    */
+    body {
+        /* Permitimos scroll en el body si es necesario */
+        overflow-y: auto;
+    }
+
+    
+    .rectangle-9 {
+        /* Anulamos el ancho fijo (1366px) */
+        width: 100%; 
+        /* Aseguramos que el contenido tenga un poco de espacio en los bordes */
+        padding: 20px 5%;
+        /* No queremos que el contenido se centre verticalmente al inicio,
+           permitiendo que el contenido fluya hacia abajo. */
+        min-height: 100vh;
+        justify-content: flex-start;
+    }
+    
+    /*
+    1. ARREGLO DE INPUTS Y CONTENEDORES DE FORMULARIO
+    --------------------------------------------------
+    Anulamos el width: 527px fijo en form-group, botones y links.
+    */
+    .form-group {
+        /* Anulamos el width fijo (527px) */
+        width: 100%; 
+        max-width: 100%;
+        margin-bottom: 20px;
+    }
+    
+    .text-input {
+        /* Mantenemos el 100% del contenedor */
+        width: 100%;
+        
+        /* Ajustamos el padding para dispositivos más pequeños. 
+        Mantenemos el desplazamiento del icono (48px) */
+        padding: 0px 8px 0px 48px !important; 
+        
+        /* Reducimos ligeramente la altura si es necesario */
+        height: 50px; 
+        
+        /* Reducimos el tamaño de fuente para mejor legibilidad móvil */
+        font-size: 15px;
+    }
+    
+    .button-14 {
+        /* Anulamos el width fijo (527px) */
+        width: 100%;
+        height: 50px;
+        font-size: 16px;
+        margin-top: 20px;
+    }
+    
+    .forgot-password {
+        /* Anulamos el width fijo (525px) y aseguramos que el link use todo el espacio */
+        width: 100%; 
+        text-align: center; /* Centramos el texto para mejor lectura móvil */
+    }
+    
+    .register-text {
+        width: 100%;
+    }
+
+    /*
+    2. ARREGLO DE TITULARES Y TEXTOS
+    -----------------------------------
+    Ajustamos el tamaño de los textos grandes.
+    */
+    .title-header {
+        font-size: 36px;
+        height: auto;
+        line-height: 1.1;
+    }
+    
+    .title {
+        font-size: 22px;
+        margin-top: 20px;
+    }
+    
+    .subtext {
+        height: auto;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+    
+
+    /*
+    3. ARREGLO DE ICONOS
+    -----------------------------------
+    Aseguramos que el icono dentro del input se posicione correctamente
+    ajustando la posición vertical ya que la altura del input cambió.
+    */
+    .icon-wrapper-input {
+        left: 15px; /* Ligeramente más cerca del borde */
+       	transform: translateY(-15%); 
+    }
+    
+    /*
+    4. ARREGLO DEL ÍCONO DE CONTRASEÑA (PASSWORD TOGGLE)
+    -----------------------------------
+    Aseguramos que el ojo esté bien centrado en el input.
+    */
+    .password-icon {
+        right: 4%; 
+        transform: translateY(-10%); 
+    }
+    
+    /*
+    5. ARREGLO DE SELECTORES (input-select y select-format)
+    -----------------------------------
+    Forzamos a que ocupen todo el ancho disponible en la fila.
+    */
+    .input-select {
+        /* Deshabilitamos el max-width fijo si existía */
+        max-width: none; 
+        width: 100%;
+        margin: 10px 0; /* Agregamos margen vertical para separar elementos */
+    }
+    
+    .select-format {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    #loading-spinner {
+        padding-top: 0px !important;
+    }
+
 }

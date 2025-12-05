@@ -88,7 +88,7 @@ const validateViaje = (data, partial = false) => {
         }
 
         // Validar valores mínimos para números
-        if (rules.min !== undefined && !isNaN(value) && value <= rules.min) {
+        if (rules.min !== undefined && !isNaN(value) && value < rules.min) {
             errors.push(rules.error);
         }
 

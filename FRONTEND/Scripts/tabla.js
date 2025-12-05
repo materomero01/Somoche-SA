@@ -47,8 +47,13 @@ export function renderTabla({
     const newTableWrapper = document.createElement("div");
     newTableWrapper.className = `tabla-dinamica ${useScrollable ? 'tabla-scrollable' : ''} ${tableType === 'clientes' ? 'tabla-clientes' : ''}`;
     if (useScrollable){
-        const maxHeightValue = itemsPorPagina && !isNaN(itemsPorPagina) && itemsPorPagina > 3 ? 47 : 20;
-        newTableWrapper.style.setProperty('max-height', `${maxHeightValue}vh`, 'important') ;
+        if (itemsPorPagina && !isNaN(itemsPorPagina) && itemsPorPagina > 3){
+            newTableWrapper.classList.add('expand-table-scroll');
+            newTableWrapper.classList.remove('reduce-table-scroll');
+        } else {
+            newTableWrapper.classList.remove('expand-table-scroll');
+            newTableWrapper.classList.add('reduce-table-scroll');
+        }
     }
 
     const tabla = document.createElement("table");

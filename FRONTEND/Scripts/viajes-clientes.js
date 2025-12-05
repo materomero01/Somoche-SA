@@ -128,11 +128,53 @@ const checkboxHeaderActionGenerate = {
             return;
         }
 
-        showConfirmModal(
+        const modal = document.createElement('div');
+        modal.id = 'documentGenerateModal';
+        modal.className = 'modal';
+        modal.classList.add('active');
+        modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <h2 style="margin-top: 0"> ¿Que acción desea realizar? </h2>
+            <div class="modal-actions-vertical">
+                <button id="generateDocumentsBtn" class="btn btn-primary">Generar Factura Automaticamente</button>
+                <button id="uploadDocumentsBtn" class="btn btn-success">Subir Factura Manualmente</button>   
+            </div>
+            <button id="modalCancelBtn" class="btn btn-danger" style="margin-top: 12px;">Cancelar</button>
+        </div>
+        `;
+        document.body.appendChild(modal);
+
+        const generateFactura = document.getElementById("generateDocumentsBtn");
+        const uploadFactura = document.getElementById("uploadDocumentsBtn");
+        const cancelBtn = document.getElementById("modalCancelBtn");
+
+        generateFactura.onclick = null;
+        uploadFactura.onclick = null;
+        cancelBtn.onclick = null;
+
+        generateFactura.onclick = () => {
+            modal.classList.remove("active");
+            showConfirmModal(
             `¿Estás seguro de generar la factura para los  ${selectedRows.length} viaje(s) seleccionado(s)?`,
             "confirm",
-            () => handleGenerateInvoice(selectedRows)
-        );
+            () => { 
+                    modal.remove();
+                    handleGenerateInvoice(selectedRows);
+            },
+            () => {
+                modal.classList.add("active");
+            }
+            );
+        };
+
+        uploadFactura.onclick = () => {
+            modal.remove();
+            initializeFacturaUpload(changeDataFactura, null, null, "viajeCliente", selectedRows);
+        }
+
+        cancelBtn.onclick = () => {
+            modal.remove();
+        }
     }
 }
 
@@ -217,7 +259,7 @@ function changeDataDocuments(){
                     if (v.comprobante === viaje[0].comprobante){
                         v.carta_porte = viaje[0].carta_porte;
                         v.factura_id = viaje[0].factura_id? viaje[0].factura_id : null;
-                        clienteData.balance = parseImporte(clienteData.balance) + parseFloat((viaje[0].factura_id? parseImporte(v.importe) + parseImporte(v.iva) : -(parseImporte(v.importe) + parseImporte(v.iva))).toFixed(2));
+                        clienteData.balance = parseFloat((parseImporte(clienteData.balance) + (viaje[0].factura_id? parseImporte(v.importe) + parseImporte(v.iva) : -(parseImporte(v.importe) + parseImporte(v.iva)))).toFixed(2));
                         console.log(clienteData.balance);
                         return v.factura_id !== null;
                     }
@@ -228,14 +270,14 @@ function changeDataDocuments(){
     }
 }
 
-function changeDataFactura(facturaId){
+function changeDataFactura(facturaId, selectedRows){
     if (!facturaId) {
         console.warn('No se recibió el facturaId en los encabezados');
     } else {
         switch (currentEditingTable){
             case "viajes":
-                viajesAFacturarData = viajesAFacturarData.filter(v => v.comprobante !== viaje[0].comprobante);
-                clienteData.balance = parseFloat((parseImporte(clienteData.balance) + parseImporte(viaje[0].importe) + parseImporte(viaje[0].iva)).toFixed(2));
+                clienteData.balance = parseImporte(clienteData.balance) + parseFloat(selectedRows.reduce((sum, viaje) => sum + (parseImporte(viaje.importe) + parseImporte(viaje.iva) || 0), 0).toFixed(2));
+                viajesAFacturarData = viajesAFacturarData.filter(v => !selectedRows.some(row => row.id === v.id));
                 renderizarTablaVC(viajesAFacturarData, currentViajesClientesPage);
                 break;
             case "historial":
@@ -286,7 +328,7 @@ export async function handleSaveEditViajesCliente() {
             campo: stagedEditingData.campo || null,
             kilometros: parseInt(stagedEditingData.km) || null,
             tarifa: parseImporte(stagedEditingData.tarifa) || null,
-            variacion: parseFloat(stagedEditingData.variacion) > 1? parseFloat(stagedEditingData.variacion) /100 : parseFloat(stagedEditingData.variacion) || 0.1,
+            variacion: parseFloat(stagedEditingData.variacion) > 1? parseFloat(stagedEditingData.variacion) /100 : parseFloat(stagedEditingData.variacion),
             toneladas: parseFloat(stagedEditingData.toneladas) || null,
             cargado: parseFloat(stagedEditingData.cargado) || null,
             descargado: parseFloat(stagedEditingData.descargado) || null,
@@ -498,7 +540,7 @@ const setupAddPagoBtn = () => {
                     return;
                 }
                 
-                if (isNaN(payload.pagos.importe) || payload.pagos.importe <= 0) {
+                if (isNaN(payload.pagos.importe)) {
                     showConfirmModal(`El valor ingresado para el importe no es válido`);
                     return;
                 }
@@ -513,7 +555,7 @@ const setupAddPagoBtn = () => {
             if (response.ok){
                 const data = await response.json();
                 showConfirmModal(data.message);
-                clienteData.balance = parseImporte(clienteData.balance) - parseFloat(parseImporte(payload.pagos.importe));
+                clienteData.balance = parseFloat((parseImporte(clienteData.balance) - parseImporte(payload.pagos.importe)).toFixed(2));
                 ultimosPagosCliente.push(parsePagos({id: data.pagoId.id, fecha_cheque: payload.pagos.fechaCheque, fecha_pago: payload.pagos.fechaPago, ...payload.pagos}));
                 renderPagosVC();
                 actualizarTotales(viajesFacturadosData);
@@ -596,10 +638,10 @@ async function handleGenerateInvoice(data) {
 
         return {
             codigo: `${formatearCodigo(index + 1)}`,
-            descripcion: `CTG ${row.comprobante}${choferNombre} CAMPO ${row.campo || 'Sin campo'} KM ${row.km}`.toUpperCase(),
+            descripcion: `${row.comprobante.length !== 13? "CTG": "CRE"} ${row.comprobante}${choferNombre} CAMPO ${row.campo || 'Sin campo'} KM ${row.km}`.toUpperCase(),
             cantidad: parseFloat(row.toneladas).toFixed(2), // Per trip; change to row.cargado if billing by tonnage
             unidad: 'Toneladas',
-            precioUnit: tarifa.toFixed(2),
+            precioUnit: (tarifa - (tarifa * (parseFloat(row.variacion.replace('%', '')) / 100))).toFixed(2),
             bonif: '0.00',
             subtotal: subtotal.toFixed(2),
             ivaId: 5, // 21% IVA
@@ -627,7 +669,7 @@ async function handleGenerateInvoice(data) {
         showConfirmModal('Error: No se encontró token de autenticación. Por favor, inicia sesión nuevamente.');
         return;
     }
-    changeSpinnerText(mainContent, "Generando factura...");
+    changeSpinnerText(mainContent, "Generando Factura...");
     toggleSpinnerVisible(mainContent);
     try {
         const response = await generarFactura(invoiceData);
@@ -645,11 +687,7 @@ async function handleGenerateInvoice(data) {
             console.log('Factura ID:', facturaId);
         }
 
-        clienteData.balance = parseImporte(clienteData.balance) + parseFloat(selectedRows.reduce((sum, viaje) => sum + (parseImporte(viaje.importe) + parseImporte(viaje.iva) || 0), 0).toFixed(2));
-
-        viajesAFacturarData = viajesAFacturarData.filter(v => !selectedRows.some(row => row.id === v.id));
-
-        renderizarTablaVC(viajesAFacturarData, currentViajesClientesPage);
+        await changeDataFactura(facturaId, selectedRows);
         const data = await response.blob();
 
         const url = window.URL.createObjectURL(data);
@@ -997,7 +1035,7 @@ export async function inicializarModaCliente(data) {
                 showConfirmModal("Se actualizaron los viajes del cliente");
                 if (editingRowId && editingRowId === viaje.comprobanteOriginal)
                     resetEditingState();
-                else
+                else if (editingRowId)
                     return;
                 renderizarTablaVC(viajesAFacturarData, currentViajesClientesPage);
             }
@@ -1043,7 +1081,7 @@ export async function inicializarModaCliente(data) {
                 closeModalFactura();
                 changeSpinnerText(mainContent, "Actualizando datos del cliente...");
                 toggleSpinnerVisible(mainContent);
-                clienteData.balance = parseImporte(factura.balance);
+                clienteData.balance = parseFloat(parseImporte(factura.balance).toFixed(2));
                 try {
                     const response = await getViajesCliente(clienteData.cuit, false, null);
                     if (response.ok){

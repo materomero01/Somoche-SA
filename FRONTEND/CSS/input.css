@@ -96,3 +96,11 @@ input[type="number"]::-webkit-inner-spin-button {
     align-items: center;
     justify-content: center;
 }
+
+@media (max-width: 768px) {
+    input[type="date"]{
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+    }
+}

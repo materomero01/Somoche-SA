@@ -220,6 +220,14 @@
     display: block; /* Ensure proper block context */
 }
 
+.reduce-table-scroll {
+    max-height: 20vh !important;
+}
+
+.expand-table-scroll {
+    max-height: 47vh !important;
+}
+
 /* ============================= */
 /* SCROLL HORIZONTAL MEJORADO */
 /* ============================= */
@@ -466,7 +474,13 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1000px) {
+
+    .content {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+
     /* Ensure table container allows horizontal scrolling */
     .tabla-dinamica {
         overflow-x: auto;
@@ -475,19 +489,21 @@
         display: block; /* Ensure proper block context */
     }
 
+    .tabla-scrollable {
+        max-height: 50vh !important;
+    }
+
     /* Prevent table from shrinking and ensure all columns are visible */
     .tabla-dinamica table {
         table-layout: fixed; /* Fixed layout to control column widths */
         width: auto; /* Allow table to expand based on content */
-        min-width: 1000px; /* Set a minimum width to accommodate all columns */
     }
 
     /* Column styling to prevent compression and vertical text */
     .tabla-dinamica th,
     .tabla-dinamica td {
-        min-width: 100px; /* Minimum width for each column */
-        max-width: 200px; /* Cap maximum width to avoid excessive stretching */
-        padding: 8px 6px; /* Slightly larger padding for readability */
+        min-width: 10px; /* Minimum width for each column */
+        padding: 3px; /* Slightly larger padding for readability */
         font-size: 0.9rem; /* Readable font size */
         white-space: nowrap; /* Prevent text wrapping */
         text-overflow: ellipsis; /* Truncate long text with ellipsis */
@@ -527,7 +543,7 @@
     .btn-action,
     .action-icons i {
         width: 40px;
-        height: 40px;
+        height: 20px;
         font-size: 1.2rem;
         padding: 8px;
         display: inline-flex;
@@ -548,15 +564,15 @@
 
     /* Ensure summary boxes and totals are readable */
     .summary-boxes {
-        flex-direction: column;
+        flex-direction: row;
         align-items: stretch;
         gap: 10px;
     }
 
     .summary-box {
-        min-width: 100%;
         font-size: 1rem;
         padding: 12px;
+        white-space: nowrap;
     }
 
     .cheques-selected-summary,
@@ -574,5 +590,19 @@
         padding: 10px;
         width: 100%;
         box-sizing: border-box;
+    }
+
+    #viajesPagosModal #total-pagar {
+        width: 50% !important;
+        overflow-wrap: break-word;
+        word-break: normal;
+        white-space: nowrap;
+    }
+    
+    #cerrarCuenta {
+        width: 35% !important;
+        overflow-wrap: break-word;
+        word-break: normal;
+        white-space: nowrap;
     }
 }

@@ -3,7 +3,7 @@ import {getToken, handleAuthorization, handleAuthError, showConfirmModal, setTok
 const apiURL = '/api';
 export let tarifasCatac = [];
 
-export const socket = io( {
+export const socket = io('https://somochesa.online/', {
     auth: { token: localStorage.getItem('jwtToken') }
 });
 

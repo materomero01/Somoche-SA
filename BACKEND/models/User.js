@@ -7,7 +7,7 @@ const validateUser = (data) => {
         cuil: { type: 'string', required: true, regex: /^\d{2}-\d{7,9}-\d{1}$/ },
         nombre: { type: 'string', required: true },
         password: { type: 'string', required: true },
-        trabajador: { type: 'string', required: true, enum: ['Monotributista', 'Responsable Inscripto'] },
+        trabajador: { type: 'string', required: true, enum: ['Monotributista', 'Responsable Inscripto', 'Chofer'] },
         patente_chasis: { type: 'string', required: true, regex: /^(?:[A-Za-z]{3} \d{3}|[A-Za-z]{2} \d{3} [A-Za-z]{2})$/ },
         patente_acoplado: { type: 'string', required: false, default: null, regex: /^(?:[A-Za-z]{3} \d{3}|[A-Za-z]{2} \d{3} [A-Za-z]{2})$/ },
         telefono: { type: 'number', required: false, default: null },

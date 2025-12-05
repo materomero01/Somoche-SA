@@ -99,10 +99,11 @@
   flex-direction: column;
   align-items: center;
  }
-}
 
 .tab-content {
-  padding: 0;
+  padding: 5px !important;
+}
+
 }
 
 .autocomplete-container {
@@ -144,4 +145,34 @@
 
 #loading-spinner {
     padding: 250px !important;
+}
+
+/* Ajuste responsive */
+@media (max-width: 600px) {
+    .content {
+        padding: 50px 0px;
+    }
+
+    .form-grid {
+    grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr; /* En pantallas pequeñas, una columna */
+    }
+
+    .form-actions {
+    flex-direction: column;
+    align-items: center;
+    }
+
+
+    .add-viajes-section{
+        max-width: 100%;
+    }
+
+    .tab-content {
+        padding: 0px !important;
+    }
+
 }

@@ -138,4 +138,8 @@
         width: 280px;
         padding: 15px;
     }
+
+    .filter-input-group input[type="date"] {
+        height: 100% !important;
+    }
 }

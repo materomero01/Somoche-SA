@@ -81,7 +81,7 @@ exports.insertViaje = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('nuevoViaje', validatedData);
+                    socket.emit('nuevoViaje', {cuil: validatedData.chofer_cuil, cuit: validatedData.cliente_cuit, ...validatedData});
                 }
             });
         } catch (error){
@@ -227,7 +227,8 @@ exports.updateViajes = async (req, res) => {
                 errors.push({ comprobante, message: 'El comprobante en la clave y en el objeto debe coincidir.' });
                 continue;
             }
-
+            
+            console.log(data);
             // Validar datos de entrada con viajeSchema (validación parcial)
             const { errors: validationErrors, validatedData } = viajeSchema(data, true); // true indica validación parcial
 

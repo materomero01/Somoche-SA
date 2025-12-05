@@ -43,7 +43,7 @@ exports.insertResumen = async(req, res) => {
             const tipo = pago.tipo;
             let query, values;
 
-            values = [groupStamp, index.split('-')[0]];
+            values = [groupStamp, index.split('°')[0]];
             if (tipo.toLowerCase() === 'cheque') {
                 query = `UPDATE pagos_cheque SET group_r = $1 WHERE valid = true AND nro = $2 AND group_r IS NULL`;
             } else if (tipo.toLowerCase() === 'gasoil') {
@@ -62,6 +62,7 @@ exports.insertResumen = async(req, res) => {
                 if (resultOtro.rowCount === 0){
                     await client.query('ROLLBACK');
                     client.release();
+                    console.log(values);
                     return res.status(405).json({message: 'No se pudo cerrar el resumen del chofer'});
                 }
             }
@@ -92,6 +93,9 @@ exports.insertResumen = async(req, res) => {
             if (responseResumen.rowCount === 0) {
                 await client.query('ROLLBACK');
                 client.release();
+                console.log(groupStamp);
+		console.log(choferCuil);
+                console.log(pagoAdicional);
                 return res.status(405).json({ message:`No se pudo cerrar el resumen del chofer`});
             }
 

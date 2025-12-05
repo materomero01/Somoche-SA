@@ -45,7 +45,7 @@ function setupHeaderInteractions() {
         logoutIcon.addEventListener('click', function() {
             localStorage.clear();
             //alert('Su sesion ha sido finalizada');
-            window.location.href = "login.html";
+            window.location.href = "login";
             //console.log('Se ha hecho clic en el icono de logout.');
         });
     }
