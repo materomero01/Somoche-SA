@@ -1,9 +1,14 @@
-import {getToken, handleAuthorization, handleAuthError, showConfirmModal, setToken} from './apiPublic.js'
+import { getToken, handleAuthorization, handleAuthError, showConfirmModal, setToken } from './apiPublic.js'
 
 const apiURL = '/api';
 export let tarifasCatac = [];
 
-export const socket = io('https://somochesa.online/', {
+// Detectar entorno automáticamente: Local vs Producción
+const SOCKET_URL = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? 'http://localhost:3000' // URL Local
+    : 'https://somochesa.online/'; // URL Producción
+
+export const socket = io(SOCKET_URL, {
     auth: { token: localStorage.getItem('jwtToken') }
 });
 
@@ -148,7 +153,7 @@ export async function fetchAllChoferes() {
             }
         });
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
@@ -180,7 +185,7 @@ export async function fetchAllDataChoferes() {
             },
         });
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
@@ -209,7 +214,7 @@ export async function fetchTarifas() {
             },
         });
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
@@ -243,7 +248,7 @@ export async function updateTarifas(payload) {
         });
 
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
@@ -252,8 +257,8 @@ export async function updateTarifas(payload) {
         if (!response.ok) {
             console.log(data.message);
         }
-        
-       tarifasCatac = data.tarifas;
+
+        tarifasCatac = data.tarifas;
 
         return data;
     } catch (error) {
@@ -275,8 +280,8 @@ export async function addViaje(payload) {
             },
             body: JSON.stringify(payload)
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -304,7 +309,7 @@ export async function updateViaje(payload) {
             body: JSON.stringify(payload)
         });
 
-        if(response.status === 403) {   
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -312,14 +317,14 @@ export async function updateViaje(payload) {
         setToken(response.headers.get('X-New-Token'));
 
         return response
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 // Obtener viaje por comprobante
 export async function getViajeComprobante(comprobante) {
-    try{
+    try {
         const token = getToken();
         handleAuthorization();
         const response = await fetch(`${apiURL}/viajes/viajesComprobante/${encodeURIComponent(comprobante)}`, {
@@ -328,7 +333,7 @@ export async function getViajeComprobante(comprobante) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-        if(response.status === 403) {
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -336,7 +341,7 @@ export async function getViajeComprobante(comprobante) {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
@@ -354,7 +359,7 @@ export async function addPagos(payload) {
             },
             body: JSON.stringify(payload)
         });
-        if(response.status === 403) {
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -382,17 +387,17 @@ export async function updatePagos(payload) {
             body: JSON.stringify(payload)
         });
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
 
-        if (!response.ok){
+        if (!response.ok) {
             console.log(data.message);
         }
         return response.ok;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
@@ -411,12 +416,12 @@ export async function setChequesPagos(cheques) {
             body: JSON.stringify(cheques)
         });
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
+
         if (!response.ok) {
             showConfirmModal(data.message);
         }
@@ -427,7 +432,7 @@ export async function setChequesPagos(cheques) {
 }
 
 // Eliminar un chofer (ya existe en tu api.js original)
-export async function deleteChofer(cuil){
+export async function deleteChofer(cuil) {
     try {
         const token = getToken();
         handleAuthorization();
@@ -437,20 +442,20 @@ export async function deleteChofer(cuil){
                 'Authorization': `Bearer ${token}`,
             },
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
-        if (!response.ok){
+
+        if (!response.ok) {
             const data = await response.json();
             showConfirmModal(data.message);
             return;
         }
-        
+
         return response;
     } catch (error) {
         console.log(error.message);
@@ -458,7 +463,7 @@ export async function deleteChofer(cuil){
 }
 
 // Eliminar un cliente
-export async function deleteCliente(cuil){
+export async function deleteCliente(cuil) {
     try {
         const token = getToken();
         handleAuthorization();
@@ -468,20 +473,20 @@ export async function deleteCliente(cuil){
                 'Authorization': `Bearer ${token}`,
             },
         });
-        
-        if(response.status === 403) {
-            
+
+        if (response.status === 403) {
+
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
-        if (!response.ok){
+
+        if (!response.ok) {
             const data = await response.json();
             showConfirmModal(data.message);
             return;
         }
-        
+
         return response;
     } catch (error) {
         console.log(error.message);
@@ -501,13 +506,13 @@ export async function insertChofer(payload) {
             },
             body: JSON.stringify(payload)
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
+
         return response;
     } catch (error) {
         console.log(error.message);
@@ -526,7 +531,7 @@ export async function fetchClientes() {
             },
         });
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
@@ -549,7 +554,7 @@ export async function fetchClientes() {
 }
 
 // Modificar un cliente (ya existe en tu api.js original)
-export async function updateCliente(cuitOriginal, payload){
+export async function updateCliente(cuitOriginal, payload) {
     try {
         const token = getToken();
         handleAuthorization();
@@ -562,16 +567,16 @@ export async function updateCliente(cuitOriginal, payload){
             body: JSON.stringify(payload)
         });
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
-        if (!response.ok){
+
+        if (!response.ok) {
             showConfirmModal(data.message);
         }
-        
+
         return response.ok;
     } catch (error) {
         console.log(error.message);
@@ -579,12 +584,12 @@ export async function updateCliente(cuitOriginal, payload){
 }
 
 // Registrar un cliente (ya existe en tu api.js original)
-export async function insertCliente(payload){
+export async function insertCliente(payload) {
     try {
         const token = getToken();
         handleAuthorization();
         const regexCuil = /^\d{2}-\d{7,9}-\d{1}$/;
-        if (!payload.nombre || payload.nombre === '' || !payload.cuit || !payload.cuit === '' || !regexCuil.test(payload.cuit)){
+        if (!payload.nombre || payload.nombre === '' || !payload.cuit || !payload.cuit === '' || !regexCuil.test(payload.cuit)) {
             showConfirmModal("Los datos ingresados para el cliente no son validos");
             return;
         }
@@ -596,12 +601,12 @@ export async function insertCliente(payload){
             },
             body: JSON.stringify(payload)
         });
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
+
         return response;
     } catch (error) {
         console.log(error.message);
@@ -610,7 +615,7 @@ export async function insertCliente(payload){
 
 // Obtener viajes cliente
 export async function getViajesCliente(cuit, facturados, cantidad, pagados = false) {
-    try{
+    try {
         const token = getToken();
         handleAuthorization();
         const response = await fetch(`${apiURL}/viajes/viajesCliente?cuit=${encodeURIComponent(cuit)}&facturados=${encodeURIComponent(facturados)}&cantidad=${encodeURIComponent(cantidad)}&pagados=${encodeURIComponent(pagados)}`, {
@@ -619,25 +624,25 @@ export async function getViajesCliente(cuit, facturados, cantidad, pagados = fal
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
-        
+
+
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 // Obtener viajes cliente
 export async function getPagosCliente(cuit, cantidad) {
-    try{
+    try {
         const token = getToken();
         handleAuthorization();
         const response = await fetch(`${apiURL}/pagos/pagosCliente?cuit=${encodeURIComponent(cuit)}&cantidad=${encodeURIComponent(cantidad)}`, {
@@ -646,15 +651,15 @@ export async function getPagosCliente(cuit, cantidad) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-        if(response.status === 403) {
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
+
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
@@ -671,7 +676,7 @@ export async function addResumen(cuil, groupId, viajesGroup, pagosGroup, pagoRes
             pagos: pagosGroup,
         };
 
-        if (pagoRestante){
+        if (pagoRestante) {
             payload = {
                 ...payload,
                 pagoAdicional: pagoRestante
@@ -685,22 +690,22 @@ export async function addResumen(cuil, groupId, viajesGroup, pagosGroup, pagoRes
             },
             body: JSON.stringify(payload)
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
-        
+
         return response;
     } catch (error) {
         console.log(error.message);
     }
 }
 
-export async function generarFactura(payload){
-    try{
+export async function generarFactura(payload) {
+    try {
         const token = getToken();
         handleAuthorization();
         const response = await fetch(`${apiURL}/facturas/generar-factura`, {
@@ -711,8 +716,8 @@ export async function generarFactura(payload){
             },
             body: JSON.stringify(payload)
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -720,13 +725,13 @@ export async function generarFactura(payload){
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 export async function uploadCartaPorte(viajeId, files) {
-    try{
+    try {
         const token = getToken();
         handleAuthorization();
         const formData = new FormData();
@@ -742,8 +747,8 @@ export async function uploadCartaPorte(viajeId, files) {
             },
             body: formData
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -751,13 +756,13 @@ export async function uploadCartaPorte(viajeId, files) {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
-export async function deleteDocument(id, comprobante, type="viajes"){
-    try{
+export async function deleteDocument(id, comprobante, type = "viajes") {
+    try {
         const token = getToken();
         handleAuthorization();
         const response = await fetch(`${apiURL}/facturas/delete-documents?id=${encodeURIComponent(id)}&comprobante=${encodeURIComponent(comprobante)}&type=${encodeURIComponent(type)}`, {
@@ -766,8 +771,8 @@ export async function deleteDocument(id, comprobante, type="viajes"){
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -775,13 +780,13 @@ export async function deleteDocument(id, comprobante, type="viajes"){
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
-export async function deletePago(id, tipo){
-    try{
+export async function deletePago(id, tipo) {
+    try {
         const token = getToken();
         handleAuthorization();
         const response = await fetch(`${apiURL}/pagos/deletePago?id=${encodeURIComponent(id)}&type=${encodeURIComponent(tipo)}`, {
@@ -790,8 +795,8 @@ export async function deletePago(id, tipo){
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -799,13 +804,13 @@ export async function deletePago(id, tipo){
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
-export async function deleteViaje(comprobante){
-    try{
+export async function deleteViaje(comprobante) {
+    try {
         const token = getToken();
         handleAuthorization();
         const response = await fetch(`${apiURL}/viajes/deleteViaje?comprobante=${encodeURIComponent(comprobante)}`, {
@@ -814,8 +819,8 @@ export async function deleteViaje(comprobante){
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -823,7 +828,7 @@ export async function deleteViaje(comprobante){
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
@@ -840,8 +845,8 @@ export async function pagarViajeCliente(viajes) {
             },
             body: JSON.stringify(viajes)
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -849,18 +854,18 @@ export async function pagarViajeCliente(viajes) {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
-socket.on('updateCatac', async ()=> {
+socket.on('updateCatac', async () => {
     if (window.location.href.includes("catac"))
-        return showConfirmModal("Se actualizaron las tarifas de Catac", "aviso", () => {window.location.reload()});
+        return showConfirmModal("Se actualizaron las tarifas de Catac", "aviso", () => { window.location.reload() });
     await loadTarifas();
     showConfirmModal("Se actualizaron las tarifas de Catac");
 });
 
-export async function loadTarifas(){
+export async function loadTarifas() {
     tarifasCatac = await fetchTarifas();
 }
