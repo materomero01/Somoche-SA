@@ -12,17 +12,12 @@
     <link rel="stylesheet" href="/FRONTEND/css/loading-spinner.css">
     <style>
         /* Estilos para el contenedor de fondo de pantalla completa */
-        .full-screen-background-container {
-            width: 100vw; /* 100% del ancho del viewport */
-            height: 100vh; /* 100% de la altura del viewport */
-            position: fixed; /* Lo fija a la ventana del navegador */
-            top: 0;
-            left: 0;
-            z-index: -1; /* Envía la imagen al fondo, detrás de todo lo demás */
-            background-image: url('./assets/fondo.png'); /* <<-- ¡CAMBIA ESTA RUTA Y NOMBRE DE ARCHIVO! */
-            background-size: cover; /* Cubre todo el contenedor, manteniendo la proporción */
-            background-position: center; /* Centra la imagen */
-            background-repeat: no-repeat; /* Evita que la imagen se repita */
+        body {
+            background-image: url('./assets/fondo.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            min-height: 100vh;
         }
 
         /* Ajuste para que el contenido no quede oculto bajo el header */
@@ -32,10 +27,6 @@
             transition: padding-left 0.3s ease; /* Transición para cuando el sidebar se expande */
         }
 
-        /* Cuando el sidebar está expandido, ajusta el padding del contenido */
-        .content.expanded {
-            padding-left: 200px; /* Espacio para el sidebar expandido */
-        }
 
         /* Sección principal del hero (bienvenida) */
         .home-hero {
@@ -120,6 +111,34 @@
             width: 40px; /* Tamaño de la imagen */
             height: 40px;
             object-fit: contain; /* Asegura que la imagen se ajuste sin distorsionarse */
+        }
+        @media (max-width: 600px) {
+            .content {
+                padding:0px;    
+            }
+
+            .home-buttons {
+                /* Habilitar la envoltura para que pasen a la siguiente línea */
+                flex-wrap: wrap; 
+                /* Usar gap si es necesario, aunque ya está definido en 20px arriba */
+                gap: 20px; 
+            }
+
+            .home-buttons .btn i,
+            .home-buttons .btn img {
+                margin-bottom: 0px; /* Espacio entre el ícono y el texto */
+            }
+
+            /* Definir el ancho de cada botón */
+            .home-buttons .btn {
+                /* Usamos calc() para asegurar un 2x2. 
+                (100% - 20px de espacio entre ellos) / 2 */
+                width: calc(50% - 20px); 
+                /* Reducimos la altura para que sean más compactos en móvil */
+                height: 70px; 
+                /* Ajustamos un poco el tamaño de fuente si es necesario */
+                font-size: 0.7em; 
+            }
         }
     </style>
 </head>

@@ -395,6 +395,14 @@
     min-width: 5vw;
 }
 
+.reduce-table-scroll {
+    max-height: 20vh !important;
+}
+
+.expand-table-scroll {
+    max-height: 47vh !important;
+}
+
 /* Inputs editables */
 .editable-input {
     width: 100% !important;
@@ -464,15 +472,27 @@
     .cheques-actions button {
         flex: 1;
     }
+
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1000px) {
     /* Ensure table container allows horizontal scrolling */
+
+    .content {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+
     .tabla-dinamica {
         overflow-x: auto;
         width: 100%;
         -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
         display: block; /* Ensure proper block context */
+        padding-left: 0px;
+    }
+
+    .tabla-scrollable {
+        max-height: 50vh !important;
     }
 
     /* Prevent table from shrinking and ensure all columns are visible */
@@ -485,10 +505,9 @@
     /* Column styling to prevent compression and vertical text */
     .tabla-dinamica th,
     .tabla-dinamica td {
-        min-width: 100px; /* Minimum width for each column */
-        max-width: 200px; /* Cap maximum width to avoid excessive stretching */
-        padding: 8px 6px; /* Slightly larger padding for readability */
-        font-size: 0.9rem; /* Readable font size */
+        min-width: 50px; /* Minimum width for each column */
+        padding: 3px 3px; /* Slightly larger padding for readability */
+        font-size: 0.8rem; /* Readable font size */
         white-space: nowrap; /* Prevent text wrapping */
         text-overflow: ellipsis; /* Truncate long text with ellipsis */
         overflow: hidden; /* Hide overflowed text */
@@ -527,7 +546,7 @@
     .btn-action,
     .action-icons i {
         width: 40px;
-        height: 40px;
+        height: 20px;
         font-size: 1.2rem;
         padding: 8px;
         display: inline-flex;
@@ -554,7 +573,6 @@
     }
 
     .summary-box {
-        min-width: 100%;
         font-size: 1rem;
         padding: 12px;
     }

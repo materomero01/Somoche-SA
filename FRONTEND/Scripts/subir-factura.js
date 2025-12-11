@@ -205,7 +205,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
                 if (selectedRows.length === 0 && viaje.length > 0) {
                     selectedRows.push(viaje[0].comprobante);
                 }
-                const facturaResponse = await uploadFactura(selectedRows, facturaFile, localStorage.getItem('userCuil'), tableType);
+                const facturaResponse = await uploadFactura(viaje.length === 0 && tableType === "viajeCliente"? selectedRows.map( r =>  r.comprobante) : selectedRows, facturaFile, localStorage.getItem('userCuil'), tableType);
                 const facturaData = await facturaResponse.json();
                 if (!facturaResponse.ok) throw new Error(facturaData.message);
                 facturaId = facturaData.facturaId;
@@ -216,7 +216,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
             }
 
             if (facturaId) {
-                await changeDataFactura(facturaId, selectedRows);
+                await changeDataFactura(facturaId, viaje.length > 0 && tableType === "viajeCliente"? viaje : selectedRows);
                 if (viaje.length > 0) {
                     viaje[0].factura_id = facturaId; // Actualiza el viaje actual
                 }

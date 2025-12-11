@@ -55,6 +55,24 @@
     cursor: pointer;
 }
 
+
+.modal-actions-vertical {
+    display: flex;
+    flex-direction: column;    /* ← Esto hace que vayan uno debajo del otro */
+    gap: 12px;                 /* separación vertical entre botones */
+    align-items: stretch;   /* alternativa: que ocupen todo el ancho */
+}
+
+.modal-actions-vertical button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    width: 100%;               /* opcional: hace que todos los botones tengan el mismo ancho */
+    box-sizing: border-box;    /* recomendado cuando usas width: 100% */
+}
+
 #uploadDocumentsBtn:disabled, #downloadCartaPorteBtn:disabled {
     background: #6c757d;
     cursor: not-allowed;

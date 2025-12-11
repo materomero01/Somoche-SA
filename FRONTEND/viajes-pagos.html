@@ -101,6 +101,9 @@
             <div id="total-viajes" class="summary-box total-viajes">
                 Total Viajes: $0.00
             </div>
+            <div id="porcentaje-chofer" class="summary-box iva hidden">
+                Porcentaje Chofer: $0.00
+            </div>
         </div>
 
         <div class="table-section">
@@ -112,7 +115,7 @@
                 
                 <div class="add-wrapper" id="chofer-pagos-wrapper">
                     <button id="agregar-pago" class="btn btn-success btn-plus"> + </button>
-                    <div id="addPagoCard" class="add-card chofer hidden" style="top:45px; padding: 0; max-width: 60vw;">
+                    <div id="addPagoCard" class="add-card chofer hidden">
                         <div class="form-grid" style="padding-bottom: 5px;">
                             <div class="form-group">
                                 <label for="fechaPago" style="font-weight: bold;">Fecha de Pago</label>
@@ -143,8 +146,8 @@
                                     <input type="number" id="nroCheque" placeholder="Número de Cheque">
                                 </div>
                                 <div class="form-group">
-                                    <label for="terceroCheque">Tercero</label>
-                                    <input type="text" id="terceroCheque" placeholder="Nombre del Tercero">
+                                    <label for="terceroCheque">Banco</label>
+                                    <input type="text" id="terceroCheque" placeholder="Nombre del Banco">
                                 </div>
                                 <div class="form-group">
                                     <label for="destinatarioCheque">Destinatario</label>
@@ -228,6 +231,9 @@
             </div>
             <div id="total-viajes-resumen" class="summary-box total-viajes gray">
                 Total Viajes: $0.00
+            </div>
+            <div id="porcentaje-chofer-resumen" class="summary-box iva gray hidden">
+                Porcentaje Chofer: $0.00
             </div>
         </div>
 

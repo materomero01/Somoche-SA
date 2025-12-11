@@ -94,11 +94,11 @@ export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo){
     
     const subtotalContainer = document.getElementById("subtotal-resumen");
     const ivaContainer = document.getElementById("iva-resumen");
-    ivaContainer.classList.remove("hidden");
-    subtotalContainer.classList.remove("hidden");
-    console.log(parseImporte(resumenSaldo.saldo).toFixed(2));
-    console.log(totalResumen.toFixed(2));
-    if (parseImporte(resumenSaldo.saldo).toFixed(2) !== totalResumen.toFixed(2)){
+    if (resumenViajes.viajes.length > 0){
+        ivaContainer.classList.remove("hidden");
+        subtotalContainer.classList.remove("hidden");
+    }
+    if (resumenSaldo.saldo && parseImporte(resumenSaldo.saldo).toFixed(2) !== totalResumen.toFixed(2)){
         totalViajes = totalViajes - iva;
         totalResumen = totalViajes - totalPagos;
         if (Math.abs(totalResumen) < 0.01) totalResumen = 0;
@@ -119,6 +119,12 @@ export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo){
     if (totalViajesContainer) {
         totalViajesContainer.textContent = `Total Viajes: $${totalViajes.toFixed(2)}`;
     }
+    const porcentajeChoferResumen = document.getElementById("porcentaje-chofer-resumen");
+    if (porcentajeChoferResumen && choferData.trabajador === "Chofer"){
+        porcentajeChoferResumen.classList.remove("hidden");
+        porcentajeChoferResumen.textContent = `Porcentaje Chofer: $${(totalViajes * 0.2).toFixed(2)}`;
+    }
+
     const totalResumenContainer = document.getElementById("total-resumen");
     if (totalResumenContainer) {
         totalResumenContainer.textContent = `Saldo del Resumen: ${totalResumen >= 0 ? '$' : '-$'}${Math.abs(totalResumen).toFixed(2)}`;
@@ -209,6 +215,10 @@ export function parsePagos(pago){
 
 export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null) {
     choferData = chofer;
+    if (choferData.trabajador !== "Responsable Inscripto"){
+        document.getElementById("iva-resumen").classList.add("hidden");
+        document.getElementById("subtotal-resumen").classList.add("hidden");
+    }
     cartaPorteFunc = cartaPorte;
     deleteFactura = deleteFunc;
     const selectCantidad = document.getElementById("selectResumenes");
@@ -232,9 +242,8 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null)
             group: resumen.group,
             viajes: resumen.viajes.map(v => parseViaje(v))
         }));
-
+    
         saldosResumenes = data.saldos;
-        console.log(data);
         renderizarTablasResumenes();
     } catch (error) {
         console.error('Error en setHistorial:', error.message);
@@ -270,7 +279,7 @@ function renderizarTablasResumenes(currentPage = 1) {
     const resumenSaldo = saldosResumenes.find (s => s.group === grupoActual) || { saldo: 0};
 
     // Renderizar tabla de viajes
-    let columnasViajesResumen = choferData.trabajador !== 'Monotributista'
+    let columnasViajesResumen = choferData.trabajador === 'Responsable Inscripto'
         ? columnasViajes
         : columnasViajes.filter(col => col.key !== "iva");
 

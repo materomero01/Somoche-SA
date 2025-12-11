@@ -31,8 +31,6 @@ exports.getChoferesAllData = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(`SELECT * FROM choferV`);
-        // const response = await pool.query(``);
-        
         // console.log(response.rows);
 
         res.status(208).json({ choferes: result.rows });
@@ -52,6 +50,7 @@ exports.updateChofer = async (req, res) => {
 
     let client;
     try {
+        console.log(editingData);
         const { errors, validatedData } = userSchema(editingData);
         if (errors.length > 0) {
             return res.status(400).json({ message: `Los datos ingresados para ${errors.join(', ')} no son validos` });

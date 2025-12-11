@@ -147,3 +147,11 @@
     font-weight: bold;
     color: #343a40;
 }
+
+/* Media Queries para responsividad */
+@media (max-width: 768px) {
+    #confirmModal .modal-content {
+        margin-top: 20px;
+        width: 80%;
+    }
+}

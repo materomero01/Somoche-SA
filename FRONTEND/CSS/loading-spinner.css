@@ -21,3 +21,10 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+
+    @media (max-width: 600px) {
+        #loading-spinner {
+            font-size: 1em;
+            min-width: 50px;
+        }
+    }

@@ -405,8 +405,8 @@ const setupAddChequeBtn = () => {
                     <input type="number" id="nroCheque_${chequeCounter}" name="nroCheque_${chequeCounter}" placeholder="Número de Cheque">
                 </div>
                 <div class="form-group">
-                    <label for="terceroCheque_${chequeCounter}">Tercero</label>
-                    <input type="text" id="terceroCheque_${chequeCounter}" name="terceroCheque_${chequeCounter}" placeholder="Nombre del Tercero">
+                    <label for="terceroCheque_${chequeCounter}">Banco</label>
+                    <input type="text" id="terceroCheque_${chequeCounter}" name="terceroCheque_${chequeCounter}" placeholder="Nombre del Banco">
                 </div>
                 <div class="form-group">
                     <label for="destinatarioCheque_${chequeCounter}">Destinatario</label>

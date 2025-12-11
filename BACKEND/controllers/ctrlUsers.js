@@ -141,7 +141,7 @@ exports.loginUser = async (req, res) => {
             if (choferResult.rows.length === 0) {
                 return res.status(401).json({ message: 'El CUIL proporcionado no se encuentra registrado como chofer.' });
             }
-            choferTrabajador = choferResult.rows[0];
+            choferTrabajador = choferResult.rows[0].tipo_trabajador;
         }
 
         // Generar token JWT

@@ -6,8 +6,8 @@ import { viaje, initializeFacturaUpload} from "./subir-factura.js";
 let mockViajes = [];
 let mockPagos = [];
 let choferData = {
-    cuil: localStorage.getItem("userCuil") || null,
-    trabajador: localStorage.getItem("userTrabajador") || null
+    cuil: localStorage.getItem("userCuil"),
+    trabajador: localStorage.getItem("userTrabajador")
 };
 
 let pagosOpen = true;
@@ -49,7 +49,7 @@ const checkboxHeaderActionUpload = {
 
 function actualizarTotales(viajes = mockViajes, pagos = mockPagos) {
     const subtotal = viajes.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
-    const iva = choferData.trabajador !== "Monotribustista" ? viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0) : 0;
+    const iva = choferData.trabajador === "Responsable Inscripto" ? viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0) : 0;
     const totalViajes = subtotal + iva;
     const totalPagos = pagos?.reduce((sum, pago) => sum + (pago.importe || 0), 0);
     let totalAPagar = totalViajes - totalPagos;
@@ -65,12 +65,18 @@ function actualizarTotales(viajes = mockViajes, pagos = mockPagos) {
     if (totalViajesContainer)
         totalViajesContainer.textContent = `Total Viajes: $${totalViajes.toFixed(2)}`;
     const totalPagarContainer = document.getElementById("total-cobrar");
+    const porcentajeChofer  = document.getElementById("porcentaje-chofer");
+    if (porcentajeChofer && choferData.trabajador === "Chofer"){
+        porcentajeChofer.classList.remove("hidden");
+        porcentajeChofer.textContent = `Porcentaje Chofer: $${(totalViajes * 0.2).toFixed(2)}`;
+    }
+
     if (totalPagarContainer)
         totalPagarContainer.textContent = `Total a Cobrar: ${("$" + totalAPagar.toFixed(2)).replace("$-", "-$")}`;
 }
 
 function renderTables() {
-    let columnas = choferData.trabajador !== 'Monotributista'
+    let columnas = choferData.trabajador === 'Responsable Inscripto'
         ? columnasViajes
         : columnasViajes.filter(col => col.key !== "iva");
     columnas = columnas.filter( col => !["cargado", "descargado"].includes(col.key));
@@ -242,7 +248,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
-    if (choferData.trabajador === "Monotributista"){
+    if (choferData.trabajador !== "Responsable Inscripto"){
         document.getElementById("subtotal").classList.add("hidden");
         document.getElementById("iva").classList.add("hidden");
     }

@@ -53,6 +53,10 @@ exports.insertPagos = async (req, res) => {
         for (const [index, pago] of validatedData.entries()) {
             // Insertar según el tipo de pago
             if (pago.tipo.toLowerCase() === 'cheque') {
+
+                if (pago.fecha_pago > pago.fecha_cheque){
+                    return res.status(402).json({message:"La fecha del pago no puede ser mayor a la fecha del cheque"});
+                }
                 let responseExists = await client.query("SELECT valid FROM pagos_cheque WHERE nro = $1",
                     [pago.nroCheque]
                 );
@@ -172,7 +176,7 @@ exports.getAllPagos = async (req, res) => {
     }
 
     try {
-        const result = await pool.query('SELECT * FROM pagos_unified WHERE chofer_cuil = $1 ORDER BY fecha_pago ASC', [cuil]);
+        const result = await pool.query('SELECT * FROM pagos_unified WHERE chofer_cuil = $1 AND fecha_pago <= CURRENT_DATE ORDER BY fecha_pago ASC', [cuil]);
         return res.status(202).json(result.rows);
     } catch (error) {
         console.error('Error en getAllPagos:', error);
@@ -201,13 +205,13 @@ exports.getPagosCheque = async (req, res) => {
         }
     }
     try {
-        
+        console.log(choferCuil);
         let query = `
             SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
                    fecha_cheque, tercero, destinatario, nombre_apellido AS nombre, importe
             FROM pagos_cheque c
             INNER JOIN usuario u ON c.chofer_cuil = u.cuil
-            WHERE c.valid = true`;
+            WHERE c.valid = true ${choferCuil? 'AND c.fecha_pago <= CURRENT_DATE' : ''} `;
         const params = [];
         let conditions = [];
 
@@ -608,6 +612,6 @@ exports.deletePago = async (req, res) => {
         if (client) await client.query('ROLLBACK');
         if (client) client.release();
         console.error('Error en deletePago: ', error.message, error.stack);
-        res.status(500).json({message: 'Ocurrio un error al intentar eliminar el pago'});
+        res.status(500).json({message: error.routine.includes('raise')? 'Error: ' + error.message : 'Ocurrio un error al intentar eliminar el pago'});
     }
 };

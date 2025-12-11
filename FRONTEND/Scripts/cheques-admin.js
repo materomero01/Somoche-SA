@@ -31,7 +31,7 @@ function calcularDiasRestantes(fechaCheque) {
     const fechaCobro = new Date(fechaCheque);
     const diffTime = fechaCobro - hoy;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 ? diffDays : 0; // Evitar días negativos
+    return diffDays; // Evitar días negativos
 }
 
 // Función para formatear fechas ISO a YYYY-MM-DD
@@ -90,14 +90,14 @@ function renderTablaProximos() {
             { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
             { label: 'Cheque', key: 'nro_cheque', class: [] },
             { label: 'Destinatario', key: 'destinatario', class: [] },
-            { label: 'Tercero', key: 'tercero', class: [] },
+            { label: 'Banco', key: 'tercero', class: [] },
             { label: 'Fecha Emisión', key: 'fecha_pago', class: [] },
             { label: 'Chofer Nombre', key: 'nombre', class: [] },
             { label: 'Importe', key: 'importe', class: ['text-right'] }
         ],
         datos: filteredData.map(c => ({
             id: c.nro_cheque, // Usar nro_cheque como ID
-            diasRestantes: calcularDiasRestantes(c.fecha_cheque) > 0? `${calcularDiasRestantes(c.fecha_cheque)} días` : 'Hoy',
+            diasRestantes: calcularDiasRestantes(c.fecha_cheque) > 0? `${calcularDiasRestantes(c.fecha_cheque)} días` : calcularDiasRestantes(c.fecha_cheque) === 0? 'Hoy' : formatFecha(c.fecha_cheque),
             fecha_cheque: formatFecha(c.fecha_cheque),
             nro_cheque: c.nro_cheque,
             destinatario: c.destinatario,
@@ -133,7 +133,7 @@ function renderTablaPagos() {
             { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
             { label: 'Cheque', key: 'nro_cheque', class: [] },
             { label: 'Destinatario', key: 'destinatario', class: [] },
-            { label: 'Tercero', key: 'tercero', class: [] },
+            { label: 'Banco', key: 'tercero', class: [] },
             { label: 'Fecha Pago', key: 'fecha_pago', class: [] },
             { label: 'Chofer Nombre', key: 'nombre', class: [] },
             { label: 'Importe', key: 'importe', class: ['text-right'] }
@@ -230,16 +230,16 @@ async function mostrarContenidoTabCheques(tab) {
                     cheque.selected = false;
                     cheque.importe = parseImporte(cheque.importe);
                 });
-                if(datosChequesProximos.length > 0){
-                    datosChequesProximos.filter(
-                                cheque =>formatFecha(cheque.fecha_cheque) < formatFecha(new Date())
-                            ).forEach( cheque => chequesFueraFecha.push(cheque.nro_cheque));
-                }
+                // if(datosChequesProximos.length > 0){
+                //     datosChequesProximos.filter(
+                //                 cheque =>formatFecha(cheque.fecha_cheque) < formatFecha(new Date())
+                //             ).forEach( cheque => chequesFueraFecha.push(cheque.nro_cheque));
+                // }
                     
-                if(chequesFueraFecha.length > 0){
-                    await setChequesPagos(chequesFueraFecha);
-                    datosChequesProximos = datosChequesProximos.filter(cheque => !chequesFueraFecha.includes(cheque.nro_cheque))
-                }
+                // if(chequesFueraFecha.length > 0){
+                //     await setChequesPagos(chequesFueraFecha);
+                //     datosChequesProximos = datosChequesProximos.filter(cheque => !chequesFueraFecha.includes(cheque.nro_cheque))
+                // }
             } catch (error) {
                 console.error(error.message);
             }

@@ -60,3 +60,36 @@
 .hidden {
     display: none !important;
 }
+
+/* Media Queries para responsividad */
+@media (max-width: 768px) {
+    #addClienteCard, #addChoferCar{
+        right: inherit;
+    }
+
+    .form-group{
+        max-width: 100%;
+    }
+
+    .form-grid{
+        padding: 0px;
+    }
+
+    #btnGuardarNuevoChofer, #btnGuardarNuevoCliente {
+        margin-top: 10px;
+    }
+
+
+    .add-card.chofer{
+        padding: 20px;
+        width: 100vw;
+        right: 0px;
+        max-width: 80vw !important;
+    }
+
+    #addPagoBtn{
+        margin-top: 20px;
+        margin-bottom: 5px !important;
+    }
+
+}

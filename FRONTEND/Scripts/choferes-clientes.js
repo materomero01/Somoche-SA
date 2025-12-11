@@ -24,7 +24,7 @@ const principalContent = document.getElementById('principalContent');
 const choferesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido', class: [] },
     { key: 'cuil', label: 'CUIL/CUIT', class: [] },
-    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{value: 'Monotributista', text:'Monotributista'} , {value: 'Responsable Inscripto', text: 'Responsable Inscripto'}] },
+    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{value: 'Monotributista', text:'Monotributista'} , {value: 'Responsable Inscripto', text: 'Responsable Inscripto'}, {value: 'Chofer', text: 'Chofer'}] },
     { key: 'patente_chasis', label: 'Chasis', class: [] },
     { key: 'patente_acoplado', label: 'Acoplado', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
@@ -479,7 +479,7 @@ export async function handleSaveEdit() {
         if (currentEditingTableType === 'choferes') {
             const index = mockChoferes.findIndex(c => c.id === editingRowId);
             const payload = {
-                nombre_y_apellido: stagedEditingData.nombre || null,
+                nombre: stagedEditingData.nombre || null,
                 cuil: stagedEditingData.cuil || null,
                 trabajador: stagedEditingData.trabajador || null,
                 patente_chasis: stagedEditingData.patente_chasis?.toUpperCase() || null,
