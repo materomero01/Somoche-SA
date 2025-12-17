@@ -1,6 +1,8 @@
-import { getToken, handleAuthorization, handleAuthError, showConfirmModal, setToken } from './apiPublic.js'
+import { getToken, handleAuthorization, handleAuthError, showConfirmModal, setToken, BASE_URL } from './apiPublic.js'
 
-const apiURL = '/api';
+const apiURL = BASE_URL;
+
+
 export let tarifasCatac = [];
 
 // Detectar entorno automáticamente: Local vs Producción
@@ -139,7 +141,7 @@ export const setupChoferAutocomplete = (inputId, dataChoferes) => setupAutocompl
 // Función para cerrar sesión
 export function logout() {
     localStorage.clear();
-    window.location.href = "login";
+    window.location.href = "login.html";
 }
 
 // Obtener todos los choferes
@@ -868,4 +870,49 @@ socket.on('updateCatac', async () => {
 
 export async function loadTarifas() {
     tarifasCatac = await fetchTarifas();
+}
+
+// Obtener Logs de actividad
+export async function fetchLogs() {
+    try {
+        const token = getToken();
+        handleAuthorization();  // Esto probablemente chequea si hay token, etc.
+
+        const response = await fetch(`${apiURL}/logs`, {  // Asegurate de que la ruta sea la correcta (la misma que en tu ruta de Express)
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'  // Bueno agregarlo, aunque no es estrictamente necesario para GET
+            },
+            credentials: 'include'  // Importante si usás cookies también, pero con Bearer suele no hacer falta
+        });
+
+        const data = await response.json();
+
+        // Renovamos el token si el backend lo envía
+        const newToken = response.headers.get('X-New-Token');
+        if (newToken) {
+            setToken(newToken);
+        }
+
+        // Manejo de error 403 (sin autorización - ej: chofer intentando acceder)
+        if (response.status === 403) {
+            handleAuthError(data);
+            return [];  // o podés tirar un error, pero devolver [] evita que el front rompa
+        }
+
+        // Otros errores HTTP
+        if (!response.ok) {
+            console.error('Error al obtener logs:', data.message || response.status);
+            return [];
+        }
+
+        // El controller devuelve { logs: [...] }, así que devolvemos solo el array
+        // Pero por si acaso data.logs no existe, devolvemos array vacío
+        return data.logs || [];
+
+    } catch (error) {
+        console.error("Error en fetchLogs:", error.message);
+        return [];  // Siempre devolver array para que el frontend no rompa
+    }
 }

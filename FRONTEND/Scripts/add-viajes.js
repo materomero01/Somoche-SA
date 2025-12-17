@@ -95,17 +95,17 @@ const setupAddViajeBtn = () => {
         const clienteInput = document.getElementById('cliente');
         const fechaInput = document.getElementById('fecha');
         const payload = {
-            cuil: choferInput?.dataset.selectedChoferCuil,
+            chofer_cuil: choferInput?.dataset.selectedChoferCuil,
             nombre: choferInput?.dataset.selectedChoferNombre,
-            cuit_cliente: clienteInput?.dataset.selectedClienteCuit
+            cliente_cuit: clienteInput?.dataset.selectedClienteCuit
         };
 
-        if (!payload.cuil) {
+        if (!payload.chofer_cuil) {
             showConfirmModal('Por favor, selecciona un chofer de la lista de sugerencias.');
             return;
         }
 
-        if (!payload.cuit_cliente) {
+        if (!payload.cliente_cuit) {
             showConfirmModal('Por favor, selecciona un cliente de la lista de sugerencias.');
             return;
         }
@@ -131,7 +131,7 @@ const setupAddViajeBtn = () => {
         try {
             const response = await addViaje(payload);
             const data = await response.json();
-            if (response.ok){
+            if (response.ok) {
                 form.reset();
                 setTodayDate();
             }
@@ -142,38 +142,38 @@ const setupAddViajeBtn = () => {
     });
 };
 
-function validarInputs(payload){
+function validarInputs(payload) {
     // Validate required fields
-        if (!validateInputs(payload, {
-            comprobante: 'Comprobante',
-            campo: 'Campo',
-            kilometros: 'Kilómetro',
-            tarifa: 'Tarifa',
-            toneladas: 'Toneladas',
-            cargado: 'Cargado',
-            descargado: 'Descargado'
-        })) return false;
+    if (!validateInputs(payload, {
+        comprobante: 'Comprobante',
+        campo: 'Campo',
+        kilometros: 'Kilómetro',
+        tarifa: 'Tarifa',
+        toneladas: 'Toneladas',
+        cargado: 'Cargado',
+        descargado: 'Descargado'
+    })) return false;
 
-        // Validate comprobante format
-        if (!regexInputs.comprobante.test(payload.comprobante)) {
-            showConfirmModal('El comprobante debe tener el formato "XXXX-XXXXXXXX" o ser un número de 11 dígitos.');
+    // Validate comprobante format
+    if (!regexInputs.comprobante.test(payload.comprobante)) {
+        showConfirmModal('El comprobante debe tener el formato "XXXX-XXXXXXXX" o ser un número de 11 dígitos.');
+        return false;
+    }
+
+    // Validate numeric fields
+    const numericFields = {
+        kilometros: 'Kilómetro',
+        toneladas: 'Toneladas',
+        cargado: 'Cargado',
+        descargado: 'Descargado'
+    };
+    for (const [key, label] of Object.entries(numericFields)) {
+        if (isNaN(payload[key]) || payload[key] <= 0) {
+            showConfirmModal(`${label} debe ser un número mayor a 0.`, 'error');
             return false;
         }
-
-        // Validate numeric fields
-        const numericFields = {
-            kilometros: 'Kilómetro',
-            toneladas: 'Toneladas',
-            cargado: 'Cargado',
-            descargado: 'Descargado'
-        };
-        for (const [key, label] of Object.entries(numericFields)) {
-            if (isNaN(payload[key]) || payload[key] <= 0) {
-                showConfirmModal(`${label} debe ser un número mayor a 0.`, 'error');
-                return false;
-            }
-        }
-        return true;
+    }
+    return true;
 }
 
 // Setup search bar
@@ -222,7 +222,7 @@ const setupViajesSearchBar = () => {
             const inputCampo = document.getElementById("campo");
 
             const chofer = allChoferes.find(chofer => chofer.cuil === data.cuil);
-            if (chofer){
+            if (chofer) {
                 inputChofer.value = chofer.nombre;
                 inputChofer.dataset.selectedChoferNombre = chofer.nombre;
             } else {
@@ -231,16 +231,16 @@ const setupViajesSearchBar = () => {
             inputChofer.dataset.selectedChoferCuil = data.cuil;
 
             const cliente = data.cuit ? allClientes.filter(cliente => cliente.cuit === data.cuit) : null;
-            if (cliente){
+            if (cliente) {
                 inputCliente.value = cliente[0].nombre;
                 inputCliente.dataset.selectedClienteNombre = cliente[0].nombre;
                 inputCliente.dataset.selectedClienteCuit = cliente[0].cuit;
             } else {
-                inputCliente.value = data.cuit? "CLIENTE ELIMINADO" : '';
+                inputCliente.value = data.cuit ? "CLIENTE ELIMINADO" : '';
                 inputCliente.removeAttribute('data-selected-cliente-nombre');
                 if (data.cuit)
                     inputCliente.dataset.selectedClienteCuit = data.cuit;
-                else 
+                else
                     inputCliente.removeAttribute('data-selected-cliente-cuit');
             }
 
@@ -254,7 +254,7 @@ const setupViajesSearchBar = () => {
             inputDescargado.value = data.descargado;
             inputCampo.value = data.campo;
 
-            [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach( input => {
+            [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach(input => {
                 input.setAttribute('readonly', true);
             });
 
@@ -264,15 +264,15 @@ const setupViajesSearchBar = () => {
             editViajeBtn.onclick = () => {
                 editViajeBtn.classList.add("hidden");
                 acceptViajeBtn.classList.remove("hidden");
-                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach( input => {
+                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach(input => {
                     input.removeAttribute('readonly');
                     input.setAttribute('editing', true);
                 });
             }
-            acceptViajeBtn.onclick= () => {
+            acceptViajeBtn.onclick = () => {
                 console.log(inputComprobante.value);
                 const payload = {
-                    [data.comprobante]:{
+                    [data.comprobante]: {
                         chofer_cuil: inputChofer.dataset.selectedChoferCuil,
                         cliente_cuit: inputCliente.dataset.selectedClienteCuit,
                         kilometros: parseInt(inputKilometro.value),
@@ -295,8 +295,8 @@ const setupViajesSearchBar = () => {
                         const data = await response.json();
                         showConfirmModal(data.message);
                         cancelViajeBtn.click();
-                        });
-                } catch (error){
+                    });
+                } catch (error) {
                     console.log(error.message);
                 }
             }
@@ -306,7 +306,7 @@ const setupViajesSearchBar = () => {
                 acceptViajeBtn.classList.add("hidden");
                 buttonsAddViaje.classList.remove("hidden");
                 buttonsEditViaje.classList.add("hidden");
-                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach( input => {
+                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach(input => {
                     input.removeAttribute('readonly');
                     input.removeAttribute('editing');
                     input.value = '';
@@ -318,8 +318,8 @@ const setupViajesSearchBar = () => {
 
                 setTodayDate();
             }
-                
-        } catch (error){
+
+        } catch (error) {
             console.log(error.message);
         }
     };
@@ -386,12 +386,12 @@ const setupAddChequeBtn = () => {
 
     addChequeBtn.addEventListener('click', () => {
         chequeCounter++;
-        
+
         // Crear un nuevo contenedor para el cheque duplicado
         const newChequeDiv = document.createElement('div');
         newChequeDiv.classList.add('cheque-form');
         newChequeDiv.setAttribute('data-cheque-id', chequeCounter);
-        
+
         // Crear el HTML del nuevo formulario de cheque
         newChequeDiv.innerHTML = `
             <div style="background-color: #cccccc; width: auto; height: 1px; margin: 15px 1% 10px 1%;"></div>
@@ -430,7 +430,7 @@ const setupAddChequeBtn = () => {
         // Insertar el nuevo cheque antes del botón de añadir
         const buttonContainer = addChequeBtn.parentElement;
         buttonContainer.parentNode.insertBefore(newChequeDiv, buttonContainer);
-        
+
         // Establecer la fecha por defecto (40 días desde hoy)
         const fechaChequeInput = document.getElementById(`fechaCheque_${chequeCounter}`);
         if (fechaChequeInput) {
@@ -448,7 +448,7 @@ const setupAddChequeBtn = () => {
         removeBtn.addEventListener('click', () => {
             newChequeDiv.remove();
         });
-        
+
         console.log(`Cheque ${chequeCounter} añadido`);
     });
 };
@@ -458,7 +458,7 @@ const debugPayload = (payload, tipoPago) => {
     console.log('=== DEBUG PAYLOAD ===');
     console.log('Tipo de pago:', tipoPago);
     console.log('Payload completo:', JSON.stringify(payload, null, 2));
-    
+
     if (tipoPago.toLowerCase() === 'cheque') {
         console.log('Número de cheques:', payload.pagos.length);
         payload.pagos.forEach((cheque, index) => {
@@ -474,13 +474,13 @@ const debugPayload = (payload, tipoPago) => {
         });
     }
     console.log('=====================');
-    
+
     // Verificar que el payload coincida con lo que espera el backend
     const backendExpected = {
         choferCuil: 'string',
         pagos: tipoPago.toLowerCase() === 'cheque' ? 'array' : 'object'
     };
-    
+
     console.log('Estructura esperada por backend:', backendExpected);
     console.log('Estructura enviada:', {
         choferCuil: typeof payload.choferCuil,
@@ -514,7 +514,7 @@ const setupAddPagoBtn = () => {
                     ...payload,
                     pagos: []
                 };
-                
+
                 // Recopilar datos del cheque original
                 const originalChequeData = {
                     tipo: tipoPago,
@@ -526,7 +526,7 @@ const setupAddPagoBtn = () => {
                     importe: document.getElementById('importeCheque')?.value,
                     cliente_cuit: document.getElementById('clienteCheque')?.dataset.selectedClienteCuit || null
                 };
-                
+
                 // Validar y añadir el cheque original si tiene datos
                 if (originalChequeData.importe && originalChequeData.importe.trim() !== '') {
                     if (isNaN(originalChequeData.importe) || parseFloat(originalChequeData.importe) <= 0) {
@@ -535,7 +535,7 @@ const setupAddPagoBtn = () => {
                     }
                     payload.pagos.push(originalChequeData);
                 }
-                
+
                 // Recopilar datos de los cheques duplicados
                 const chequeFormularios = document.querySelectorAll('.cheque-form');
                 chequeFormularios.forEach(formulario => {
@@ -550,7 +550,7 @@ const setupAddPagoBtn = () => {
                         importe: document.getElementById(`importeCheque_${chequeId}`)?.value,
                         cliente_cuit: document.getElementById(`clienteCheque_${chequeId}`)?.dataset.selectedClienteCuit || null
                     };
-                    
+
                     // Validar y añadir si tiene datos válidos
                     if (chequeData.importe && chequeData.importe.trim() !== '') {
                         if (isNaN(chequeData.importe) || parseFloat(chequeData.importe) <= 0) {
@@ -560,17 +560,17 @@ const setupAddPagoBtn = () => {
                         payload.pagos.push(chequeData);
                     }
                 });
-                
+
                 if (payload.pagos.length === 0) {
                     showConfirmModal('Por favor, completa al menos un cheque con todos sus datos.');
                     return;
                 }
-                
+
                 // Validar que todos los cheques tengan los campos requeridos
                 for (let i = 0; i < payload.pagos.length; i++) {
                     const cheque = payload.pagos[i];
                     const requiredFields = ['fecha_cheque', 'nroCheque', 'tercero', 'destinatario', 'importe'];
-                    
+
                     for (const field of requiredFields) {
                         if (!cheque[field] || cheque[field].trim() === '') {
                             showConfirmModal(`Por favor, completa todos los campos del cheque ${i + 1}.`);
@@ -579,25 +579,25 @@ const setupAddPagoBtn = () => {
                     }
                 }
                 break;
-                
+
             case 'gasoil':
                 const comprobanteGasoil = document.getElementById('comprobanteGasoil')?.value;
                 const precioGasoil = document.getElementById('precioGasoil')?.value;
                 const litros = document.getElementById('litrosGasoil')?.value;
                 const importe = document.getElementById('importeGasoil')?.value;
-                
+
                 if (!comprobanteGasoil || !precioGasoil || !litros || !importe) {
                     showConfirmModal('Por favor, completa todos los campos del gasoil.');
                     return;
                 }
-                
+
                 if (isNaN(precioGasoil) || parseFloat(precioGasoil) <= 0 ||
                     isNaN(litros) || parseFloat(litros) <= 0 ||
                     isNaN(importe) || parseFloat(importe) <= 0) {
                     showConfirmModal('Los valores del gasoil deben ser números válidos mayores a 0.');
                     return;
                 }
-                
+
                 payload = {
                     ...payload,
                     pagos: {
@@ -610,22 +610,22 @@ const setupAddPagoBtn = () => {
                     }
                 };
                 break;
-                
+
             case 'otro':
                 const comprobanteOtro = document.getElementById('comprobanteOtro')?.value;
                 const detalle = document.getElementById('detalleOtro')?.value;
                 const importeOtro = document.getElementById('importeOtro')?.value;
-                
+
                 if (!comprobanteOtro || !detalle || !importeOtro) {
                     showConfirmModal('Por favor, completa todos los campos.');
                     return;
                 }
-                
+
                 if (isNaN(importeOtro)) {
                     showConfirmModal('El valor ingresado para el importe no es válido');
                     return;
                 }
-                
+
                 payload = {
                     ...payload,
                     pagos: {
@@ -637,18 +637,18 @@ const setupAddPagoBtn = () => {
                     }
                 };
                 break;
-                
+
             default:
                 console.warn('Tipo de pago no reconocido:', tipoPago);
                 return;
         }
-        
+
         try {
             // Debug: Mostrar payload antes de enviar
             console.log('=== DEBUG PAYLOAD ===');
             console.log('Tipo de pago:', tipoPago);
             console.log('Payload completo:', JSON.stringify(payload, null, 2));
-            
+
             if (tipoPago.toLowerCase() === 'cheque') {
                 console.log('Número de cheques:', payload.pagos.length);
                 payload.pagos.forEach((cheque, index) => {
@@ -665,10 +665,10 @@ const setupAddPagoBtn = () => {
                 });
             }
             console.log('=====================');
-            
+
             const response = await addPagos(payload);
             const data = await response.json();
-            
+
             // Limpiar formularios después del éxito
             if (response.ok)
                 if (tipoPago.toLowerCase() === 'cheque') {
@@ -677,29 +677,29 @@ const setupAddPagoBtn = () => {
                         const input = document.getElementById(id);
                         if (input) input.value = '';
                     });
-                    
+
                     // Eliminar todos los formularios duplicados
                     document.querySelectorAll('.cheque-form').forEach(form => form.remove());
-                    
+
                     // Restablecer la fecha por defecto en el cheque original
                     setTodayDate();
                 } else {
                     // Limpiar otros formularios
-                    const formFields = tipoPago.toLowerCase() === 'gasoil' 
-                        ? ['comprobanteGasoil','precioGasoil', 'litrosGasoil', 'importeGasoil']
-                        : ['comprobanteOtro','detalleOtro', 'importeOtro'];
-                        
+                    const formFields = tipoPago.toLowerCase() === 'gasoil'
+                        ? ['comprobanteGasoil', 'precioGasoil', 'litrosGasoil', 'importeGasoil']
+                        : ['comprobanteOtro', 'detalleOtro', 'importeOtro'];
+
                     formFields.forEach(id => {
                         const input = document.getElementById(id);
                         if (input) input.value = '';
                     });
                 }
-            
+
             showConfirmModal(data.message);
         } catch (error) {
             console.error('Error en addPagos:', error.message);
         }
-        
+
         console.log('[Registrar Pago]', payload);
     });
 };
@@ -779,13 +779,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    
+
 
     setTodayDate();
     setupTabSelectors();
 
-    
-    
+
+
     setupAddViajeBtn();
     setupViajesSearchBar();
     setupAddPagoBtn();

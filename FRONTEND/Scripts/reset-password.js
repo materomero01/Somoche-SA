@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!token) {
         setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = 'login.html';
         });
         return;
     }
@@ -57,7 +57,7 @@ document.getElementById('reset-password-form').addEventListener('submit', async 
         showConfirmModal("Ocurrio un error al reestablecer la contraseña");
     } finally {
         setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = 'login.html';
         }, 2000);
     }
 });

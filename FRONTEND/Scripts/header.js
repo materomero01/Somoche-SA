@@ -29,23 +29,23 @@ function setupHeaderDynamicContent() {
         dateElement.textContent = formattedDate;
     }
     const storedName = localStorage.getItem('userName');
-    let storedRole = localStorage.getItem('userRole') === "chofer"? "CHOFER" : "ADMINISTRADOR";
-       
+    let storedRole = localStorage.getItem('userRole') === "chofer" ? "CHOFER" : "ADMINISTRADOR";
+
     if (userNameElement && storedName) {
-       userNameElement.textContent = storedName;
+        userNameElement.textContent = storedName;
     }
     if (userRoleElement && storedRole) {
-       userRoleElement.textContent = storedRole.toUpperCase();
+        userRoleElement.textContent = storedRole.toUpperCase();
     }
 }
 
 function setupHeaderInteractions() {
     const logoutIcon = document.querySelector('.header-icon');
     if (logoutIcon) {
-        logoutIcon.addEventListener('click', function() {
+        logoutIcon.addEventListener('click', function () {
             localStorage.clear();
             //alert('Su sesion ha sido finalizada');
-            window.location.href = "login";
+            window.location.href = "login.html";
             //console.log('Se ha hecho clic en el icono de logout.');
         });
     }

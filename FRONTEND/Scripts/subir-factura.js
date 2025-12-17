@@ -18,7 +18,7 @@ let cartaPorteExists = false;
 
 let modal;
 
-export function updateViajeStatus(){
+export function updateViajeStatus() {
     if (viaje.length !== 0) {
         facturaExists = viaje[0].factura_id ? true : false;
         cartaPorteExists = viaje[0].carta_porte;
@@ -34,16 +34,16 @@ export function updateViajeStatus(){
 }
 
 export function closeModalFactura() {
-        if (modal) modal.remove();
-        cartaPorteFiles = [];
-        viaje = [];
-        facturaFile = null;
-        generatedUrls.forEach(url => {
-            window.URL.revokeObjectURL(url);
-            //console.log('URL liberada:', url);
-        });
-        generatedUrls = [];
-    }
+    if (modal) modal.remove();
+    cartaPorteFiles = [];
+    viaje = [];
+    facturaFile = null;
+    generatedUrls.forEach(url => {
+        window.URL.revokeObjectURL(url);
+        //console.log('URL liberada:', url);
+    });
+    generatedUrls = [];
+}
 // Initialize the document upload modal
 
 export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc, deleteFunc, tableType = "viajes", selectedRows = []) {
@@ -57,7 +57,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     modal.classList.add('active');
 
     try {
-        let urlFetch = viaje.length > 0 ? '/documentsBox.html' : '/facturaBox.html';
+        let urlFetch = viaje.length > 0 ? './documentsBox.html' : './facturaBox.html';
         const response = await fetch(urlFetch);
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
@@ -94,7 +94,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     // Check if documents already exist for the viaje
     await updateViajeStatus();
 
-    if (viaje.length > 0 && !cartaPorteFunc && !deleteFunc){
+    if (viaje.length > 0 && !cartaPorteFunc && !deleteFunc) {
         facturaExists = viaje[0].factura_id ? true : false;
         cartaPorteExists = viaje[0].carta_porte;
 
@@ -102,10 +102,10 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
         deleteCartaPorteBtn.remove();
         deleteFacturaBtn.remove();
         toggleCartaPorteDropbox.remove();
-        
-        downloadFacturaBtn.disabled = facturaExists? false : true;
+
+        downloadFacturaBtn.disabled = facturaExists ? false : true;
         cartaPorteActions.style.display = 'flex';
-        downloadCartaPorteBtn.disabled = cartaPorteExists? false : true;
+        downloadCartaPorteBtn.disabled = cartaPorteExists ? false : true;
 
     }
 
@@ -205,7 +205,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
                 if (selectedRows.length === 0 && viaje.length > 0) {
                     selectedRows.push(viaje[0].comprobante);
                 }
-                const facturaResponse = await uploadFactura(viaje.length === 0 && tableType === "viajeCliente"? selectedRows.map( r =>  r.comprobante) : selectedRows, facturaFile, localStorage.getItem('userCuil'), tableType);
+                const facturaResponse = await uploadFactura(viaje.length === 0 && tableType === "viajeCliente" ? selectedRows.map(r => r.comprobante) : selectedRows, facturaFile, localStorage.getItem('userCuil'), tableType);
                 const facturaData = await facturaResponse.json();
                 if (!facturaResponse.ok) throw new Error(facturaData.message);
                 facturaId = facturaData.facturaId;
@@ -216,7 +216,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
             }
 
             if (facturaId) {
-                await changeDataFactura(facturaId, viaje.length > 0 && tableType === "viajeCliente"? viaje : selectedRows);
+                await changeDataFactura(facturaId, viaje.length > 0 && tableType === "viajeCliente" ? viaje : selectedRows);
                 if (viaje.length > 0) {
                     viaje[0].factura_id = facturaId; // Actualiza el viaje actual
                 }
@@ -281,7 +281,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
 
                 // Abrir el PDF en una nueva pestaña
                 const pdfWindow = window.open(url, '_blank');
-            } catch (error){
+            } catch (error) {
                 console.log(error.message);
                 showConfirmModal("No se pudo obtener la carta de porte para descargar");
             }
@@ -289,7 +289,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     });
 
     // Handle delete carta de porte
-    deleteCartaPorteBtn?.addEventListener('click', async () => { 
+    deleteCartaPorteBtn?.addEventListener('click', async () => {
         if (viaje.length > 0 && viaje[0].carta_porte) {
             showConfirmModal(`¿Está seguro de que desea eliminar la carta de porte del viaje con comprobante ${viaje[0].comprobante}?`, "delete", async () => {
                 await deleteFunc(null, tableType);

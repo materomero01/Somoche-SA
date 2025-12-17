@@ -8,7 +8,7 @@ document.getElementById('forgot-password-form').addEventListener('submit', async
     try {
         const response = await requestPasswordReset(cuil);
         const data = await response.json();
-        if (response.ok) 
+        if (response.ok)
             showConfirmModal(`Se envio un mail al correo electronico asignado al usuario con cuil ${cuil}`);
         else
             showConfirmModal(data.message);
@@ -17,7 +17,7 @@ document.getElementById('forgot-password-form').addEventListener('submit', async
         console.log(error.message);
     } finally {
         setTimeout(() => {
-            window.location.href = '/login.html';
+            window.location.href = 'login.html';
         }, 2000);
     }
 });

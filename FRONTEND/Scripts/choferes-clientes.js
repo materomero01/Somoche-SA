@@ -24,7 +24,7 @@ const principalContent = document.getElementById('principalContent');
 const choferesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido', class: [] },
     { key: 'cuil', label: 'CUIL/CUIT', class: [] },
-    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{value: 'Monotributista', text:'Monotributista'} , {value: 'Responsable Inscripto', text: 'Responsable Inscripto'}, {value: 'Chofer', text: 'Chofer'}] },
+    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{ value: 'Monotributista', text: 'Monotributista' }, { value: 'Responsable Inscripto', text: 'Responsable Inscripto' }, { value: 'Chofer', text: 'Chofer' }] },
     { key: 'patente_chasis', label: 'Chasis', class: [] },
     { key: 'patente_acoplado', label: 'Acoplado', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
@@ -34,7 +34,7 @@ const choferesColumns = [
 const clientesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
-    { key: 'email', label: 'Email', class: []}
+    { key: 'email', label: 'Email', class: [] }
 ];
 
 // --- Acciones para las tablas ---
@@ -101,14 +101,14 @@ const clientesActions = [
 function seePassword(passwordId) {
     const iconoToggle = document.querySelector(".toggle");
     const inputPassword = document.getElementById("password-input");
-    iconoToggle.addEventListener("click", (e) =>{
-    if (inputPassword?.type ==="password"){
-        inputPassword.type = "text";
-        e.target.classList.replace("bi-eye-slash", "bi-eye");
-    } else {
-        inputPassword.type = "password";
-        e.target.classList.replace("bi-eye","bi-eye-slash");
-    }
+    iconoToggle.addEventListener("click", (e) => {
+        if (inputPassword?.type === "password") {
+            inputPassword.type = "text";
+            e.target.classList.replace("bi-eye-slash", "bi-eye");
+        } else {
+            inputPassword.type = "password";
+            e.target.classList.replace("bi-eye", "bi-eye-slash");
+        }
     });
 }
 
@@ -162,7 +162,7 @@ export function renderCurrentTable() {
 }
 
 // --- Lógica de Pestañas ---
- async function setupChoferesClientesTabSelector() {
+async function setupChoferesClientesTabSelector() {
     const tabSelector = document.getElementById('choferesClientesSelector');
     if (!tabSelector) {
         console.warn("Elemento #choferesClientesSelector no encontrado. La funcionalidad de pestañas no se inicializará.");
@@ -195,7 +195,7 @@ async function verViajesModal(choferData, tipo) {
         const modalViajesPagos = document.getElementById("viajesPagosModal");
         if (modalViajesPagos) {
             try {
-                const response = await fetch('/viajes-pagos.html');
+                const response = await fetch('viajes-pagos.html');
                 if (!response.ok) {
                     throw new Error(`Error HTTP: ${response.status}`);
                 }
@@ -211,7 +211,7 @@ async function verViajesModal(choferData, tipo) {
         const modalViajesClientes = document.getElementById("viajesClientesModal");
         if (modalViajesClientes) {
             try {
-                const response = await fetch('/viajes-clientes.html');
+                const response = await fetch('viajes-clientes.html');
                 if (!response.ok) {
                     throw new Error(`Error HTTP: ${response.status}`);
                 }
@@ -241,7 +241,7 @@ async function handleTabContentDisplay(selectedTab) {
     if (selectedTab === 'choferes') {
         choferesContent.classList.remove('hidden');
         clientesContent.classList.add('hidden');
-        
+
         renderChoferesTable(mockChoferes, currentChoferesPage);
         currentEditingTableType = 'choferes';
     } else if (selectedTab === 'clientes') {
@@ -371,7 +371,7 @@ function setupAddButtons() {
             const payload = {
                 cuit: cuit,
                 nombre: nombre,
-                email: email !== ''? email : null
+                email: email !== '' ? email : null
             };
             const response = await insertCliente(payload);
             if (response.ok) {
@@ -452,7 +452,7 @@ export function handleEdit(id, field, value, tableType) {
                 : parseImporte(tarifasCatac[tarifasCatac.length - 1]?.valor) || 0;
             stagedEditingData['tarifa'] = tarifaCatacCalculada;
             //console.log(`Tarifa actualizada a ${tarifaCatacCalculada} para km ${value}`);
-            
+
             // Actualizar el input de tarifa en el DOM
             const tarifaInput = document.getElementById('tarifaEdit');
             if (tarifaInput) {
@@ -586,7 +586,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const headerContainer = document.getElementById('header-container');
     const sidebarContainer = document.getElementById('sidebar-container');
     const confirmModal = document.getElementById('confirmModal');
-    
+
     if (confirmModal) {
         confirmModal.style.display = 'none';
     }
@@ -637,10 +637,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateUsuario', async (user) => {
         let chofer = mockChoferes.find(chofer => chofer.cuil === user.cuilOriginal);
         const updatedData = user.updatedData;
-        if (chofer){
+        if (chofer) {
             //console.log(`Chofer con cuil ${user.cuilOriginal} modificado`);
             if (currentEditingTableType === "choferes" && editingRowId) {
-                if (editingRowId === user.cuilOriginal){
+                if (editingRowId === user.cuilOriginal) {
                     Object.assign(chofer, updatedData);
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
@@ -661,18 +661,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('deleteUsuario', async (user) => {
         const chofer = mockChoferes.find(chofer => chofer.cuil === user.cuil);
         mockChoferes = mockChoferes.filter(chofer => chofer.cuil !== user.cuil);
-        if (currentEditingTableType === "choferes" && editingRowId){
-            if (chofer.id === editingRowId){
-                    resetEditingState();
-                    changeSpinnerText(principalContent, "Actualizando datos...");
-                    toggleSpinnerVisible(principalContent);
-                    await renderChoferesTable(mockChoferes, currentChoferesPage);
-                    toggleSpinnerVisible(principalContent);
-                    changeSpinnerText(principalContent);
-                    showConfirmModal("Se han actualizado los datos");
-                }
-                return;
+        if (currentEditingTableType === "choferes" && editingRowId) {
+            if (chofer.id === editingRowId) {
+                resetEditingState();
+                changeSpinnerText(principalContent, "Actualizando datos...");
+                toggleSpinnerVisible(principalContent);
+                await renderChoferesTable(mockChoferes, currentChoferesPage);
+                toggleSpinnerVisible(principalContent);
+                changeSpinnerText(principalContent);
+                showConfirmModal("Se han actualizado los datos");
             }
+            return;
+        }
         renderChoferesTable(mockChoferes, currentChoferesPage);
     });
 
@@ -686,10 +686,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateCliente', async (client) => {
         let cliente = mockClientes.find(cliente => cliente.cuit === client.cuitOriginal);
         const updatedData = client.updatedData;
-        if (cliente){
+        if (cliente) {
             //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
             if (currentEditingTableType === "clientes" && editingRowId) {
-                if (editingRowId === client.cuitOriginal){
+                if (editingRowId === client.cuitOriginal) {
                     Object.assign(cliente, updatedData);
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
@@ -710,8 +710,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('deleteCliente', async (client) => {
         const cliente = mockClientes.find(cliente => cliente.cuit === client.cuit);
         mockClientes = mockClientes.filter(cliente => cliente.cuit !== client.cuit);
-        if (currentEditingTableType === "clientes" && editingRowId){
-            if (cliente.id === editingRowId){
+        if (currentEditingTableType === "clientes" && editingRowId) {
+            if (cliente.id === editingRowId) {
                 resetEditingState();
                 changeSpinnerText(principalContent, "Actualizando datos...");
                 toggleSpinnerVisible(principalContent);

@@ -19,7 +19,11 @@ var catacRouter = require('./routes/catac');
 var clientesRouter = require('./routes/clientes');
 var resumenesRouter = require('./routes/resumenes');
 var facturasRouter = require('./routes/facturas');
+var logsRouter = require('./routes/logs'); // Nuevo router
 
+// Inicializar tabla de logs
+const { createLogsTable } = require('./utils/logger');
+createLogsTable();
 
 var app = express();
 
@@ -41,6 +45,7 @@ const frontendPath = path.join(__dirname, '../FRONTEND');
 if (fs.existsSync(frontendPath)) {
     console.log(`[INFO] Modo local detectado. Sirviendo frontend desde: ${frontendPath}`);
     app.use(express.static(frontendPath));
+    app.use('/FRONTEND', express.static(frontendPath));
 } else {
     console.log('[INFO] Modo producción detectado. Sirviendo frontend desde ./public');
     app.use(express.static(path.join(__dirname, 'public')));
@@ -63,9 +68,12 @@ const upload = multer({
 
 // Habilitar CORS para permitir peticiones desde frontend
 app.use(cors({
+    origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:3000'],
+    credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     exposedHeaders: ['X-Factura-Id', 'Content-Disposition', 'X-New-Token']
 }));
+
 
 // Middleware para verificar el token (protege rutas)
 const authenticateToken = (req, res, next) => {
@@ -102,8 +110,30 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+// Middleware opcional - intenta autenticar pero no falla si no hay token
+const optionalAuth = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        // Sin token, continuar sin usuario
+        req.user = null;
+        return next();
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            // Token inválido, continuar sin usuario
+            req.user = null;
+        } else {
+            req.user = user;
+        }
+        next();
+    });
+};
+
 // app.use('/api/', indexRouter);
-app.use('/api/users', usersRouter);
+app.use('/api/users', optionalAuth, usersRouter);
 //Rutas Protegidas por JSWT
 app.use(authenticateToken);
 app.use('/api/choferes', choferesRouter);
@@ -112,6 +142,7 @@ app.use('/api/pagos', pagosRouter);
 app.use('/api/catac', catacRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/resumenes', resumenesRouter);
+app.use('/api/logs', logsRouter);
 app.use('/api/facturas', upload.fields([{ name: 'factura', maxCount: 1 }, { name: 'cartaPorte', maxCount: 5 }]), facturasRouter);
 
 // catch 404 and forward to error handler
