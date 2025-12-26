@@ -203,7 +203,25 @@ exports.uploadFactura = async (req, res) => {
         // Iniciar transacción
         client = await pool.connect();
         await client.query('BEGIN');
-        let query = type !== "viajeCliente"? 'SELECT chofer_cuil FROM viaje WHERE comprobante = $1' : 'SELECT cliente_cuit AS chofer_cuil FROM viaje_cliente WHERE viaje_comprobante = $1';
+        let query;
+        let queryInsert;
+        let queryUpdate;
+        switch (type) {
+            case 'viajeCliente':
+                query = 'SELECT cliente_cuit AS chofer_cuil FROM viaje_cliente WHERE viaje_comprobante = $1';
+                queryInsert = 'INSERT INTO factura_arca(cliente_cuit, factura_pdf) VALUES ($1, $2) RETURNING id';
+                queryUpdate = 'UPDATE viaje_cliente SET factura_id = $1 WHERE valid = true AND viaje_comprobante = $2'
+                break;
+            case 'ordenProveedor':
+                query = 'SELECT proveedor_cuit AS chofer_cuil FROM pagos_gasoil WHERE comprobante = $1';
+                queryInsert = 'INSERT INTO factura(proveedor_cuit, factura_pdf) VALUES ($1, $2) RETURNING id';
+                queryUpdate = 'UPDATE pagos_gasoil SET factura_id = $1 WHERE valid = true AND comprobante = $2';
+                break;
+            default:
+                query = 'SELECT chofer_cuil FROM viaje WHERE comprobante = $1';
+                queryInsert = 'INSERT INTO factura(cuil, factura_pdf) VALUES ($1, $2) RETURNING id';
+                queryUpdate = 'UPDATE viaje SET factura_id = $1 WHERE valid = true AND comprobante = $2';
+        }
 
         const responseCuil = await client.query(query,
             [parsedViajeIds[0]]
@@ -215,7 +233,6 @@ exports.uploadFactura = async (req, res) => {
         const cuil = responseCuil.rows[0].chofer_cuil;
         // Insertar factura en la base de datos
 
-        let queryInsert = type !== "viajeCliente"? 'INSERT INTO factura(cuil, factura_pdf) VALUES ($1, $2) RETURNING id' : 'INSERT INTO factura_arca(cliente_cuit, factura_pdf) VALUES ($1, $2) RETURNING id';
         const response = await client.query(
             queryInsert,
             [cuil, pdfBuffer]
@@ -232,7 +249,6 @@ exports.uploadFactura = async (req, res) => {
 
         // Actualizar la tabla viaje con el factura_id
         for (const id of parsedViajeIds) {
-            let queryUpdate = type !== "viajeCliente"? 'UPDATE viaje SET factura_id = $1 WHERE valid = true AND comprobante = $2' : 'UPDATE viaje_cliente SET factura_id = $1 WHERE valid = true AND viaje_comprobante = $2';
             const viajeResponse = await client.query(
                 queryUpdate,
                 [facturaId, id]
@@ -400,9 +416,8 @@ exports.descargarFactura = async (req, res) => {
         let query;
         let params = [];
         if (id && id !== "null" & id !== "undefined"){
-            query = 'SELECT factura_pdf FROM factura WHERE valid = true AND id = $1 AND cuil = $2';
+            query = 'SELECT factura_pdf FROM factura WHERE valid = true AND id = $1 ';
             params.push(id);
-            params.push(cuil);
         } else if (comprobante && comprobante !== "null" && comprobante !== "undefined") {
             query = 'SELECT carta_porte_pdf FROM carta_porte WHERE valid = true AND viaje_comprobante = $1'
             params.push(comprobante);
@@ -413,7 +428,7 @@ exports.descargarFactura = async (req, res) => {
 
         if (response.rows.length === 0){
             if (req.user.role !== "chofer" && id && id !== "null" & id !== "undefined")
-                response = await pool.query('SELECT factura_pdf FROM factura_arca WHERE valid = true AND id = $1 AND cliente_cuit = $2', params);
+                response = await pool.query('SELECT factura_pdf FROM factura_arca WHERE valid = true AND id = $1', params);
             if (response.rows.length === 0)
                 return res.status(406).json({ message: "No se encontro el documento solicitado para el viaje especificado"});
         }
@@ -445,9 +460,22 @@ exports.deleteFactura = async (req, res) => {
     let client;
     try {
         let query;
+        let queryCuil;
         let params = [];
         if (id && id !== "null" & id !== "undefined"){
-            query = type !== 'viajeCliente' ? 'UPDATE viaje SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2' : 'UPDATE viaje_cliente SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND viaje_comprobante = $2';
+            switch (type){
+                case 'viajeCliente':
+                    query = 'UPDATE viaje_cliente SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND viaje_comprobante = $2';
+                    queryCuil = 'SELECT cliente_cuit AS cuit FROM viaje_cliente WHERE valid = true AND viaje_comprobante = $1';
+                    break;
+                case 'ordenProveedor':
+                    query = 'UPDATE pagos_gasoil SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2';
+                    queryCuil = 'SELECT proveedor_cuit AS cuil FROM pagos_gasoil WHERE valid = true AND comprobante = $1';
+                    break;
+                default:
+                    query = 'UPDATE viaje SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2';
+                    queryCuil = 'SELECT chofer_cuil AS cuil, cliente_cuit AS cuit FROM viaje WHERE valid = true AND comprobante = $1'
+            }
             params.push(id);
         } else if (comprobante && comprobante !== "null" && comprobante !== "undefined") {
             query = 'DELETE FROM carta_porte WHERE viaje_comprobante = $1'
@@ -462,10 +490,12 @@ exports.deleteFactura = async (req, res) => {
         
         await client.query(query, params);
 
-        const responseCuil = await client.query('SELECT chofer_cuil AS cuil, cliente_cuit AS cuit FROM viaje WHERE valid = true AND comprobante = $1',
+        const responseCuil = await client.query(queryCuil,
             [comprobante]);
-            
-        const responseClient = await client.query('SELECT balance FROM cliente WHERE valid = true AND cuit = $1', [responseCuil.rows[0].cuit]);
+        
+        let responseClient;
+        if (responseCuil.rowCount > 0)
+            responseClient = await client.query('SELECT balance FROM cliente WHERE valid = true AND cuit = $1', [responseCuil.rows[0].cuit]);
 
         await client.query('COMMIT');
         client.release();

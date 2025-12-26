@@ -2,17 +2,12 @@ const pool = require('../db');
 const { getIO } = require('../socket');
 
 const regexCuit = /^\d{2}-\d{7,9}-\d{1}$/;
-const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validatecuit(cuit){
     return cuit && cuit !== '' && regexCuit.test(cuit);
 }
 
-function validateEmail(email){
-    return email && email !== '' && regexEmail.test(email);
-}
-
-exports.getClientes = async (req, res) => {
+exports.getProveedores = async (req, res) => {
     if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
@@ -21,28 +16,28 @@ exports.getClientes = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(
-            'SELECT cuit AS id, razon_social AS nombre, cuit, email, balance FROM cliente WHERE valid = true ORDER BY 1 ASC'
+            'SELECT cuit AS id, razon_social AS nombre, cuit, telefono, balance FROM proveedor WHERE valid = true ORDER BY 2 ASC'
         );
 
-        res.status(208).json({ clientes: result.rows });
+        res.status(208).json({ proveedores: result.rows });
 
     } catch (error) {
-        console.error('Error al buscar clientes en la DB:', error);
-        res.status(500).json({ message: 'Error interno del servidor al buscar clientes.' });
+        console.error('Error al buscar proveedores en la DB:', error);
+        res.status(500).json({ message: 'Error interno del servidor al buscar proveedores.' });
     }
 }
 
-exports.insertCliente = async (req, res) => {
+exports.insertProveedor = async (req, res) => {
     if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const data = req.body;
     if (!validatecuit(data.cuit))
-        return res.status(404).json({ message: 'El CUIT no cumple con el formato requerido XX-XXXXXXXX-X'});
+        return res.status(404).json({ message: 'El formato ingresado del CUIT no es valido.'});
     if (!data.nombre || data.nombre === '')
         return res.status(405).json({ message: 'El cliente debe llevar el Nombre / Razon Social'});
-    if (data.email && data.email !== '' && !validateEmail(data.email))
-        return res.status(405).json({ message: 'El email ingresado no es una dirección de email valida'})
+    if (data.telefono && data.telefono !== '' && isNaN(data.telefono))
+        return res.status(405).json({ message: 'El telefono ingresado no es valido, deben ser unicamente números.'})
 
     let client;
     try {
@@ -52,31 +47,31 @@ exports.insertCliente = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         // Verificar si el cuit o email ya están registrados
-        const clientExists = await client.query(
-            'SELECT cuit, valid FROM cliente WHERE cuit = $1',
+        const proveedorExists = await client.query(
+            'SELECT cuit, valid FROM proveedor WHERE cuit = $1',
             [data.cuit]
         );
-        let clienteRecuperado = false;
         let balance = 0;
-        if (clientExists.rows.length > 0) {
-            if (!clientExists.rows[0].valid){
-                const responseRecuperar = await client.query('UPDATE cliente SET valid = true, razon_social = $2, email = $3 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.email]);
+        let proveedorRecuperado = false;
+        if (proveedorExists.rows.length > 0) {
+            if (!proveedorExists.rows[0].valid){
+                const responseRecuperar = await client.query('UPDATE proveedor SET valid = true, razon_social = $2, telefono = $3 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.telefono]);
                 if (responseRecuperar.rowCount > 0){
-                    clienteRecuperado = true;
+                    proveedorRecuperado = true;
                     balance = responseRecuperar.rows[0].balance;
-                    res.status(202).json({message: `Se recupero un cliente anteriormente registrado con el cuit ${data.cuit}, y se actualizaron sus datos`, balance: balance});
+                    res.status(202).json({message: `Se recupero un proveedor anteriormente registrado con el cuit ${data.cuit}, y se actualizaron sus datos`, balance: balance});
                 }
             }
-            if (!clienteRecuperado){
+            if (!proveedorRecuperado){
                 await client.query('ROLLBACK');
                 return res.status(409).json({ message: 'El CUIT ya está registrado.' });
             }
         }
         
-        if (!clienteRecuperado)
+        if (!proveedorRecuperado)
             await client.query(
-                'INSERT INTO cliente(cuit, razon_social, email) VALUES($1, $2, $3)',
-                [data.cuit, data.nombre, data.email]
+                'INSERT INTO proveedor(cuit, razon_social, telefono) VALUES($1, $2, $3)',
+                [data.cuit, data.nombre, data.telefono]
             );
 
         await client.query('COMMIT');
@@ -86,54 +81,54 @@ exports.insertCliente = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('nuevoCliente', {id: data.cuit, balance: balance, ...data});
+                    socket.emit('nuevoProveedor', {id: data.cuit, balance: balance, ...data});
                 }
             });
         } catch (error){
-            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+            console.error("Error al sincronizar los datos en insertProveedor", error.stack);
         }
-        if (!clienteRecuperado) res.status(208).json({ message: "El cliente fue registrado con exito"});
+        if (!proveedorRecuperado) res.status(208).json({ message: "El proveedor fue registrado con exito"});
 
     } catch (error) {
-        console.error('Error al buscar clientes en la DB:', error);
-        res.status(500).json({ message: 'Error interno del servidor al registrar el cliente.' });
+        console.error('Error al buscar proveedores en la DB:', error);
+        res.status(500).json({ message: 'Error interno del servidor al registrar el proveedor.' });
     } finally {
         client?.release();
     }
 }
 
-exports.updateClientes = async (req, res) => {
+exports.updateProveedores = async (req, res) => {
     if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const data = req.body;
     const cuitOriginal = req.params.cuitOriginal;
     if (!validatecuit(data.cuit))
-        return res.status(404).json({ message: 'El CUIT no cumple con el formato requerido XX-XXXXXXXX-X'});
+        return res.status(404).json({ message: 'El formato ingresado del CUIT no es valido.'});
     if (!data.nombre || data.nombre === '')
-        return res.status(405).json({ message: 'El cliente debe llevar el Nombre / Razon Social'});
-    if (data.email && data.email !== '' && !validateEmail(data.email))
-        return res.status(405).json({ message: 'El email ingresado no es una dirección de email valida'})
+        return res.status(405).json({ message: 'El proveedor debe llevar el Nombre / Razon Social'});
+    if (data.telefono && data.telefono !== '' && isNaN(data.telefono))
+        return res.status(405).json({ message: 'El telefono ingresado no es valido, deben ser unicamente números.'})
     try {
         // Consulta a la base de datos (PostgreSQL ejemplo)
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         // Verificar si el cuit o email ya están registrados
         if (cuitOriginal !== data.cuit){
-            const clientExists = await pool.query(
-                'SELECT cuit FROM cliente WHERE cuit = $1',
+            const proveedorExists = await pool.query(
+                'SELECT cuit FROM proveedor WHERE cuit = $1',
                 [data.cuit]
             );
-            if (clientExists.rows.length > 0) {
+            if (proveedorExists.rows.length > 0) {
                 return res.status(409).json({ message: 'El CUIT ya está registrado.' });
             }
         }
 
         await pool.query(
-            `UPDATE cliente 
-            SET cuit = $1, razon_social = $2, email = $3
+            `UPDATE proveedor
+            SET cuit = $1, razon_social = $2, telefono = $3
             WHERE cuit = $4`,
-            [data.cuit, data.nombre, data.email, cuitOriginal]
+            [data.cuit, data.nombre, data.telefono, cuitOriginal]
         );
 
         try {
@@ -141,21 +136,21 @@ exports.updateClientes = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('updateCliente',{cuitOriginal: cuitOriginal, updatedData: data});
+                    socket.emit('updateProveedor',{cuitOriginal: cuitOriginal, updatedData: data});
                 }
             });
         } catch (error){
-            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+            console.error("Error al sincronizar los datos en UpdateProveedor", error.stack);
         }
-        res.status(207).json({ message: "Cliente modificado con exito"});
+        res.status(207).json({ message: "Proveedor modificado con exito"});
 
     } catch (error) {
-        console.error('Error al modificar cliente en la DB:', error);
-        res.status(500).json({ message: 'Error interno del servidor al modificar cliente.' });
+        console.error('Error al modificar proveedor en la DB:', error);
+        res.status(500).json({ message: 'Error interno del servidor al modificar proveedor.' });
     }
 }
 
-exports.deleteClientes = async (req, res) => {    
+exports.deleteProveedores = async (req, res) => {    
     if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
@@ -163,12 +158,12 @@ exports.deleteClientes = async (req, res) => {
     try {
         // Actualizar el campo 'valid' a false en lugar de eliminar
         const result = await pool.query(
-            'UPDATE cliente SET valid = false WHERE cuit = $1 RETURNING *',
+            'UPDATE proveedor SET valid = false WHERE cuit = $1 RETURNING *',
             [cuit]
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Cliente no encontrado.' });
+            return res.status(404).json({ message: 'Proveedor no encontrado.' });
         }
 
         try {
@@ -176,13 +171,13 @@ exports.deleteClientes = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('deleteCliente',{cuit: cuit});
+                    socket.emit('deleteProveedor',{cuit: cuit});
                 }
             });
         } catch (error){
-            console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
+            console.error("Error al sincronizar los datos en deletgeProveedores", error.stack);
         }
-        res.status(200).json({ message: 'Cliente eliminado lógicamente con éxito.' });
+        res.status(200).json({ message: 'Proveedor eliminado lógicamente con éxito.' });
 
     } catch (error) {
         res.status(500).json({ message: error.message });

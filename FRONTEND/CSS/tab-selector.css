@@ -12,6 +12,7 @@
 /* Estilos para cada pestaña individual */
 .tab-item {
     padding: 10px 20px;
+    border-right: 1px solid #ccc;
     cursor: pointer;
     background-color: #f0f0f0; /* Fondo por defecto (no activo) */
     color: #666; /* Color de texto por defecto */

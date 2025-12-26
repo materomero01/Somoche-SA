@@ -52,7 +52,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     }
 
     modal = document.createElement('div');
-    modal.id = 'documentUploadModal';
+    modal.id = viaje.length > 0? 'documentUploadModal' : 'documentUploadBoxModal';
     modal.className = 'modal';
     modal.classList.add('active');
 
@@ -94,19 +94,26 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     // Check if documents already exist for the viaje
     await updateViajeStatus();
 
-    if (viaje.length > 0 && !cartaPorteFunc && !deleteFunc){
-        facturaExists = viaje[0].factura_id ? true : false;
-        cartaPorteExists = viaje[0].carta_porte;
-
-        cartaPorteDropArea.remove();
-        deleteCartaPorteBtn.remove();
-        deleteFacturaBtn.remove();
-        toggleCartaPorteDropbox.remove();
-        
-        downloadFacturaBtn.disabled = facturaExists? false : true;
-        cartaPorteActions.style.display = 'flex';
-        downloadCartaPorteBtn.disabled = cartaPorteExists? false : true;
-
+    if (viaje.length > 0){
+        if (!cartaPorteFunc){
+            if (tableType === 'ordenProveedor'){
+                document.getElementById('cartaPorteSection').remove();
+                document.getElementById('section-divider').remove();
+                document.getElementById('headerDocuments').textContent = "Documentos de la Orden";
+            } else {
+                cartaPorteExists = viaje[0].carta_porte;
+                cartaPorteDropArea.remove();
+                deleteCartaPorteBtn.remove();
+                toggleCartaPorteDropbox.remove();
+                cartaPorteActions.style.display = 'flex';
+                downloadCartaPorteBtn.disabled = cartaPorteExists? false : true;
+            }
+        }
+        if (!deleteFunc) {
+            facturaExists = viaje[0].factura_id ? true : false;
+            downloadFacturaBtn.disabled = facturaExists? false : true;
+            deleteFacturaBtn.remove();
+        }
     }
 
     // Handle file selection for factura
@@ -233,6 +240,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     downloadFacturaBtn?.addEventListener('click', async () => {
         if (viaje.length > 0 && viaje[0].factura_id) {
             try {
+                console.log(viaje[0]);
                 const response = await getFactura(viaje[0].cuil, viaje[0].factura_id);
                 if (!response.ok) {
                     const err = await response.json();

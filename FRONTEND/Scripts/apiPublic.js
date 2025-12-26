@@ -70,7 +70,7 @@ export async function showConfirmModal(message, type = "", onConfirm = () => {},
             headerModal.textContent = "Aviso";
     }
     modalMessage.textContent = "";
-    modalMessage.innerHTML = message || "¿Estás seguro de que quieres eliminar este registro?";
+    modalMessage.innerHTML = message || "Ocurrio un error";
 
 
     acceptBtn.onclick = null;

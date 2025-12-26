@@ -11,6 +11,7 @@ exports.insertViaje = async (req, res) => {
         // Validar datos de entrada para inserción (todos los campos requeridos)
         const { errors, validatedData } = viajeSchema(req.body, false); // false indica validación completa
         if (errors.length > 0) {
+            console.log(errors);
             return res.status(400).json({ message: 'Errores de validación', errors });
         }
 
@@ -56,13 +57,14 @@ exports.insertViaje = async (req, res) => {
         // Insertar el viaje
         await client.query(
             `INSERT INTO viaje (
-                chofer_cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, cliente_cuit
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                chofer_cuil, comprobante, fecha, campo, producto, kilometros, tarifa, variacion, toneladas, cargado, descargado, cliente_cuit
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
                 validatedData.chofer_cuil,
                 validatedData.comprobante,
                 validatedData.fecha,
                 validatedData.campo,
+                validatedData.producto,
                 validatedData.kilometros,
                 validatedData.tarifa,
                 validatedData.variacion,
@@ -115,7 +117,7 @@ exports.getViajeCuil = async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT chofer_cuil AS cuil, comprobante, fecha, campo, kilometros, tarifa, variacion, toneladas, cargado, descargado, factura_id, 
+            `SELECT chofer_cuil AS cuil, comprobante, fecha, campo, producto, kilometros, tarifa, variacion, toneladas, cargado, descargado, factura_id, 
             EXISTS (SELECT 1 FROM carta_porte cp WHERE cp.valid = true AND cp.viaje_comprobante = v.comprobante) AS carta_porte
             FROM viaje v
             WHERE v.valid = true AND chofer_cuil = $1 AND "group_r" IS NULL
@@ -137,7 +139,7 @@ exports.getViajeComprobante = async (req, res) => {
     const { comprobante } = req.params;
 
     try {
-        const response = await pool.query(`SELECT chofer_cuil AS cuil, u.nombre_apellido AS nombre, comprobante, fecha, campo, 
+        const response = await pool.query(`SELECT chofer_cuil AS cuil, u.nombre_apellido AS nombre, comprobante, fecha, campo, producto, 
             kilometros, tarifa, variacion, toneladas, cargado, descargado, cliente_cuit AS cuit, group_r
             FROM viaje v
             LEFT JOIN usuario u ON v.chofer_cuil = u.cuil
@@ -253,7 +255,12 @@ exports.updateViajes = async (req, res) => {
 
             // Verificar si el viaje existe
             const viajeExists = await client.query(
-                'SELECT chofer_cuil AS cuil, cliente_cuit AS cuit, kilometros, tarifa, variacion, toneladas, update_at FROM viaje WHERE valid = true AND comprobante = $1',
+                `SELECT chofer_cuil AS cuil, cliente_cuit AS cuit, kilometros, tarifa, variacion, toneladas FROM viaje WHERE valid = true AND comprobante = $1`,
+                [comprobante]
+            );
+
+            const viajeExistsClient = await client.query(
+                `SELECT kilometros, tarifa, variacion, toneladas FROM viaje_cliente WHERE valid = true AND viaje_comprobante = $1`,
                 [comprobante]
             );
 
@@ -296,10 +303,11 @@ exports.updateViajes = async (req, res) => {
                 // Avisar a todos los clientes conectados
                 io.sockets.sockets.forEach((socket) => {
                     if (socket.cuil !== req.user.cuil) {
-                        if (tablaUpdate === "viaje")
+                        if (tablaUpdate === "viaje"){
                             socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData}});
-                        else {
-                            if (new Date(viajeExists.rows[0].update_at) < new Date(viajeUpdateado.rows[0].update_at)) socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, kilometros: viajeExists.rows[0].kilometros, tarifa: viajeExists.rows[0].tarifa, variacion: viajeExists.rows[0].variacion, toneladas: viajeExists.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado}});
+                            socket.emit('updateViajeCliente',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, producto: validatedData.producto, kilometros: viajeExistsClient.rows[0].kilometros, tarifa: viajeExistsClient.rows[0].tarifa, variacion: viajeExistsClient.rows[0].variacion, toneladas: viajeExistsClient.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado}});
+                        } else {
+                            socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, producto: validatedData.producto, kilometros: viajeExists.rows[0].kilometros, tarifa: viajeExists.rows[0].tarifa, variacion: viajeExists.rows[0].variacion, toneladas: viajeExists.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado}});
                             socket.emit('updateViajeCliente',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData}});
                         }
                     }

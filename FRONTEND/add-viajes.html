@@ -54,16 +54,24 @@
     </div>
      <form class="form-grid" id="formViaje">
       <div class="form-group">
-       <label for="kilometro">Kilómetros</label>
-       <input type="number" id="kilometro" name="kilometro" placeholder="Cantidad de kilómetros" required/>
-      </div>
-      <div class="form-group">
-       <label for="toneladas">Toneladas</label>
-       <input type="number" id="toneladas" name="toneladas" placeholder="Cantidad de toneladas" required/>
-      </div>
-      <div class="form-group">
        <label for="fecha">Fecha</label>
        <input type="date" id="fecha" name="fecha" value="2025-06-20" required/>
+      </div>
+      <div class="form-group">
+       <label for="comprobante">Comprobante</label>
+       <input type="text" id="comprobante" name="comprobante" placeholder="Nro. Comprobante" maxlength="13" required/>
+      </div>
+      <div class="form-group">
+       <label for="campo">Campo</label>
+       <input type="text" id="campo" name="campo" placeholder="Campo" required/>
+      </div>
+      <div class="form-group">
+       <label for="producto">Producto</label>
+       <input type="text" id="producto" name="producto" placeholder="Producto" required/>
+      </div>
+      <div class="form-group">
+       <label for="kilometro">Kilómetros</label>
+       <input type="number" id="kilometro" name="kilometro" placeholder="Cantidad de kilómetros" required/>
       </div>
       <div class="form-group autocomplete-container">
        <label for="tarifa">Tarifa</label>
@@ -71,24 +79,20 @@
        <div id="tarifa-suggestions" class="suggestions-list"></div>
       </div>
       <div class="form-group">
-       <label for="cargado">Cargado</label>
-       <input type="number" id="cargado" name="cargado" placeholder="Cantidad de toneladas"/>
-      </div>
-      <div class="form-group">
-       <label for="comprobante">Comprobante</label>
-       <input type="text" id="comprobante" name="comprobante" placeholder="Nro. Comprobante" maxlength="13" required/>
-      </div>
-      <div class="form-group">
        <label for="variacion">Variación</label>
        <input type="number" id="variacion" name="variacion"  value="0.1" required/>
       </div>
       <div class="form-group">
-       <label for="descargado">Descargado</label>
-       <input type="number" id="descargado" name="descargado" placeholder="Cantidad de toneladas"/>
+       <label for="toneladas">Toneladas</label>
+       <input type="number" id="toneladas" name="toneladas" placeholder="Cantidad de toneladas" required/>
       </div>
       <div class="form-group">
-       <label for="campo">Campo</label>
-       <input type="text" id="campo" name="campo" placeholder="Campo" required/>
+       <label for="cargado">Cargado</label>
+       <input type="number" id="cargado" name="cargado" placeholder="Cantidad de toneladas"/>
+      </div>
+      <div class="form-group">
+       <label for="descargado">Descargado</label>
+       <input type="number" id="descargado" name="descargado" placeholder="Cantidad de toneladas"/>
       </div>
     </form>
 
@@ -168,6 +172,10 @@
 
         <div id="gasoilFields" class="payment-type-fields hidden">
             <div class="form-grid">
+                <div class="form-group autocomplete-container">
+                        <label for="proveedorGasoil">Proveedor</label>
+                        <input type="search" id="proveedorGasoil" placeholder="Proveedor">
+                    </div>
                 <div class="form-group">
                     <label for="comprobanteGasoil">Comprobante</label>
                     <input type="text" id="comprobanteGasoil" placeholder="Comprobante">

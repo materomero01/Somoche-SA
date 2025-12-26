@@ -305,6 +305,16 @@
     width: 100% - 15px;
 }
 
+.total-cheques {
+    font-size: 1rem; 
+    align-self: center; 
+    border: 2px solid #dee2e6; 
+    border-radius: 8px; 
+    padding: 8px 8px 6px 8px;  
+    font-weight: bold;
+    background-color: #f8f9fa;
+}
+
 /* PAGINACIÓN */
 .pagination-controls {
     display: flex;
@@ -400,7 +410,11 @@
 }
 
 .expand-table-scroll {
-    max-height: 47vh !important;
+    max-height: 50vh !important;
+}
+
+.no-modify {
+    max-height: 100% !important;
 }
 
 /* Inputs editables */
@@ -450,7 +464,6 @@
 @media (max-width: 768px) {
     
     .section-header {
-        flex-direction: column;
         align-items: flex-start;
         gap: 10px;
     }
@@ -491,10 +504,6 @@
         padding-left: 0px;
     }
 
-    .tabla-scrollable {
-        max-height: 50vh !important;
-    }
-
     /* Prevent table from shrinking and ensure all columns are visible */
     .tabla-dinamica table {
         table-layout: fixed; /* Fixed layout to control column widths */
@@ -513,6 +522,15 @@
         overflow: hidden; /* Hide overflowed text */
         border: 1px solid #ddd; /* Maintain borders */
     }
+
+    /* .section-header h2 {
+        font-size: 1rem;
+    }
+
+    .total-cheques {
+        display: flex;
+        flex-direction: column;
+    } */
 
     /* Ensure sticky headers work but don’t obscure content */
     .tabla-dinamica th {

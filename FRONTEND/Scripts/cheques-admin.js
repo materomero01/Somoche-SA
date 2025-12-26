@@ -1,7 +1,7 @@
 // /FRONTEND/scripts/cheques-admin.js
 
 import { setChequesPagos, socket } from './api.js';
-import { renderTabla } from './tabla.js';
+import { renderTabla, renderTables } from './tabla.js';
 import { createLoadingSpinner, getCheques, showConfirmModal, toggleSpinnerVisible } from './apiPublic.js';
 
 // Arrays para almacenar los datos de cheques próximos y pagados
@@ -24,6 +24,74 @@ let currentFilter = {
     montoMinimo: '',
     montoMaximo: ''
 };
+
+const columnasProximos = [
+    { label: 'Días', key: 'fecha_cheque', class: ['text-right', 'bold'], modify: (content) => calcularDiasRestantes(content) > 0? `${calcularDiasRestantes(content)} días` : calcularDiasRestantes(content) === 0? 'Hoy' : formatFecha(content) },
+    { label: 'Fecha Cobro', key: 'fecha_cheque', class: [], modify: (content) => formatFecha(content) },
+    { label: 'Cheque', key: 'nro_cheque', class: [] },
+    { label: 'Destinatario', key: 'destinatario', class: [] },
+    { label: 'Banco', key: 'tercero', class: [] },
+    { label: 'Fecha Emisión', key: 'fecha_pago', class: [], modify: (content) => formatFecha(content) },
+    { label: 'Entregado a', key: 'nombre', class: [] },
+    { label: 'Importe', key: 'importe', class: ['text-right'], modify: (content) => `$${parseImporte(content).toFixed(2)}` }
+];
+
+const columnasPagos = [
+    { label: 'Fecha Cobro', key: 'fecha_cheque', class: [], modify: (content) => formatFecha(content) },
+    { label: 'Cheque', key: 'nro_cheque', class: [] },
+    { label: 'Destinatario', key: 'destinatario', class: [] },
+    { label: 'Banco', key: 'tercero', class: [] },
+    { label: 'Fecha Pago', key: 'fecha_pago', class: [], modify: (content) => formatFecha(content) },
+    { label: 'Entregado a', key: 'nombre', class: [] },
+    { label: 'Importe', key: 'importe', class: ['text-right'], modify: (content) => `$${parseImporte(content).toFixed(2)}` }
+];
+
+const handleCheckboxChange = (nroCheque, isChecked) => {
+    const cheque = datosChequesProximos.find(c => c.nro_cheque === nroCheque);
+    if (cheque) {
+        cheque.selected = isChecked;
+        if (isChecked) {
+            selectedCheques.set(nroCheque, cheque);
+        } else {
+            selectedCheques.delete(nroCheque);
+        }
+        updateSelectedChequesSummary();
+    }
+}
+
+const optionsProximos = {
+    containerId: 'tabla-proximos',
+    paginacionContainerId: 'paginacion-proximos',
+    columnas: [ columnasProximos ],
+    itemsPorPagina: () => 10,
+    actions: [],
+    onEdit: null,
+    tableType: 'proximos',
+    onPageChange: null,
+    checkboxColumn: true,
+    checkboxColumnPosition: "end",
+    checkboxHeaderAction: null,
+    onCheckboxChange: handleCheckboxChange,
+    uploadFactura: null,
+    useScrollable: false
+}
+
+const optionsPagos = {
+    containerId: 'tabla-pagos',
+    paginacionContainerId: 'paginacion-pagos',
+    columnas: [ columnasPagos ],
+    itemsPorPagina: () => 10,
+    actions: [],
+    onEdit: null,
+    tableType: 'pagos',
+    onPageChange: null,
+    checkboxColumn: false,
+    checkboxColumnPosition: "",
+    checkboxHeaderAction: null,
+    onCheckboxChange: null,
+    uploadFactura: null,
+    useScrollable: false
+}
 
 // Función para calcular los días restantes hasta la fecha de cobro
 function calcularDiasRestantes(fechaCheque) {
@@ -81,42 +149,18 @@ function filtrarCheques(data, filters) {
 
 function renderTablaProximos() {
     let filteredData = filtrarCheques(datosChequesProximos, currentFilter);
+    filteredData = filteredData.map(c => ({
+        ...c,
+        id: c.nro_cheque,
+        selected: selectedCheques.get(c.nro_cheque)? true : false
+    }));
 
-    renderTabla({
-        containerId: 'tabla-proximos',
-        paginacionContainerId: 'paginacion-proximos',
-        columnas: [
-            { label: 'Días', key: 'diasRestantes', class: ['text-right', 'bold'] },
-            { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
-            { label: 'Cheque', key: 'nro_cheque', class: [] },
-            { label: 'Destinatario', key: 'destinatario', class: [] },
-            { label: 'Banco', key: 'tercero', class: [] },
-            { label: 'Fecha Emisión', key: 'fecha_pago', class: [] },
-            { label: 'Chofer Nombre', key: 'nombre', class: [] },
-            { label: 'Importe', key: 'importe', class: ['text-right'] }
-        ],
-        datos: filteredData.map(c => ({
-            id: c.nro_cheque, // Usar nro_cheque como ID
-            diasRestantes: calcularDiasRestantes(c.fecha_cheque) > 0? `${calcularDiasRestantes(c.fecha_cheque)} días` : calcularDiasRestantes(c.fecha_cheque) === 0? 'Hoy' : formatFecha(c.fecha_cheque),
-            fecha_cheque: formatFecha(c.fecha_cheque),
-            nro_cheque: c.nro_cheque,
-            destinatario: c.destinatario,
-            tercero: c.tercero,
-            fecha_pago: formatFecha(c.fecha_pago),
-            importe: `$${parseImporte(c.importe).toFixed(2)}`,
-            nombre: c.nombre,
-            selected: selectedCheques.get(c.nro_cheque)? true : false // Estado de selección
-        })),
-        itemsPorPagina: 10,
-        checkboxColumn: true,
-        checkboxColumnPosition: 'end',
-        onCheckboxChange: handleCheckboxChange
-    });
+    renderTables(filteredData, 1, optionsProximos);
 
     // Actualizar el total a cobrar
     const total = calcularTotalImportesGlobal(filteredData);
-    const totalDiv = document.getElementById('selected-cheques-total');
-    if (totalDiv) totalDiv.textContent = total;
+    const totalDiv = document.getElementById('total-cheques-proximos');
+    if (totalDiv) totalDiv.textContent = `Total: $${total}`;
 
     // Actualizar el resumen de cheques seleccionados
     updateSelectedChequesSummary();
@@ -125,32 +169,7 @@ function renderTablaProximos() {
 
 function renderTablaPagos() {
     const filteredData = filtrarCheques(datosChequesPagos, currentFilter);
-
-    renderTabla({
-        containerId: 'tabla-pagos',
-        paginacionContainerId: 'paginacion-pagos',
-        columnas: [
-            { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
-            { label: 'Cheque', key: 'nro_cheque', class: [] },
-            { label: 'Destinatario', key: 'destinatario', class: [] },
-            { label: 'Banco', key: 'tercero', class: [] },
-            { label: 'Fecha Pago', key: 'fecha_pago', class: [] },
-            { label: 'Chofer Nombre', key: 'nombre', class: [] },
-            { label: 'Importe', key: 'importe', class: ['text-right'] }
-        ],
-        datos: filteredData.map(c => ({
-            id: c.nro_cheque,
-            fecha_cheque: formatFecha(c.fecha_cheque),
-            nro_cheque: c.nro_cheque,
-            destinatario: c.destinatario,
-            tercero: c.tercero,
-            fecha_pago: formatFecha(c.fecha_pago),
-            importe: `$${parseImporte(c.importe).toFixed(2)}`,
-            nombre: c.nombre
-        })),
-        itemsPorPagina: 10,
-        checkboxColumn: false
-    });
+    renderTables(filteredData, 1, optionsPagos);
     updateClearFilterButtonVisibility();
 }
 
@@ -174,19 +193,6 @@ function updateSelectedChequesSummary() {
         } else {
             chequesSelectionControls.classList.add('hidden');
         }
-    }
-}
-
-function handleCheckboxChange(nroCheque, isChecked) {
-    const cheque = datosChequesProximos.find(c => c.nro_cheque === nroCheque);
-    if (cheque) {
-        cheque.selected = isChecked;
-        if (isChecked) {
-            selectedCheques.set(nroCheque, cheque);
-        } else {
-            selectedCheques.delete(nroCheque);
-        }
-        updateSelectedChequesSummary();
     }
 }
 
@@ -230,16 +236,7 @@ async function mostrarContenidoTabCheques(tab) {
                     cheque.selected = false;
                     cheque.importe = parseImporte(cheque.importe);
                 });
-                // if(datosChequesProximos.length > 0){
-                //     datosChequesProximos.filter(
-                //                 cheque =>formatFecha(cheque.fecha_cheque) < formatFecha(new Date())
-                //             ).forEach( cheque => chequesFueraFecha.push(cheque.nro_cheque));
-                // }
-                    
-                // if(chequesFueraFecha.length > 0){
-                //     await setChequesPagos(chequesFueraFecha);
-                //     datosChequesProximos = datosChequesProximos.filter(cheque => !chequesFueraFecha.includes(cheque.nro_cheque))
-                // }
+
             } catch (error) {
                 console.error(error.message);
             }
@@ -545,6 +542,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         let actualizo = false;
         pagos.pagosArray.forEach( pago => {
             if (pago.tipo.toLowerCase() === 'cheque' && !datosChequesProximos.find(c => c.nro_cheque === pago.comprobante) && !pago.cuit){
+                console.log(pago);
                 datosChequesProximos.push(pago);
                 actualizo = true;
             };

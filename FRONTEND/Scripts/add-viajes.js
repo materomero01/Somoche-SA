@@ -1,9 +1,10 @@
-import { fetchAllChoferes, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje, setupAutocomplete, setupClienteAutocomplete, setupChoferAutocomplete, loadTarifas, tarifasCatac } from './api.js';
+import { fetchAllChoferes, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje, setupAutocomplete, setupClienteAutocomplete, setupChoferAutocomplete, loadTarifas, tarifasCatac, fetchProveedores } from './api.js';
 import { showConfirmModal, createLoadingSpinner, toggleSpinnerVisible } from './apiPublic.js';
 
 // Global variables
 let allChoferes = [];
 let allClientes = [];
+let allProveedores = [];
 
 const contentPrincipal = document.getElementById("add-viajes-section");
 
@@ -95,17 +96,17 @@ const setupAddViajeBtn = () => {
         const clienteInput = document.getElementById('cliente');
         const fechaInput = document.getElementById('fecha');
         const payload = {
-            cuil: choferInput?.dataset.selectedChoferCuil,
+            chofer_cuil: choferInput?.dataset.selectedChoferCuil,
             nombre: choferInput?.dataset.selectedChoferNombre,
-            cuit_cliente: clienteInput?.dataset.selectedClienteCuit
+            cliente_cuit: clienteInput?.dataset.selectedClienteCuit
         };
 
-        if (!payload.cuil) {
+        if (!payload.chofer_cuil) {
             showConfirmModal('Por favor, selecciona un chofer de la lista de sugerencias.');
             return;
         }
 
-        if (!payload.cuit_cliente) {
+        if (!payload.cliente_cuit) {
             showConfirmModal('Por favor, selecciona un cliente de la lista de sugerencias.');
             return;
         }
@@ -117,6 +118,7 @@ const setupAddViajeBtn = () => {
             fecha: fechaISO,
             comprobante: formData.comprobante?.trim(),
             campo: formData.campo?.trim(),
+            producto: formData.producto?.trim(),
             kilometros: parseFloat(formData.kilometro),
             tarifa: formData.tarifa,
             variacion: parseFloat(formData.variacion) || 0.1,
@@ -147,6 +149,7 @@ function validarInputs(payload){
         if (!validateInputs(payload, {
             comprobante: 'Comprobante',
             campo: 'Campo',
+            producto: 'Producto',
             kilometros: 'Kilómetro',
             tarifa: 'Tarifa',
             toneladas: 'Toneladas',
@@ -495,6 +498,7 @@ const debugPayload = (payload, tipoPago) => {
 const setupAddPagoBtn = () => {
     const btn = document.getElementById('addPagoBtn');
     setupClienteAutocomplete('clienteCheque', allClientes);
+    setupClienteAutocomplete('proveedorGasoil', allProveedores);
     btn?.addEventListener('click', async () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPago = document.getElementById('fechaPago')?.value;
@@ -602,6 +606,7 @@ const setupAddPagoBtn = () => {
                     ...payload,
                     pagos: {
                         tipo: tipoPago,
+                        proveedor_cuit: document.getElementById('proveedorGasoil')?.dataset.selectedClienteCuit,
                         fecha_pago: fechaPago,
                         comprobante: comprobanteGasoil,
                         precioGasoil: precioGasoil,
@@ -676,6 +681,8 @@ const setupAddPagoBtn = () => {
                     ['fechaCheque', 'nroCheque', 'terceroCheque', 'destinatarioCheque', 'importeCheque', 'clienteCheque'].forEach(id => {
                         const input = document.getElementById(id);
                         if (input) input.value = '';
+                        input.removeAttribute('data-selected-cliente-nombre');
+                        input.removeAttribute('data-selected-cliente-cuit');
                     });
                     
                     // Eliminar todos los formularios duplicados
@@ -686,12 +693,14 @@ const setupAddPagoBtn = () => {
                 } else {
                     // Limpiar otros formularios
                     const formFields = tipoPago.toLowerCase() === 'gasoil' 
-                        ? ['comprobanteGasoil','precioGasoil', 'litrosGasoil', 'importeGasoil']
+                        ? ['comprobanteGasoil','precioGasoil', 'litrosGasoil', 'importeGasoil', 'proveedorGasoil' ]
                         : ['comprobanteOtro','detalleOtro', 'importeOtro'];
                         
                     formFields.forEach(id => {
                         const input = document.getElementById(id);
                         if (input) input.value = '';
+                        input.removeAttribute('data-selected-cliente-nombre');
+                        input.removeAttribute('data-selected-cliente-cuit');
                     });
                 }
             
@@ -770,6 +779,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     else console.error("loadSidebar no está definido. Asegúrate de cargar /FRONTEND/scripts/sidebar.js.");
     allChoferes = await fetchAllChoferes();
     allClientes = await fetchClientes();
+    allProveedores = await fetchProveedores();
     await loadTarifas();
     const sidebarItems = document.querySelectorAll('.sidebar-item');
     sidebarItems.forEach(item => {

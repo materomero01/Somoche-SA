@@ -35,6 +35,7 @@
             <div class="tab-selector" id="choferesClientesSelector">
                 <div class="tab-item active" data-tab="choferes">Choferes</div>
                 <div class="tab-item" data-tab="clientes">Clientes</div>
+                <div class="tab-item" data-tab="proveedores">Proveedores</div>
             </div>
 
             <div id="content-choferes" class="tab-content">
@@ -117,19 +118,21 @@
                             <i class="bi bi-plus-circle"></i> Añadir cliente
                         </button>
 
-                        <div id="addClienteCard" class="add-card">
-                            <div class="form-group" style="margin-bottom: 10px;">
-                                <label for="nuevoClienteNombre">Razon social *</label>
-                                <input type="text" id="nuevoClienteNombre" placeholder="Nombre" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 10px;">
-                                <label for="nuevoClienteCuit">CUIL / CUIT *</label>
-                                <input type="text" id="nuevoClienteCuit" placeholder="20-12345678-1" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 10px;">
-                                <label for="nuevoClienteCuit">Email</label>
-                                <input type="email" id="nuevoClienteEmail" placeholder="example@address.com">
-                            </div>
+                        <div id="addClienteCard" class="add-card hidden">
+                            <form id="form-cliente">
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoClienteNombre">Razon social *</label>
+                                    <input type="text" id="nuevoClienteNombre" name="nombre" placeholder="Nombre" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoClienteCuit">CUIL / CUIT *</label>
+                                    <input type="text" id="nuevoClienteCuit" name="cuit" placeholder="20-12345678-1" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoClienteCuit">Email</label>
+                                    <input type="email" id="nuevoClienteEmail" name="email" placeholder="example@address.com">
+                                </div>
+                            </form>
                             <button class="btn btn-success btn-sm" id="btnGuardarNuevoCliente">
                                 Cargar cliente
                             </button>
@@ -140,6 +143,42 @@
                 <div id="paginacion-clientes" class="pagination-controls"></div>
             </div>
 
+            <div id="content-proveedores" class="tab-content hidden">
+                <h2>Lista de proveedores</h2>
+                <div class="top-bar">
+                    <div id="proveedoresSearchBar" class="search-bar">
+                        <input type="text" class="search-input" placeholder="Buscar proveedor..." />
+                        <div class="search-icon"><i class="bi bi-search"></i></div>
+                    </div>
+                    <div class="add-wrapper" id="cliente-wrapper">
+                        <button id="btnAddProveedor" class="btn btn-success btn-sm" style="height: 100%;">
+                            <i class="bi bi-plus-circle"></i> Añadir Proveedor
+                        </button>
+
+                        <div id="addProveedorCard" class="add-card hidden">
+                            <form id="form-proveedor">
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoProveedorNombre">Razon social *</label>
+                                    <input type="text" id="nuevoProveedorNombre" name="nombre" placeholder="Nombre" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoProveedorCuit">CUIL / CUIT *</label>
+                                    <input type="text" id="nuevoProveedorCuit" name="cuit" placeholder="20-12345678-1" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoProveedorTelefono">Teléfono</label>
+                                    <input type="number" id="nuevoProveedorTelefono" name="telefono" placeholder="2262123456">
+                                </div>
+                            </form>
+                            <button class="btn btn-success btn-sm" id="btnGuardarNuevoProveedor">
+                                Cargar Proveedor
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="tabla-proveedores" class="tabla-dinamica"></div>
+                <div id="paginacion-proveedores" class="pagination-controls"></div>
+            </div>
         </section>
     </main>
 
@@ -159,6 +198,8 @@
     <div id="viajesPagosModal" class="modal" style="z-index: 900;"></div>
 
     <div id="viajesClientesModal" class="modal" style="z-index: 900;"></div>
+
+    <div id="ordenesProveedoresModal" class="modal" style="z-index: 900;"></div>
 
 
     <script src="/FRONTEND/scripts/header.js"></script>

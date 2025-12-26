@@ -24,6 +24,7 @@ const validateViaje = (data, partial = false) => {
         fecha: { type: 'string', required: true, error: 'La fecha es obligatoria.', validate: isValidDate },
         comprobante: { type: 'string', required: true, regex: /^(\d{4}-\d{8}|\d{11})$/, error: 'El comprobante debe cumplir con el formato XXXX-XXXXXXXX o 11 dígitos.' },
         campo: { type: 'string', required: true, error: 'El campo es obligatorio.' },
+        producto: { type: 'string', required: true, error: 'El producto es obligatorio.' },
         kilometros: { type: 'number', required: true, min: 0, error: 'El kilómetro debe ser un número mayor a 0.' },
         tarifa: { type: 'number', required: true, error: 'La tarifa debe ser un número mayor a 0.' },
         toneladas: { type: 'number', required: true, min: 0, max: 100, error: 'Las toneladas deben ser un número mayor a 0 y menor a 100.' },

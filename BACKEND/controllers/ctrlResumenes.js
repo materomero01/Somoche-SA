@@ -21,6 +21,8 @@ exports.insertResumen = async(req, res) => {
         const groupStamp = req.body.groupStamp;
         const pagos = req.body.pagos;
         const viajes = req.body.viajes;
+        const iva = req.body.iva === 'Responsable Inscripto';
+        
         
         if (!groupStamp || !viajes)
             return res.status(405).json({ message: 'Faltan datos ensenciales para cerrar el resumen'});
@@ -88,7 +90,7 @@ exports.insertResumen = async(req, res) => {
                 return res.status(405).json({ message:`El importe del pago para el saldo restante no es valido`});
             }
 
-            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo) VALUES ($1, $2, $3)', [groupStamp, choferCuil, -pagoAdicional.importe]);
+            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva) VALUES ($1, $2, $3, $4)', [groupStamp, choferCuil, -pagoAdicional.importe, iva]);
             if (responseResumen.rowCount === 0) {
                 await client.query('ROLLBACK');
                 client.release();
@@ -100,7 +102,7 @@ exports.insertResumen = async(req, res) => {
             );
             idPagoAdicional = response.rows[0];
         } else {
-            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo) VALUES ($1, $2, $3)', [groupStamp, choferCuil, 0]);
+            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva) VALUES ($1, $2, $3, $4)', [groupStamp, choferCuil, 0, iva]);
             if (responseResumen.rowCount === 0) {
                 await client.query('ROLLBACK');
                 client.release();
@@ -184,7 +186,7 @@ exports.getResumenCuil = async (req, res) => {
         `, [cuil, cantidad]);
 
         const saldosResult = await client.query(`
-            SELECT group_r, saldo
+            SELECT group_r, saldo, iva
             FROM saldo_resumen
             WHERE chofer_cuil = $1
             ORDER BY group_r DESC
@@ -206,7 +208,8 @@ exports.getResumenCuil = async (req, res) => {
             })),
             saldos: saldosResult.rows.map(row => ({
                 group: row.group_r,
-                saldo: row.saldo
+                saldo: row.saldo,
+                iva: row.iva
             }))
         };
 
