@@ -35,6 +35,9 @@ exports.getChoferesAllData = async (req, res) => {
 
         // console.log(response.rows);
 
+        // await pool.query (``);
+        // const response = await pool.query(``);
+        // console.log(response.rowCount);
         res.status(208).json({ choferes: result.rows });
 
     } catch (error) {
@@ -52,6 +55,7 @@ exports.updateChofer = async (req, res) => {
 
     let client;
     try {
+        console.log(editingData);
         const { errors, validatedData } = userSchema(editingData);
         if (errors.length > 0) {
             return res.status(400).json({ message: `Los datos ingresados para ${errors.join(', ')} no son validos` });
@@ -130,6 +134,7 @@ exports.deleteChofer = async (req, res) => {
         if (rowCount === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
         }
+
         const result = await client.query(
             'UPDATE chofer SET valid = false WHERE cuil = $1',
             [cuil]

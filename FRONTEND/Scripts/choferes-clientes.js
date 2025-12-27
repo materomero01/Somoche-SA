@@ -1,22 +1,21 @@
-import { renderTabla } from './tabla.js';
-import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchClientes, socket, loadTarifas, tarifasCatac } from './api.js';
+import { renderTables, handleSaveEdit, handleEdit, enterEditMode, setupTableEventListeners, currentEditingTableType, resetEditingState, editingRowId, originalEditingData, hasChanges } from './tabla.js';
+import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchClientes, socket, loadTarifas, tarifasCatac, fetchProveedores, insertProveedor, updateProveedor, deleteProveedor } from './api.js';
 import { updateChofer, showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText } from './apiPublic.js';
-import { inicializarModal, renderizarTablas, handleSaveEditViajes } from './viajes-pagos.js';
+import { inicializarModal } from './viajes-pagos.js';
 import { parseImporte } from './resumenes.js';
-import { handleSaveEditViajesCliente, inicializarModaCliente, renderizarTablaVC } from './viajes-clientes.js';
+import { inicializarModaCliente, getClienteCuit } from './viajes-clientes.js';
+import { inicializarModalProveedor, getProveedorCuit } from './ordenes-proveedor.js';
 
 // --- Datos de ejemplo (sustituir con datos reales del backend) ---
 export let mockChoferes = [];
 export let mockClientes = [];
+export let mockProveedores = [];
 
 let currentChoferesPage = 1;
 let currentClientesPage = 1;
+let currentProveedoresPage = 1;
 
-// --- Estado de edición (exportado para ser usado en viajes-pagos.js) ---
-export let editingRowId = null;
-export let currentEditingTableType = null;
-export let originalEditingData = {};
-export let stagedEditingData = {};
+let currentEditingTable = 'choferes';
 
 const principalContent = document.getElementById('principalContent');
 
@@ -24,7 +23,11 @@ const principalContent = document.getElementById('principalContent');
 const choferesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido', class: [] },
     { key: 'cuil', label: 'CUIL/CUIT', class: [] },
+<<<<<<< HEAD
     { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{ value: 'Monotributista', text: 'Monotributista' }, { value: 'Responsable Inscripto', text: 'Responsable Inscripto' }, { value: 'Chofer', text: 'Chofer' }] },
+=======
+    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{value: 'Monotributista', text:'Monotributista'} , {value: 'Responsable Inscripto', text: 'Responsable Inscripto'}, {value: 'Chofer', text: 'Chofer'}] },
+>>>>>>> origin/InProgress_VyP
     { key: 'patente_chasis', label: 'Chasis', class: [] },
     { key: 'patente_acoplado', label: 'Acoplado', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
@@ -34,7 +37,19 @@ const choferesColumns = [
 const clientesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
+<<<<<<< HEAD
     { key: 'email', label: 'Email', class: [] }
+=======
+    { key: 'email', label: 'Email', class: []},
+    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$');}}
+];
+
+const proveedoresColumns = [
+    { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
+    { key: 'cuit', label: 'CUIL/CUIT', class: [] },
+    { key: 'telefono', label: 'Teléfono', class: [] },
+    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$');}}
+>>>>>>> origin/InProgress_VyP
 ];
 
 // --- Acciones para las tablas ---
@@ -45,7 +60,8 @@ const choferesActions = [
         classList: ['edit-btn'],
         id: null,
         handler: (rowData) => {
-            enterEditMode(rowData, 'choferes');
+            enterEditMode(rowData, 'choferes', () => renderTables(mockChoferes, currentChoferesPage, optionsChoferes), 
+            async (payload) => await saveEditLists(payload, getCurrentData, () => updateChofer(originalEditingData.cuil, payload)));
         }
     },
     {
@@ -54,7 +70,8 @@ const choferesActions = [
         id: null,
         classList: ['delete-btn'],
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al chofer ${rowData.nombre}?`, "delete", () => handleDelete(rowData.cuil, 'choferes'));
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al chofer ${rowData.nombre}?`, "delete", 
+                () => handleDelete(rowData.cuil, 'choferes', (cuil) => deleteChofer(cuil)));
         }
     },
     {
@@ -68,6 +85,23 @@ const choferesActions = [
     }
 ];
 
+const optionsChoferes = {
+    containerId: 'tabla-choferes',
+    paginacionContainerId: 'paginacion-choferes',
+    columnas: [choferesColumns],
+    itemsPorPagina: () => 10,
+    actions: choferesActions,
+    onEdit: (id, field, value) => handleEdit(id, field, value, 'choferes'),
+    tableType: 'choferes',
+    onPageChange: (page) => { currentChoferesPage = page; },
+    checkboxColumn: false,
+    checkboxColumnPosition: null,
+    checkboxHeaderAction: null,
+    onCheckboxChange: null,
+    uploadFactura: null,
+    useScrollable: false
+}
+
 const clientesActions = [
     {
         icon: 'bi bi-pencil',
@@ -75,7 +109,8 @@ const clientesActions = [
         classList: ['edit-btn'],
         id: null,
         handler: (rowData) => {
-            enterEditMode(rowData, 'clientes');
+            enterEditMode(rowData, 'clientes', () => renderTables(mockClientes, currentClientesPage, optionsClientes), 
+            async (payload) => await saveEditLists(payload, getCurrentData, () => updateCliente(originalEditingData.cuit, payload)));
         }
     },
     {
@@ -84,7 +119,8 @@ const clientesActions = [
         classList: ['delete-btn'],
         id: null,
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al cliente ${rowData.nombre}?`, "delete", () => handleDelete(rowData.cuit, 'clientes'));
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al cliente ${rowData.nombre}?`, "delete", 
+                () => handleDelete(rowData.cuit, 'clientes', (cuil) => deleteCliente(cuil)));
         }
     },
     {
@@ -98,6 +134,108 @@ const clientesActions = [
     }
 ];
 
+const optionsClientes = {
+    containerId: 'tabla-clientes',
+    paginacionContainerId: 'paginacion-clientes',
+    columnas: [clientesColumns, clientesColumns.filter(col => !['balance'].includes(col.key))],
+    itemsPorPagina: () => 10,
+    actions: clientesActions,
+    onEdit: (id, field, value) => handleEdit(id, field, value, 'clientes'),
+    tableType: 'clientes',
+    onPageChange: (page) => { currentClientesPage = page; },
+    checkboxColumn: false,
+    checkboxColumnPosition: null,
+    checkboxHeaderAction: null,
+    onCheckboxChange: null,
+    uploadFactura: null,
+    useScrollable: false
+}
+
+const proveedoresActions = [
+    {
+        icon: 'bi bi-pencil',
+        tooltip: 'Editar',
+        classList: ['edit-btn'],
+        id: null,
+        handler: (rowData) => {
+            enterEditMode(rowData, 'proveedores', () => renderTables(mockProveedores, currentProveedoresPage, optionsProveedores), 
+            async (payload) => await saveEditLists(payload, getCurrentData, () => updateProveedor(originalEditingData.cuit, payload)));
+        }
+    },
+    {
+        icon: 'bi bi-trash',
+        tooltip: 'Eliminar',
+        id: null,
+        classList: ['delete-btn'],
+        handler: (rowData) => {
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al proveedor ${rowData.nombre}?`, "delete", 
+                () => handleDelete(rowData.cuit, 'proveedores', (cuil) => deleteProveedor(cuil)));
+        }
+    },
+    {
+        icon: 'bi bi-send',
+        tooltip: 'Ver Ordenes',
+        id: null,
+        classList: ['navigate-btn'],
+        handler: (rowData) => {
+            verViajesModal(rowData, 'proveedor');
+        }
+    }
+];
+
+const optionsProveedores = {
+    containerId: 'tabla-proveedores',
+    paginacionContainerId: 'paginacion-proveedores',
+    columnas: [proveedoresColumns, proveedoresColumns.filter(col => !['balance'].includes(col.key))],
+    itemsPorPagina: () => 10,
+    actions: proveedoresActions,
+    onEdit: (id, field, value) => handleEdit(id, field, value, 'proveedores'),
+    tableType: 'proveedores',
+    onPageChange: (page) => { currentProveedoresPage = page; },
+    checkboxColumn: false,
+    checkboxColumnPosition: null,
+    checkboxHeaderAction: null,
+    onCheckboxChange: null,
+    uploadFactura: null,
+    useScrollable: false
+}
+
+function getCurrentData(){
+    switch (currentEditingTable){
+        case 'choferes':
+            return mockChoferes;
+        case 'clientes':
+            return mockClientes;
+        case 'proveedores':
+            return mockProveedores;
+        default:
+            return [];
+    }
+}
+
+export function renderCurrentTable(){
+    switch (currentEditingTable){
+        case 'choferes':
+            return renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
+        case 'clientes':
+            return renderTables(mockClientes, currentClientesPage, optionsClientes);
+        case 'proveedores':
+            return renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+        default:
+            return [];
+    }
+}
+
+async function saveEditLists(payload, currentDataFunc = () => {}, saveEditFunc = () => {}) {
+    const currentData = currentDataFunc();
+    const index = currentData.findIndex(c => c.id === editingRowId);
+    const response = await saveEditFunc();
+    if (response && index !== -1) {
+        currentData[index] = payload;
+        showConfirmModal('Cambios guardados.');
+    }
+}
+
 function seePassword(passwordId) {
     const iconoToggle = document.querySelector(".toggle");
     const inputPassword = document.getElementById("password-input");
@@ -110,55 +248,6 @@ function seePassword(passwordId) {
             e.target.classList.replace("bi-eye", "bi-eye-slash");
         }
     });
-}
-
-// --- Funciones de renderizado de tablas ---
-function renderChoferesTable(data, currentPage = 1) {
-    currentChoferesPage = currentPage;
-    renderTabla({
-        containerId: 'tabla-choferes',
-        paginacionContainerId: 'paginacion-choferes',
-        datos: data,
-        columnas: choferesColumns,
-        itemsPorPagina: 10,
-        actions: choferesActions,
-        editingRowId: editingRowId,
-        onEdit: (id, field, value) => handleEdit(id, field, value, 'choferes'),
-        tableType: 'choferes',
-        currentPage: currentPage,
-        onPageChange: (page) => { currentChoferesPage = page; }
-    });
-}
-
-function renderClientesTable(data, currentPage = 1) {
-    currentClientesPage = currentPage;
-    renderTabla({
-        containerId: 'tabla-clientes',
-        paginacionContainerId: 'paginacion-clientes',
-        datos: data,
-        columnas: clientesColumns,
-        itemsPorPagina: 10,
-        actions: clientesActions,
-        editingRowId: editingRowId,
-        onEdit: (id, field, value) => handleEdit(id, field, value, 'clientes'),
-        tableType: 'clientes',
-        currentPage: currentPage,
-        onPageChange: (page) => { currentClientesPage = page; }
-    });
-}
-
-// --- Función para renderizar la tabla actual ---
-export function renderCurrentTable() {
-    //console.log(currentEditingTableType);
-    if (currentEditingTableType === 'choferes') {
-        renderChoferesTable(mockChoferes, currentChoferesPage);
-    } else if (currentEditingTableType === 'clientes') {
-        renderClientesTable(mockClientes, currentClientesPage);
-    } else if (currentEditingTableType === 'viajes') {
-        renderizarTablas();
-    } else if (currentEditingTableType === "viajesCliente") {
-        renderizarTablaVC();
-    }
 }
 
 // --- Lógica de Pestañas ---
@@ -191,6 +280,7 @@ async function setupChoferesClientesTabSelector() {
 }
 
 async function verViajesModal(choferData, tipo) {
+<<<<<<< HEAD
     if (tipo === "chofer") {
         const modalViajesPagos = document.getElementById("viajesPagosModal");
         if (modalViajesPagos) {
@@ -214,21 +304,73 @@ async function verViajesModal(choferData, tipo) {
                 const response = await fetch('viajes-clientes.html');
                 if (!response.ok) {
                     throw new Error(`Error HTTP: ${response.status}`);
+=======
+    try {
+        switch (tipo){
+            case 'chofer':
+                const modalViajesPagos = document.getElementById("viajesPagosModal");
+                if (modalViajesPagos) {
+                    try {
+                        const response = await fetch('/FRONTEND/viajes-pagos.html');
+                        if (!response.ok) {
+                            throw new Error(`Error HTTP: ${response.status}`);
+                        }
+                        const viajesPagosHtml = await response.text();
+                        modalViajesPagos.innerHTML = viajesPagosHtml;
+                        modalViajesPagos.classList.toggle("active");
+                        inicializarModal(choferData);
+                    } catch (error) {
+                        console.log(error.message);
+                    }
                 }
-                const viajesClientesHtml = await response.text();
-                modalViajesClientes.innerHTML = viajesClientesHtml;
-                modalViajesClientes.classList.toggle("active");
-                inicializarModaCliente(choferData);
-            } catch (error) {
-                console.log(error.message);
-            }
+                break;
+            case 'cliente':
+                const modalViajesClientes = document.getElementById("viajesClientesModal");
+                if (modalViajesClientes) {
+                    try {
+                        const response = await fetch('/FRONTEND/viajes-clientes.html');
+                        if (!response.ok) {
+                            throw new Error(`Error HTTP: ${response.status}`);
+                        }
+                        const viajesClientesHtml = await response.text();
+                        modalViajesClientes.innerHTML = viajesClientesHtml;
+                        modalViajesClientes.classList.toggle("active");
+                        inicializarModaCliente(choferData);
+                    } catch (error) {
+                        console.log(error.message);
+                    }
+>>>>>>> origin/InProgress_VyP
+                }
+                break;
+            case 'proveedor':
+                const modalOrdenesProveedor = document.getElementById("ordenesProveedoresModal");
+                if (modalOrdenesProveedor) {
+                    try {
+                        const response = await fetch('/FRONTEND/ordenes-proveedor.html');
+                        if (!response.ok) {
+                            throw new Error(`Error HTTP: ${response.status}`);
+                        }
+                        const ordenesProveedorHtml = await response.text();
+                        modalOrdenesProveedor.innerHTML = ordenesProveedorHtml;
+                        modalOrdenesProveedor.classList.toggle("active");
+                        inicializarModalProveedor(choferData);
+                    } catch (error) {
+                        console.log(error.message);
+                    }
+                }
+                break;
+            default:
         }
+    } catch (error){
+        console.error("Ocurrio un error al cargar los viajes. ", error.message);
+        showConfirmModal("Ocurrio un error al cargar los datos");
     }
 }
 
 async function handleTabContentDisplay(selectedTab) {
     const choferesContent = document.getElementById('content-choferes');
     const clientesContent = document.getElementById('content-clientes');
+    const proveedoresContent = document.getElementById('content-proveedores');
     if (mockChoferes?.length === 0) {
         mockChoferes = await fetchAllDataChoferes();
     }
@@ -236,8 +378,9 @@ async function handleTabContentDisplay(selectedTab) {
         mockClientes = await fetchClientes();
         mockClientes.forEach(c => {
             c.balance = parseImporte(c.balance);
-        })
+        });
     }
+<<<<<<< HEAD
     if (selectedTab === 'choferes') {
         choferesContent.classList.remove('hidden');
         clientesContent.classList.add('hidden');
@@ -249,12 +392,48 @@ async function handleTabContentDisplay(selectedTab) {
         clientesContent.classList.remove('hidden');
         renderClientesTable(mockClientes, currentClientesPage);
         currentEditingTableType = 'clientes';
+=======
+    if (mockProveedores?.length === 0) {
+        mockProveedores = await fetchProveedores();
+        mockProveedores.forEach(c => {
+            c.balance = parseImporte(c.balance);
+        });
+>>>>>>> origin/InProgress_VyP
     }
+    switch (selectedTab){
+        case 'choferes':
+            choferesContent.classList.remove('hidden');
+            clientesContent.classList.add('hidden');
+            proveedoresContent.classList.add('hidden');
+            renderTables(mockChoferes, 1, optionsChoferes);
+            break;
+        case 'clientes':
+            mockClientes = await fetchClientes();
+            mockClientes.forEach(c => {
+                c.balance = parseImporte(c.balance);
+            });
+            choferesContent.classList.add('hidden');
+            clientesContent.classList.remove('hidden');
+            proveedoresContent.classList.add('hidden');
+            renderTables(mockClientes, 1, optionsClientes);
+            break;
+        case 'proveedores':
+            mockProveedores = await fetchProveedores();
+            mockProveedores.forEach(c => {
+                c.balance = parseImporte(c.balance);
+            });
+            choferesContent.classList.add('hidden');
+            clientesContent.classList.add('hidden');
+            proveedoresContent.classList.remove('hidden');
+            renderTables(mockProveedores, 1, optionsProveedores);
+            break;
+    }
+    currentEditingTable = selectedTab;
     resetEditingState();
 }
 
 // --- Lógica de la barra de búsqueda ---
-function setupSearchBar(searchBarId, tableType) {
+export function setupSearchBar(searchBarId, filterFunc, renderFunc) {
     const searchInput = document.querySelector(`#${searchBarId} .search-input`);
     const searchIcon = document.querySelector(`#${searchBarId} .search-icon`);
 
@@ -262,25 +441,9 @@ function setupSearchBar(searchBarId, tableType) {
         const performSearch = () => {
             const searchTerm = searchInput.value.toLowerCase();
             let filteredData = [];
-
-            if (tableType === 'choferes') {
-                filteredData = mockChoferes.filter(chofer =>
-                    chofer.nombre?.toLowerCase().includes(searchTerm) ||
-                    chofer.cuil?.toLowerCase().includes(searchTerm) ||
-                    chofer.patente_chasis?.toLowerCase().includes(searchTerm) ||
-                    chofer.patente_acoplado?.toLowerCase().includes(searchTerm)
-                );
-                currentChoferesPage = 1;
-                renderChoferesTable(filteredData, 1);
-            } else if (tableType === 'clientes') {
-                filteredData = mockClientes.filter(cliente =>
-                    cliente.nombre.toLowerCase().includes(searchTerm) ||
-                    cliente.cuit.toLowerCase().includes(searchTerm)
-                );
-                currentClientesPage = 1;
-                renderClientesTable(filteredData, 1);
+            filteredData = filterFunc(searchTerm);
+            renderFunc(filteredData);
             }
-        };
 
         searchIcon.addEventListener('click', performSearch);
         searchInput.addEventListener('input', performSearch);
@@ -337,7 +500,7 @@ function setupAddButtons() {
                     email: payload.email
                 };
                 mockChoferes.push(nuevoChofer);
-                renderChoferesTable(mockChoferes);
+                renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
                 formChofer.reset();
                 formCardChofer.classList.toggle('hidden');
                 const data = await response.json();
@@ -350,44 +513,98 @@ function setupAddButtons() {
     }
 
     const btnAddCliente = document.getElementById('btnAddCliente');
-    const formCard = document.getElementById('addClienteCard');
-    const btnGuardar = document.getElementById('btnGuardarNuevoCliente');
+    const formCardCliente = document.getElementById('addClienteCard');
+    const btnGuardarCliente = document.getElementById('btnGuardarNuevoCliente');
     if (btnAddCliente) {
         btnAddCliente.addEventListener('click', () => {
-            formCard.classList.toggle('hidden');
+            formCardCliente.classList.toggle('hidden');
         });
     }
 
-    if (btnGuardar) {
-        btnGuardar.addEventListener('click', async () => {
-            const nombre = document.getElementById('nuevoClienteNombre').value.trim();
-            const cuit = document.getElementById('nuevoClienteCuit').value.trim();
-            const email = document.getElementById('nuevoClienteEmail').value.trim();
-
-            if (!nombre || !cuit) {
-                showConfirmModal('Por favor completá los campos obligatorios.');
-                return;
+    if (btnGuardarCliente) {
+        btnGuardarCliente.addEventListener('click', async () => {
+            const formCliente = document.getElementById('form-cliente');
+            const clienteData = new FormData(formCliente);
+            for (let [key, value] of clienteData.entries()) {
+                clienteData[key] = value.trim();
             }
+            var valid = true;
+            ['nombre', 'cuit'].forEach(key => {
+                if (!clienteData[key] || clienteData[key] === '')
+                    valid = false;
+            });
+            if (!valid) { return showConfirmModal('Por favor completá los campos obligatorios.'); }
             const payload = {
+<<<<<<< HEAD
                 cuit: cuit,
                 nombre: nombre,
                 email: email !== '' ? email : null
+=======
+                cuit: clienteData.cuit,
+                nombre: clienteData.nombre,
+                email: clienteData.email !== ''? clienteData.email : null
+>>>>>>> origin/InProgress_VyP
             };
             const response = await insertCliente(payload);
             if (response.ok) {
+                const data = await response.json();
                 const nuevoCliente = {
                     id: payload.cuit,
-                    nombre,
-                    cuit,
-                    email
+                    balance: data.balance? data.balance : 0,
+                    ... payload
                 };
                 mockClientes.push(nuevoCliente);
-                renderClientesTable(mockClientes);
-                document.getElementById('nuevoClienteNombre').value = '';
-                document.getElementById('nuevoClienteCuit').value = '';
-                document.getElementById('nuevoClienteEmail').value = '';
-                formCard.classList.add('hidden');
+                renderTables(mockClientes, currentClientesPage, optionsClientes);
+                formCliente.reset();
+                formCardCliente.classList.add('hidden');
+                showConfirmModal(data.message);
+            } else {
+                const dataError = await response.json();
+                showConfirmModal(dataError.message);
+            }
+        });
+    }
+
+    const btnAddProveedor = document.getElementById('btnAddProveedor');
+    const formCardProveedor = document.getElementById('addProveedorCard');
+    const btnGuardarProveedor = document.getElementById('btnGuardarNuevoProveedor');
+    if (btnAddProveedor) {
+        btnAddProveedor.addEventListener('click', () => {
+            formCardProveedor.classList.toggle('hidden');
+        });
+    }
+
+    if (btnGuardarProveedor) {
+        btnGuardarProveedor.addEventListener('click', async () => {
+            const formProveedor = document.getElementById('form-proveedor');
+            const proveedorData = new FormData(formProveedor);
+            for (let [key, value] of proveedorData.entries()) {
+                proveedorData[key] = value.trim();
+            }
+            var valid = true;
+            ['nombre', 'cuit'].forEach(key => {
+                if (!proveedorData[key] || proveedorData[key] === '')
+                    valid = false;
+            });
+            if (!valid) { return showConfirmModal('Por favor completá los campos obligatorios.'); }
+            const payload = {
+                cuit: proveedorData.cuit,
+                nombre: proveedorData.nombre,
+                telefono: proveedorData.telefono || null
+            };
+            const response = await insertProveedor(payload);
+            if (response.ok) {
                 const data = await response.json();
+                const nuevoProveedor = {
+                    id: payload.cuit,
+                    balance: data.balance? data.balance : 0,
+                    ... payload
+                };
+                mockProveedores.push(nuevoProveedor);
+                renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+                formProveedor.reset();
+                formCardProveedor.classList.add('hidden');
+                
                 showConfirmModal(data.message);
             } else {
                 const dataError = await response.json();
@@ -397,6 +614,7 @@ function setupAddButtons() {
     }
 }
 
+<<<<<<< HEAD
 // --- Lógica de Edición ---
 export function enterEditMode(rowData, tableType) {
     if (editingRowId !== null && editingRowId !== rowData.id) {
@@ -532,53 +750,44 @@ export function resetEditingState() {
     stagedEditingData = {};
 }
 
+=======
+>>>>>>> origin/InProgress_VyP
 // --- Lógica de Eliminación ---
-async function handleDelete(cuil, tableType) {
-    if (tableType === 'choferes') {
-        const response = await deleteChofer(cuil);
-        if (response) {
-            mockChoferes = mockChoferes.filter(chofer => chofer.cuil !== cuil);
-            const totalItemsAfter = mockChoferes.length;
+async function handleDelete(cuil, tableType, deleteFunc = () => {}) {
+    try {
+        const response = await deleteFunc(cuil);
+        if (response){
+            const currentData = getCurrentData();
+            console.log(currentData);
+            const index = currentData.findIndex(data => data.id === cuil);
+            currentData.splice(index, 1);
+            const totalItemsAfter = currentData.length;
             const itemsPerPage = 10;
             const maxPage = Math.ceil(totalItemsAfter / itemsPerPage) || 1;
-            if (currentChoferesPage > maxPage) {
-                currentChoferesPage = maxPage;
+            switch (tableType){
+                case 'choferes':
+                    if (currentChoferesPage > maxPage) currentChoferesPage = maxPage;
+                    renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
+                    showConfirmModal('Chofer eliminado exitosamente.');
+                    break;
+                case 'clientes':
+                    if (currentClientesPage > maxPage) currentClientesPage = maxPage;
+                    renderTables(mockClientes, currentClientesPage, optionsClientes);
+                    showConfirmModal('Cliente eliminado exitosamente.');
+                    break;
+                case 'proveedores':
+                    console.log(currentData);
+                    if (currentProveedoresPage > maxPage) currentProveedoresPage = maxPage;
+                    renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+                    showConfirmModal('Proveedor eliminado exitosamente.');
+                    break;
             }
-            renderChoferesTable(mockChoferes, currentChoferesPage);
-            showConfirmModal('Chofer eliminado exitosamente.');
         }
-    } else if (tableType === 'clientes') {
-        const response = await deleteCliente(cuil);
-        if (response) {
-            mockClientes = mockClientes.filter(cliente => cliente.cuit !== cuil);
-            const totalItemsAfter = mockClientes.length;
-            const itemsPerPage = 10;
-            const maxPage = Math.ceil(totalItemsAfter / itemsPerPage) || 1;
-            if (currentClientesPage > maxPage) {
-                currentClientesPage = maxPage;
-            }
-            renderClientesTable(mockClientes, currentClientesPage);
-            showConfirmModal('Cliente eliminado exitosamente.');
-        }
+    } catch (error){
+        console.log(error.message);
     }
+
     resetEditingState();
-}
-
-// --- Event Listeners para los eventos personalizados de tabla.js ---
-function setupTableEventListeners() {
-    document.addEventListener('saveEdit', (event) => {
-        const { itemId } = event.detail;
-        if (itemId === editingRowId) {
-            handleSaveEdit();
-        }
-    });
-
-    document.addEventListener('cancelEdit', (event) => {
-        const { itemId } = event.detail;
-        if (itemId === editingRowId) {
-            handleCancelEdit();
-        }
-    });
 }
 
 // --- Inicialización al cargar el DOM ---
@@ -620,8 +829,35 @@ document.addEventListener('DOMContentLoaded', async function () {
     await loadTarifas();
     setupTableEventListeners();
     await setupChoferesClientesTabSelector();
-    setupSearchBar('choferesSearchBar', 'choferes');
-    setupSearchBar('clientesSearchBar', 'clientes');
+    setupSearchBar('choferesSearchBar',
+        (searchTerm) => { currentChoferesPage = 1;
+                        return mockChoferes.filter(chofer =>
+                            chofer.nombre?.toLowerCase().includes(searchTerm) ||
+                            chofer.cuil?.toLowerCase().includes(searchTerm) ||
+                            chofer.patente_chasis?.toLowerCase().includes(searchTerm) ||
+                            chofer.patente_acoplado?.toLowerCase().includes(searchTerm)
+                        );
+                    },
+        (filteredData) => renderTables(filteredData, 1, optionsChoferes)
+    );
+    setupSearchBar('clientesSearchBar',
+        (searchTerm) => {currentClientesPage = 1;
+                    return mockClientes.filter(cliente =>
+                        cliente.nombre.toLowerCase().includes(searchTerm) ||
+                        cliente.cuit.toLowerCase().includes(searchTerm)
+                    );
+                },
+        (filteredData) => renderTables(filteredData, 1, optionsClientes)
+    );
+    setupSearchBar('proveedoresSearchBar', 
+        (searchTerm) => { currentProveedoresPage = 1;
+                    return mockProveedores.filter(proveedor => 
+                        proveedor.nombre.toLowerCase().includes(searchTerm) || 
+                        proveedor.cuit.toLowerCase().includes(searchTerm)
+                    );
+                },
+        (filteredData) => renderTables(filteredData, 1, optionsProveedores)
+    );
     setupAddButtons();
     seePassword("password-input");
 
@@ -631,7 +867,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         mockChoferes.push(user);
         //console.log("Nuevo chofer añadido");
         if (currentEditingTableType === "choferes" && editingRowId) return;
-        renderChoferesTable(mockChoferes, currentChoferesPage);
+        renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
     });
 
     socket.on('updateUsuario', async (user) => {
@@ -639,28 +875,40 @@ document.addEventListener('DOMContentLoaded', async function () {
         const updatedData = user.updatedData;
         if (chofer) {
             //console.log(`Chofer con cuil ${user.cuilOriginal} modificado`);
+            Object.assign(chofer, updatedData);
             if (currentEditingTableType === "choferes" && editingRowId) {
+<<<<<<< HEAD
                 if (editingRowId === user.cuilOriginal) {
                     Object.assign(chofer, updatedData);
+=======
+                if (editingRowId === user.cuilOriginal){
+>>>>>>> origin/InProgress_VyP
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
-                    await renderChoferesTable(mockChoferes, currentChoferesPage);
+                    await renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
                     toggleSpinnerVisible(principalContent);
                     changeSpinnerText(principalContent);
                     showConfirmModal("Se han actualizado los datos");
                 }
+<<<<<<< HEAD
                 Object.assign(chofer, updatedData);
                 return;
             }
             Object.assign(chofer, updatedData);
             renderChoferesTable(mockChoferes, currentChoferesPage);
+=======
+                return;
+            }
+            renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
+>>>>>>> origin/InProgress_VyP
         }
     });
 
     socket.on('deleteUsuario', async (user) => {
         const chofer = mockChoferes.find(chofer => chofer.cuil === user.cuil);
         mockChoferes = mockChoferes.filter(chofer => chofer.cuil !== user.cuil);
+<<<<<<< HEAD
         if (currentEditingTableType === "choferes" && editingRowId) {
             if (chofer.id === editingRowId) {
                 resetEditingState();
@@ -674,36 +922,94 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
         renderChoferesTable(mockChoferes, currentChoferesPage);
+=======
+        if (currentEditingTableType === "choferes" && editingRowId){
+            if (chofer.id === editingRowId){
+                    resetEditingState();
+                    changeSpinnerText(principalContent, "Actualizando datos...");
+                    toggleSpinnerVisible(principalContent);
+                    await renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
+                    toggleSpinnerVisible(principalContent);
+                    changeSpinnerText(principalContent);
+                    showConfirmModal("Se han actualizado los datos");
+                }
+                return;
+            }
+        renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
+    });
+
+    socket.on('balanceUpdatedCliente', async (data) => {
+        console.log("Balance cliente "+ data.cuit +" actualizado.");
+        const client = mockClientes.find( client => client.cuit === data.cuit);
+        if (client){
+            if (client.cuit !== getClienteCuit()) 
+                client.balance = data.balance;
+            else
+                return;
+            if (currentEditingTableType === "clientes" && editingRowId)
+                if (editingRowId === client.cuit) {
+                    resetEditingState();
+                    showConfirmModal("Se actualizo el balance del cliente");
+                } else
+                    return;
+            console.log(client.balance);
+            renderTables(mockClientes, currentClientesPage, optionsClientes);
+        }
+    });
+
+    socket.on('balanceUpdatedProveedor', async (data) => {
+        console.log("Balance proveedor "+ data.cuit +" actualizado.");
+        const proveedor = mockProveedores.find( proveedor => proveedor.cuit === data.cuit);
+        if (proveedor){
+            if (proveedor.cuit !== getProveedorCuit()) 
+                proveedor.balance = data.balance;
+            else 
+                return;
+            if (currentEditingTableType === "proveedores" && editingRowId)
+                if (editingRowId === proveedor.cuit) {
+                    resetEditingState();
+                    showConfirmModal("Se actualizo el balance del proveedor");
+                } else
+                    return;
+            renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+        }
+>>>>>>> origin/InProgress_VyP
     });
 
     socket.on('nuevoCliente', async (client) => {
         mockClientes.push(client);
         //console.log("Nuevo cliente añadido");
         if (currentEditingTableType === "clientes" && editingRowId) return;
-        renderClientesTable(mockClientes, currentClientesPage);
+        renderTables(mockClientes, currentClientesPage, optionsClientes);
     });
 
     socket.on('updateCliente', async (client) => {
         let cliente = mockClientes.find(cliente => cliente.cuit === client.cuitOriginal);
         const updatedData = client.updatedData;
+<<<<<<< HEAD
         if (cliente) {
             //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
             if (currentEditingTableType === "clientes" && editingRowId) {
                 if (editingRowId === client.cuitOriginal) {
                     Object.assign(cliente, updatedData);
+=======
+        if (cliente){
+            Object.assign(cliente, updatedData);
+            //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
+            if (currentEditingTableType === "clientes" && editingRowId) {
+                if (editingRowId === client.cuitOriginal){
+>>>>>>> origin/InProgress_VyP
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
-                    await renderClientesTable(mockClientes, currentClientesPage);
+                    await renderTables(mockClientes, currentClientesPage, optionsClientes);
                     toggleSpinnerVisible(principalContent);
                     changeSpinnerText(principalContent);
                     showConfirmModal("Se han actualizado los datos");
                 }
-                Object.assign(cliente, updatedData);
                 return;
             }
-            Object.assign(cliente, updatedData);
-            renderClientesTable(mockClientes, currentClientesPage);
+            renderTables(mockClientes, currentClientesPage, optionsClientes);
         }
     });
 
@@ -715,7 +1021,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 resetEditingState();
                 changeSpinnerText(principalContent, "Actualizando datos...");
                 toggleSpinnerVisible(principalContent);
-                await renderClientesTable(mockClientes, currentClientesPage);
+                await renderTables(mockClientes, currentClientesPage, optionsClientes);
                 toggleSpinnerVisible(principalContent);
                 changeSpinnerText(principalContent);
                 showConfirmModal("Se han actualizado los datos");
@@ -723,7 +1029,54 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
             return;
         }
-        renderClientesTable(mockClientes, currentClientesPage);
+        renderTables(mockClientes, currentClientesPage, optionsClientes);
+    });
+
+    socket.on('nuevoProveedor', async (proveedor) => {
+        mockProveedores.push(proveedor);
+        if (currentEditingTableType === "proveedor" && editingRowId) return;
+        renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+    });
+
+    socket.on('deleteProveedor', async (proveedor) => {
+        console.log(proveedor);
+        const proveedorData = mockProveedores.find(p => p.cuit === proveedor.cuit);
+        mockProveedores = mockProveedores.filter(p => p.cuit !== proveedor.cuit);
+        if (currentEditingTableType === "proveedores" && editingRowId){
+            if (proveedorData.id === editingRowId){
+                resetEditingState();
+                changeSpinnerText(principalContent, "Actualizando datos...");
+                toggleSpinnerVisible(principalContent);
+                await renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+                toggleSpinnerVisible(principalContent);
+                changeSpinnerText(principalContent);
+                showConfirmModal("Se han actualizado los datos");
+            }
+            return;
+        }
+        renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+    });
+
+    socket.on('updateProveedor', async (proveedor) => {
+        let proveedorData = mockProveedores.find(p => p.cuit === proveedor.cuitOriginal);
+        const updatedData = proveedor.updatedData;
+        if (proveedorData){
+            //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
+            Object.assign(proveedorData, updatedData);
+            if (currentEditingTableType === "proveedores" && editingRowId) {
+                if (editingRowId === proveedor.cuitOriginal){
+                    resetEditingState();
+                    changeSpinnerText(principalContent, "Actualizando datos...");
+                    toggleSpinnerVisible(principalContent);
+                    await renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+                    toggleSpinnerVisible(principalContent);
+                    changeSpinnerText(principalContent);
+                    showConfirmModal("Se han actualizado los datos");
+                }
+                return;
+            }
+            renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
+        }
     });
 
     document.addEventListener('click', function (event) {

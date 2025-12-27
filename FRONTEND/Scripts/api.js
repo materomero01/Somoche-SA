@@ -144,6 +144,10 @@ export function logout() {
     window.location.href = "login.html";
 }
 
+////////////////////////////////////////////////////////////////////
+//                    API LLAMADA CHOFERES                        //
+////////////////////////////////////////////////////////////////////
+
 // Obtener todos los choferes
 export async function fetchAllChoferes() {
     try {
@@ -202,6 +206,756 @@ export async function fetchAllDataChoferes() {
         handleAuthError(error);
         throw error;
     }
+}
+
+// Añadir un CHOFER
+export async function insertChofer(payload) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/users/register?admin=${encodeURIComponent(true)}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+// Eliminar un chofer (ya existe en tu api.js original)
+export async function deleteChofer(cuil){
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/choferes/deleteChofer/${encodeURIComponent(cuil)}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        if (!response.ok){
+            const data = await response.json();
+            showConfirmModal(data.message);
+            return;
+        }
+        
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+//                    API LLAMADA VIAJES CHOFERES                        //
+///////////////////////////////////////////////////////////////////////////
+
+// Obtener viaje por comprobante
+export async function getViajeComprobante(comprobante) {
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/viajesComprobante/${encodeURIComponent(comprobante)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+// Añadir un viaje
+export async function addViaje(payload) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/addViaje`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+        throw error;
+    }
+}
+
+// Modificar Viaje
+export async function updateViaje(payload) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/updateViajes`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if(response.status === 403) {   
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+export async function deleteViaje(comprobante){
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/deleteViaje?comprobante=${encodeURIComponent(comprobante)}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////
+//                    API LLAMADA RESUMENES CHOFER                        //
+////////////////////////////////////////////////////////////////////////////
+
+// Añadir resumen luego de cerrar cuenta
+export async function addResumen(cuil, groupId, iva, viajesGroup, pagosGroup, pagoRestante) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        let payload = {
+            choferCuil: cuil,
+            groupStamp: groupId,
+            iva: iva,
+            viajes: viajesGroup,
+            pagos: pagosGroup,
+        };
+
+        if (pagoRestante){
+            payload = {
+                ...payload,
+                pagoAdicional: pagoRestante
+            };
+        }
+        const response = await fetch(`${apiURL}/resumenes/insertResumen`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+////////////////////////////////////////////////////////////////////
+//                    API LLAMADA CLIENTES                        //
+////////////////////////////////////////////////////////////////////
+
+// Obtener Clientes (ya existe en tu api.js original)
+export async function fetchClientes() {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/clientes/`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        const data = await response.json();
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        if (!response.ok) {
+            throw new Error('Error al obtener los datos de los clientes');
+        }
+
+        if (data.clientes && Array.isArray(data.clientes)) {
+            console.log('Clientes cargados:', data.clientes.length);
+            return data.clientes;
+        } else {
+            throw new Error('El formato de respuesta de choferes no es el esperado.');
+        }
+    } catch (error) {
+        handleAuthError(error);
+        throw error;
+    }
+}
+
+// Registrar un cliente (ya existe en tu api.js original)
+export async function insertCliente(payload){
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const regexCuil = /^\d{2}-\d{7,9}-\d{1}$/;
+        if (!payload.nombre || payload.nombre === '' || !payload.cuit || !payload.cuit === '' || !regexCuil.test(payload.cuit)){
+            showConfirmModal("Los datos ingresados para el cliente no son validos");
+            return;
+        }
+        const response = await fetch(`${apiURL}/clientes/addCliente`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+// Modificar un cliente (ya existe en tu api.js original)
+export async function updateCliente(cuitOriginal, payload){
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/clientes/updateCliente/${encodeURIComponent(cuitOriginal)}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        if (!response.ok){
+            showConfirmModal(data.message);
+        }
+        
+        return response.ok;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+// Eliminar un cliente
+export async function deleteCliente(cuit){
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/clientes/deleteCliente/${encodeURIComponent(cuit)}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        
+        if(response.status === 403) {
+            
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        if (!response.ok){
+            const data = await response.json();
+            showConfirmModal(data.message);
+            return;
+        }
+        
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+//                    API LLAMADA VIAJES Y PAGOS CLIENTES                        //
+///////////////////////////////////////////////////////////////////////////////////
+
+// Obtener viajes cliente
+export async function getViajesCliente(cuit, facturados, cantidad, pagados = false) {
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/viajesCliente?cuit=${encodeURIComponent(cuit)}&facturados=${encodeURIComponent(facturados)}&cantidad=${encodeURIComponent(cantidad)}&pagados=${encodeURIComponent(pagados)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+export async function pagarViajeCliente(viajes) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/viajes/pagarViajeCliente`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(viajes)
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+// Obtener pagos cliente
+export async function getPagosCliente(cuit, cantidad) {
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/pagosCliente?cuit=${encodeURIComponent(cuit)}&cantidad=${encodeURIComponent(cantidad)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////
+//                    API LLAMADA PROVEEDORES                        //
+///////////////////////////////////////////////////////////////////////
+
+// Obtener Proveedores
+export async function fetchProveedores() {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/proveedores/`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        const data = await response.json();
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        if (!response.ok) {
+            throw new Error('Error al obtener los datos de los clientes');
+        }
+
+        if (data.proveedores && Array.isArray(data.proveedores)) {
+            console.log('Proveedores cargados:', data.proveedores.length);
+            return data.proveedores;
+        } else {
+            throw new Error('El formato de respuesta de proveedores no es el esperado.');
+        }
+    } catch (error) {
+        handleAuthError(error);
+        throw error;
+    }
+}
+
+// Registrar un Proveedor
+export async function insertProveedor(payload){
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const regexCuil = /^\d{2}-\d{7,9}-\d{1}$/;
+        if (!payload.nombre || payload.nombre === '' || !payload.cuit || !payload.cuit === '' || !regexCuil.test(payload.cuit)){
+            showConfirmModal("Los datos ingresados para el proveedor no son validos");
+            return;
+        }
+        const response = await fetch(`${apiURL}/proveedores/addProveedor`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+// Modificar un proveedor
+export async function updateProveedor(cuitOriginal, payload){
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/proveedores/updateProveedor/${encodeURIComponent(cuitOriginal)}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        if (!response.ok){
+            showConfirmModal(data.message);
+        }
+        
+        return response.ok;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+// Eliminar un proveedor
+export async function deleteProveedor(cuit){
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/proveedores/deleteProveedor/${encodeURIComponent(cuit)}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        
+        if(response.status === 403) {
+            
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        if (!response.ok){
+            const data = await response.json();
+            showConfirmModal(data.message);
+            return;
+        }
+        
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                    API LLAMADA ORDENES PROVEEDORES                       //
+//////////////////////////////////////////////////////////////////////////////
+
+// Obtener ordenes proveedor
+export async function getOrdenesProveedor(cuit, cantidad, pagados = false) {
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/ordenesProveedor?cuit=${encodeURIComponent(cuit)}&cantidad=${encodeURIComponent(cantidad)}&pagados=${encodeURIComponent(pagados)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+// Obtener pagos Proveedor
+export async function getPagosProveedor(cuit, cantidad) {
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/pagosProveedor?cuit=${encodeURIComponent(cuit)}&cantidad=${encodeURIComponent(cantidad)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+export async function pagarOrdenesProveedor(ordenes) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/pagarOrdenes`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(ordenes)
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+/////////////////////////////////////////////////////////////////
+//                    API LLAMADA PAGOS                        //
+/////////////////////////////////////////////////////////////////
+
+// Añadir pagos
+export async function addPagos(payload) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/addPagos`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+        throw error;
+    }
+}
+
+// Modificar Pagos
+export async function updatePagos(payload) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/updatePagos`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        if (!response.ok){
+            console.log(data.message);
+        }
+        return response.ok;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+export async function deletePago(id, tipo){
+    try{
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/deletePago?id=${encodeURIComponent(id)}&type=${encodeURIComponent(tipo)}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        
+        if(response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error){
+        console.log(error.message);
+    }
+}
+
+// Marcar cheques como pagos
+export async function setChequesPagos(cheques) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/setChequesPagos`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(cheques)
+        });
+        const data = await response.json();
+        if(response.status === 403) {
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+        
+        if (!response.ok) {
+            showConfirmModal(data.message);
+        }
+        return response.ok;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+/////////////////////////////////////////////////////////////////
+//                    API LLAMADA TARIFA                       //
+/////////////////////////////////////////////////////////////////
+
+export async function loadTarifas(){
+    tarifasCatac = await fetchTarifas();
 }
 
 // Obtener todas las tarifas
@@ -269,6 +1023,7 @@ export async function updateTarifas(payload) {
     }
 }
 
+<<<<<<< HEAD
 // Añadir un viaje
 export async function addViaje(payload) {
     try {
@@ -705,6 +1460,11 @@ export async function addResumen(cuil, groupId, viajesGroup, pagosGroup, pagoRes
         console.log(error.message);
     }
 }
+=======
+//////////////////////////////////////////////////////////////////////
+//                    API LLAMADA DOCUMENTOS                        //
+//////////////////////////////////////////////////////////////////////
+>>>>>>> origin/InProgress_VyP
 
 export async function generarFactura(payload) {
     try {
@@ -787,6 +1547,7 @@ export async function deleteDocument(id, comprobante, type = "viajes") {
     }
 }
 
+<<<<<<< HEAD
 export async function deletePago(id, tipo) {
     try {
         const token = getToken();
@@ -916,3 +1677,11 @@ export async function fetchLogs() {
         return [];  // Siempre devolver array para que el frontend no rompa
     }
 }
+=======
+socket.on('updateCatac', async ()=> {
+    if (window.location.href.includes("catac.html"))
+        return showConfirmModal("Se actualizaron las tarifas de Catac", "aviso", () => {window.location.reload()});
+    await loadTarifas();
+    showConfirmModal("Se actualizaron las tarifas de Catac");
+});
+>>>>>>> origin/InProgress_VyP

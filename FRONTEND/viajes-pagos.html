@@ -53,6 +53,10 @@
                                 <input type="text" id="nuevoCampo" name = "campo" placeholder="Campo" required>
                             </div>
                             <div class="form-group">
+                                <label for="nuevoProducto">Producto *</label>
+                                <input type="text" id="nuevoProducto" name = "producto" placeholder="Producto" required>
+                            </div>
+                            <div class="form-group">
                                 <label for="nuevoKm" class="cuil">Kilometros *</label>
                                 <input type="number" id="nuevoKm" name="kilometro" placeholder="Cantidad de kilómetros" required>
                             </div>
@@ -115,7 +119,7 @@
                 
                 <div class="add-wrapper" id="chofer-pagos-wrapper">
                     <button id="agregar-pago" class="btn btn-success btn-plus"> + </button>
-                    <div id="addPagoCard" class="add-card chofer hidden" style="top:45px; padding: 0; max-width: 60vw;">
+                    <div id="addPagoCard" class="add-card chofer hidden">
                         <div class="form-grid" style="padding-bottom: 5px;">
                             <div class="form-group">
                                 <label for="fechaPago" style="font-weight: bold;">Fecha de Pago</label>
@@ -132,6 +136,10 @@
                             <div class="form-group" id="cuitCliente">
                                 <label for="cuitCheque" style="font-weight: bold;">Asignar Cliente?</label>
                                 <input type="search" id="cuitCheque" placeholder="Razón Social">
+                            </div>
+                            <div class="form-group hidden" id="cuitProveedor">
+                                <label for="cuitProveedorGasoil" style="font-weight: bold;">Asignar Proveedor *</label>
+                                <input type="search" id="cuitProveedorGasoil" placeholder="Razón Social">
                             </div>
                         </div>
                         

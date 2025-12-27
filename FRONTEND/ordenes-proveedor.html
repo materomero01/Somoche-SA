@@ -1,12 +1,13 @@
 <div class="modal-content tables" id="contentModalViajes">
     <span id= "closeBtnViaje" class="close-button">&times;</span>
     <div class="modal-header-content" style="margin-bottom: 50px; justify-content: space-between;">
+        
         <div style="display: flex; gap: 7px; align-items: center;">
-            <div class="tab-selector" id="facturasSelector" style="margin-bottom: 0px;">
-                <div class="tab-item active" data-tab="aFacturar">A Facturar</div>
-                <div class="tab-item" data-tab="facturados">Facturados</div>
+            <div class="person-info">
+                <i class="bi bi-buildings"></i>
+                <span>Nombre del Cliente</span>
             </div>
-            <button class="btn btn-gray btn-circle hidden" id="historial">
+            <button class="btn btn-gray btn-circle" id="historial">
                 <i class="bi bi-clock-history"></i>
             </button>
             <div id="back-historial" class="hidden">
@@ -21,42 +22,30 @@
                     <option value="40"> 40 </option>
                     <option value="Otro"> Otro </option>
                 </select>
-                <input type="number" class="select-format input-select hidden" id="inputSelectViaje" placeholder="?">
+                <input type="number" class="select-format input-select hidden" id="inputSelectOrden" placeholder="?">
             </div>
         </div>
-        <h2 id="headerModal">Viajes</h2>
-        <div class="person-info" style="margin-right: 20px;">
-            <i class="bi bi-buildings"></i>
-            <span>Nombre del Cliente</span>
-        </div>
+        <h2 id="headerModal">Ordenes Gasoil</h2>
     </div>
 
-    <div id="content-clientesViajes" class="hidden">
+    <div id="content-proveedoresOrdenes" class="hidden">
         <div class="table-section">
             <div class="table-header-with-button">
-                <div id="clientesViajesSearchBar" class="search-bar">
-                    <input type="text" class="search-input" id= "searchInput" placeholder="Buscar viaje ..." />
+                <div id="proveedoresOrdenSearchBar" class="search-bar">
+                    <input type="text" class="search-input" id= "searchInput" placeholder="Buscar Orden ..." />
                     <div class="search-icon"><i class="bi bi-search"></i></div>
                 </div>
             </div>
-            <div id="clientesViajes-table" class="tabla-dinamica" style="margin-top: 15px;"></div>
+            <div id="proveedoresOrden-table" class="tabla-dinamica" style="margin-top: 15px;"></div>
         </div>
 
         <div class="summary-boxes" id="summaryBoxes">
-            <div id ="subtotal"class="summary-box subtotal">
-                Subtotal: $0.00
-            </div>
-            <div id="iva" class="summary-box iva">
-                IVA (21%): $0.00
-            </div>
             <div id="total-viajes" class="summary-box total-viajes">
-                Total Viajes: $0.00
+                Total Ordenes: $0.00
             </div>
         </div>
 
-        <div id="paginacion-viajes" class="pagination-controls"></div>
-
-        <div class="table-section hidden" id="content-viajes-facturados">
+        <div class="table-section" id="content-pagos-proveedor">
             <div class="table-header-with-button">
                 <div style="display: flex; gap: 10px;">
                     <i class="bi bi-chevron-down toggle-dropbox active" id="togglePagosArea" style="margin: auto"></i>
@@ -73,7 +62,7 @@
                     </div>
                 </div>
                 
-                <div class="add-wrapper" id="cliente-pagos-wrapper">
+                <div class="add-wrapper" id="proveedor-pagos-wrapper">
                     <button id="agregar-pago" class="btn btn-success btn-plus"> + </button>
                     <div id="addPagoCard" class="add-card chofer hidden" style="top:45px; padding: 0; max-width: 60vw;">
                         <div class="form-grid" style="padding-bottom: 5px;">
@@ -86,14 +75,6 @@
                                 <select id="tipoPago">
                                     <option value="cheque">Cheque</option>
                                     <option value="otro">Otro</option>
-                                </select>
-                            </div>
-                            <div class="form-group" id="tipoAsignar">
-                                <label for="tipoAsignarSelect" style="font-weight: bold;">Asignar? (Opcional)</label>
-                                <select id="tipoAsignarSelect">
-                                        <option value="none" selected >-- No asignar --</option>
-                                        <option value="chofer">Chofer</option>
-                                        <option value="proveedor">Proveedor</option>
                                 </select>
                             </div>
                         </div>
@@ -120,13 +101,9 @@
                                     <label for="importeCheque">Importe *</label>
                                     <input type="number" id="importeCheque" placeholder="Importe">
                                 </div>
-                                <div class="form-group hidden" id="asignarChofer">
-                                    <label for="choferCheque">Chofer</label>
-                                    <input type="search" id="choferCheque" placeholder="Nombre del Chofer">
-                                </div>
-                                <div class="form-group hidden" id="asignarProveedor">
-                                    <label for="proveedorCheque">Proveedor</label>
-                                    <input type="search" id="proveedorCheque" placeholder="Nombre del Proveedor">
+                                <div class="form-group">
+                                    <label for="clienteCheque">Asignar a Cliente?</label>
+                                    <input type="search" id="clienteCheque" placeholder="Nombre del Cliente">
                                 </div>
                             </div>
                         </div>
@@ -156,7 +133,7 @@
             </div>
             <div id="pagos-table" class="tabla-dinamica tabla-pagos"></div>
             <div id="total-cobrar" class="total-pagar-box">
-                Total a Cobrar: $ 0.00
+                Total a Pagar: $ 0.00
             </div>
         </div>
     </div>

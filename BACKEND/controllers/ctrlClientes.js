@@ -1,7 +1,7 @@
 const pool = require('../db');
 const { getIO } = require('../socket');
 
-const regexCuit = /^\d{2}-\d{8}-\d{1}$/;
+const regexCuit = /^\d{2}-\d{7,9}-\d{1}$/;
 const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validatecuit(cuit) {
@@ -42,7 +42,7 @@ exports.insertCliente = async (req, res) => {
     if (!data.nombre || data.nombre === '')
         return res.status(405).json({ message: 'El cliente debe llevar el Nombre / Razon Social' });
     if (data.email && data.email !== '' && !validateEmail(data.email))
-        return res.status(405).json({ message: 'El email ingresado no es una dirección de email valida' })
+        return res.status(405).json({ message: 'El email ingresado no es una dirección de email valida' });
 
     let client;
     try {
@@ -59,12 +59,14 @@ exports.insertCliente = async (req, res) => {
             [data.cuit]
         );
         let clienteRecuperado = false;
+        let balance = 0;
         if (clientExists.rows.length > 0) {
             if (!clientExists.rows[0].valid) {
-                const responseRecuperar = await client.query('UPDATE cliente SET valid = true, razon_social = $2, email = $3 WHERE valid = false AND cuit = $1', [data.cuit, data.nombre, data.email]);
+                const responseRecuperar = await client.query('UPDATE cliente SET valid = true, razon_social = $2, email = $3 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.email]);
                 if (responseRecuperar.rowCount > 0) {
                     clienteRecuperado = true;
-                    res.status(202).json({ message: `Se recupero un cliente anteriormente registrado con el cuit ${data.cuit}, y se actualizaron sus datos` });
+                    balance = responseRecuperar.rows[0].balance;
+                    res.status(202).json({ message: `Se recupero un cliente anteriormente registrado con el cuit ${data.cuit}, y se actualizaron sus datos`, balance: balance });
                 }
             }
             if (!clienteRecuperado) {
@@ -86,7 +88,7 @@ exports.insertCliente = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('nuevoCliente', { id: data.cuit, ...data });
+                    socket.emit('nuevoCliente', { id: data.cuit, balance: balance, ...data });
                 }
             });
         } catch (error) {

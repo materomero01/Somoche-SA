@@ -8,6 +8,7 @@ const multer = require('multer');
 require('dotenv').config();
 var cors = require('cors');
 const jwt = require('jsonwebtoken');
+require('./listeners.js');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -17,6 +18,7 @@ var viajesRouter = require('./routes/viajes');
 var pagosRouter = require('./routes/pagos');
 var catacRouter = require('./routes/catac');
 var clientesRouter = require('./routes/clientes');
+var proveedoresRouter = require('./routes/proveedores');
 var resumenesRouter = require('./routes/resumenes');
 var facturasRouter = require('./routes/facturas');
 var logsRouter = require('./routes/logs'); // Nuevo router
@@ -141,6 +143,7 @@ app.use('/api/viajes', viajesRouter);
 app.use('/api/pagos', pagosRouter);
 app.use('/api/catac', catacRouter);
 app.use('/api/clientes', clientesRouter);
+app.use('/api/proveedores', proveedoresRouter);
 app.use('/api/resumenes', resumenesRouter);
 app.use('/api/logs', logsRouter);
 app.use('/api/facturas', upload.fields([{ name: 'factura', maxCount: 1 }, { name: 'cartaPorte', maxCount: 5 }]), facturasRouter);

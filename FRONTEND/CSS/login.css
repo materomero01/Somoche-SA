@@ -147,10 +147,16 @@ a {
     display: flex;
     justify-content: center;
     align-items: center;
+<<<<<<< HEAD
     white-space: nowrap;
 }
 
 @media (max-width: 600px) {
+=======
+}
+
+@media (max-width: 767px) {
+>>>>>>> origin/InProgress_VyP
 
     /*
     0. CORRECCIÓN DEL CONTENEDOR PRINCIPAL Y CUERPO (BODY)
@@ -158,10 +164,18 @@ a {
     Anulamos el width: 1366px fijo y usamos anchos relativos.
     */
     body {
+<<<<<<< HEAD
         /* Permitimos scroll en el body si es necesario */
         overflow-y: auto;
     }
 
+=======
+        /* Deshabilitamos min-height 100vh para evitar problemas de teclado */
+        min-height: auto; 
+        /* Permitimos scroll en el body si es necesario */
+        overflow-y: auto;
+    }
+>>>>>>> origin/InProgress_VyP
     
     .rectangle-9 {
         /* Anulamos el ancho fijo (1366px) */
@@ -250,7 +264,11 @@ a {
     */
     .icon-wrapper-input {
         left: 15px; /* Ligeramente más cerca del borde */
+<<<<<<< HEAD
        	transform: translateY(-15%); 
+=======
+        transform: translateY(-15%); 
+>>>>>>> origin/InProgress_VyP
     }
     
     /*
@@ -279,8 +297,12 @@ a {
         width: 100%;
         box-sizing: border-box;
     }
+<<<<<<< HEAD
     #loading-spinner {
         padding-top: 0px !important;
     }
 
 }
+=======
+}
+>>>>>>> origin/InProgress_VyP

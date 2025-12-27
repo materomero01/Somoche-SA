@@ -1,233 +1,230 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Añadir Viaje - Somoche S.A.</title>
+ <meta charset="UTF-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ <title>Añadir Viaje - Somoche S.A.</title>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 
-    <link rel="stylesheet" href="CSS/header.css" />
-    <link rel="stylesheet" href="CSS/sidebar.css" />
-    <link rel="stylesheet" href="CSS/button.css" />
-    <link rel="stylesheet" href="CSS/tab-selector.css" />
-    <link rel="stylesheet" href="CSS/add-viajes.css" />
-    <link rel="stylesheet" href="CSS/input.css" />
-    <link rel="stylesheet" href="CSS/searchbar.css" />
-    <link rel="stylesheet" href="CSS/modal.css" />
-    <link rel="stylesheet" href="CSS/loading-spinner.css" />
+  <link rel="stylesheet" href="/FRONTEND/css/header.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/sidebar.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/button.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/tab-selector.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/add-viajes.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/input.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/searchbar.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/modal.css" />
+ <link rel="stylesheet" href="/FRONTEND/css/loading-spinner.css" />
 </head>
-
 <body>
 
-    <div id="header-container"></div>
-    <div id="sidebar-container"></div>
+  <div id="header-container"></div>
+ <div id="sidebar-container"></div>
 
-    <main class="content">
-        <div id="loading-spinner">
-            <div class="spinner"></div>
-            Cargando datos...
+ <main class="content">
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        Cargando datos...
+    </div>
+
+  <section id="add-viajes-section" class="add-viajes-section hidden">
+
+      <div class="tab-selector" id="viajesPagosSelector" style="margin-top:20px;">
+        <div class="tab-item active" data-tab="viajes">Viajes</div>
+        <div class="tab-item" data-tab="pagos">Pagos</div>
+       </div>
+
+      <div id="tabContent" class="tab-content-container">
+
+        <div id="viajes" class="tab-content">
+     <h2 style="padding-left: 15px;">Datos del viaje</h2>
+
+     <div class="form-row">
+        <div class="form-group autocomplete-container" style="width: 40%;;">
+            <label for="chofer">Chofer</label>
+            <input type="search" id="chofer" name="chofer" style="width: 100%;">
+            <div class="suggestions-list" id="chofer-suggestions"></div>
+        </div>
+        <div class="form-group autocomplete-container" style="align-items: end; width: 40%;">
+            <label for="cliente">Cliente</label>
+            <input type="search" id="cliente" name="cliente" style="width: 100%;">
+            <div class="suggestions-list" id="cliente-suggestions"></div>
+        </div>
+    </div>
+     <form class="form-grid" id="formViaje">
+      <div class="form-group">
+       <label for="fecha">Fecha</label>
+       <input type="date" id="fecha" name="fecha" value="2025-06-20" required/>
+      </div>
+      <div class="form-group">
+       <label for="comprobante">Comprobante</label>
+       <input type="text" id="comprobante" name="comprobante" placeholder="Nro. Comprobante" maxlength="13" required/>
+      </div>
+      <div class="form-group">
+       <label for="campo">Campo</label>
+       <input type="text" id="campo" name="campo" placeholder="Campo" required/>
+      </div>
+      <div class="form-group">
+       <label for="producto">Producto</label>
+       <input type="text" id="producto" name="producto" placeholder="Producto" required/>
+      </div>
+      <div class="form-group">
+       <label for="kilometro">Kilómetros</label>
+       <input type="number" id="kilometro" name="kilometro" placeholder="Cantidad de kilómetros" required/>
+      </div>
+      <div class="form-group autocomplete-container">
+       <label for="tarifa">Tarifa</label>
+       <input type="text" id="tarifa" name="tarifa" placeholder="Tarifa" required/>
+       <div id="tarifa-suggestions" class="suggestions-list"></div>
+      </div>
+      <div class="form-group">
+       <label for="variacion">Variación</label>
+       <input type="number" id="variacion" name="variacion"  value="0.1" required/>
+      </div>
+      <div class="form-group">
+       <label for="toneladas">Toneladas</label>
+       <input type="number" id="toneladas" name="toneladas" placeholder="Cantidad de toneladas" required/>
+      </div>
+      <div class="form-group">
+       <label for="cargado">Cargado</label>
+       <input type="number" id="cargado" name="cargado" placeholder="Cantidad de toneladas"/>
+      </div>
+      <div class="form-group">
+       <label for="descargado">Descargado</label>
+       <input type="number" id="descargado" name="descargado" placeholder="Cantidad de toneladas"/>
+      </div>
+    </form>
+
+    <div id="añadirViaje" class="form-actions">
+        <button class="btn btn-success btn-lg" id="addViajeBtn" type="submit">Añadir</button>
+        <div id="viajesSearchBar" class="search-bar" style="margin-bottom: 15px; border-radius: 5px; height: 45px;">
+            <input type="text" class="search-input" placeholder="Buscar viaje por comprobante..." />
+            <div class="search-icon">
+                <i class="bi bi-search"></i>
+            </div>
+        </div>
+    </div>
+    <div id="editarViaje" class="form-actions hidden">
+        <button class="btn btn-success btn-lg hidden" id="acceptViajeBtn">Aceptar</button>
+        <button class="btn btn-yellow btn-lg" id="editViajeBtn">Editar</button>
+        <button class="btn btn-danger btn-lg" id="cancelViajeBtn">Cancelar</button>
+    </div>
+    </div>
+
+    <div id="pagos" class="tab-content hidden"> 
+        <h2 style="padding-left: 15px;">Datos del Pago</h2>
+        
+        <div class="form-grid" style="padding-bottom: 5px;">
+            <div class="form-group autocomplete-container">
+                <label for="choferPago" style="font-weight: bold;">Chofer</label>
+                <input type="text" id="choferPago" placeholder="Nombre y Apellido">
+                <div id="choferPago-suggestions" class="suggestions-list"></div>
+            </div>
+            <div class="form-group">
+                    <label for="fechaPago" style="font-weight: bold;">Fecha de Pago</label>
+                    <input type="date" id="fechaPago">
+                </div>
+            <div class="form-group">
+                <label for="tipoPago" style="font-weight: bold;">Tipo de Pago</label>
+                <select id="tipoPago">
+                    <option value="Cheque">Cheque</option>
+                    <option value="Gasoil">Gasoil</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
         </div>
 
-        <section id="add-viajes-section" class="add-viajes-section hidden">
-
-            <div class="tab-selector" id="viajesPagosSelector" style="margin-top:20px;">
-                <div class="tab-item active" data-tab="viajes">Viajes</div>
-                <div class="tab-item" data-tab="pagos">Pagos</div>
-            </div>
-
-            <div id="tabContent" class="tab-content-container">
-
-                <div id="viajes" class="tab-content">
-                    <h2 style="padding-left: 15px;">Datos del viaje</h2>
-
-                    <div class="form-row">
-                        <div class="form-group autocomplete-container" style="width: 40%;;">
-                            <label for="chofer">Chofer</label>
-                            <input type="search" id="chofer" name="chofer" style="width: 100%;">
-                            <div class="suggestions-list" id="chofer-suggestions"></div>
-                        </div>
-                        <div class="form-group autocomplete-container" style="align-items: end; width: 40%;">
-                            <label for="cliente">Cliente</label>
-                            <input type="search" id="cliente" name="cliente" style="width: 100%;">
-                            <div class="suggestions-list" id="cliente-suggestions"></div>
-                        </div>
+        <div style="background-color: #999999; width: auto; height: 1px; margin-left: 1%; margin-right: 1%;"></div>
+        <div id="chequeFields" class="payment-type-fields hidden">
+            <div class="cheques">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fechaCheque">Fecha del Cheque</label>
+                        <input type="date" id="fechaCheque">
                     </div>
-                    <form class="form-grid" id="formViaje">
-                        <div class="form-group">
-                            <label for="kilometro">Kilómetros</label>
-                            <input type="number" id="kilometro" name="kilometro" placeholder="Cantidad de kilómetros"
-                                required />
-                        </div>
-                        <div class="form-group">
-                            <label for="toneladas">Toneladas</label>
-                            <input type="number" id="toneladas" name="toneladas" placeholder="Cantidad de toneladas"
-                                required />
-                        </div>
-                        <div class="form-group">
-                            <label for="fecha">Fecha</label>
-                            <input type="date" id="fecha" name="fecha" value="2025-06-20" required />
-                        </div>
-                        <div class="form-group autocomplete-container">
-                            <label for="tarifa">Tarifa</label>
-                            <input type="text" id="tarifa" name="tarifa" placeholder="Tarifa" required />
-                            <div id="tarifa-suggestions" class="suggestions-list"></div>
-                        </div>
-                        <div class="form-group">
-                            <label for="cargado">Cargado</label>
-                            <input type="number" id="cargado" name="cargado" placeholder="Cantidad de toneladas" />
-                        </div>
-                        <div class="form-group">
-                            <label for="comprobante">Comprobante</label>
-                            <input type="text" id="comprobante" name="comprobante" placeholder="Nro. Comprobante"
-                                maxlength="13" required />
-                        </div>
-                        <div class="form-group">
-                            <label for="variacion">Variación</label>
-                            <input type="number" id="variacion" name="variacion" value="0.1" required />
-                        </div>
-                        <div class="form-group">
-                            <label for="descargado">Descargado</label>
-                            <input type="number" id="descargado" name="descargado"
-                                placeholder="Cantidad de toneladas" />
-                        </div>
-                        <div class="form-group">
-                            <label for="campo">Campo</label>
-                            <input type="text" id="campo" name="campo" placeholder="Campo" required />
-                        </div>
-                    </form>
-
-                    <div id="añadirViaje" class="form-actions">
-                        <button class="btn btn-success btn-lg" id="addViajeBtn" type="submit">Añadir</button>
-                        <div id="viajesSearchBar" class="search-bar"
-                            style="margin-bottom: 15px; border-radius: 5px; height: 45px;">
-                            <input type="text" class="search-input" placeholder="Buscar viaje por comprobante..." />
-                            <div class="search-icon">
-                                <i class="bi bi-search"></i>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label for="nroCheque">Nro. de Cheque</label>
+                        <input type="number" id="nroCheque" placeholder="Número de Cheque">
                     </div>
-                    <div id="editarViaje" class="form-actions hidden">
-                        <button class="btn btn-success btn-lg hidden" id="acceptViajeBtn">Aceptar</button>
-                        <button class="btn btn-yellow btn-lg" id="editViajeBtn">Editar</button>
-                        <button class="btn btn-danger btn-lg" id="cancelViajeBtn">Cancelar</button>
+                    <div class="form-group">
+                        <label for="terceroCheque">Banco</label>
+                        <input type="text" id="terceroCheque" placeholder="Nombre del Banco">
+                    </div>
+                    <div class="form-group">
+                        <label for="destinatarioCheque">Destinatario</label>
+                        <input type="text" id="destinatarioCheque" placeholder="Nombre del Destinatario">
+                    </div>
+                    <div class="form-group">
+                        <label for="importeCheque">Importe</label>
+                        <input type="number" id="importeCheque" placeholder="Importe">
+                    </div>
+                    <div class="form-group autocomplete-container">
+                        <label for="clienteCheque">Asignar Cliente?</label>
+                        <input type="search" id="clienteCheque" placeholder="Razon social">
                     </div>
                 </div>
-
-                <div id="pagos" class="tab-content hidden">
-                    <h2 style="padding-left: 15px;">Datos del Pago</h2>
-
-                    <div class="form-grid" style="padding-bottom: 5px;">
-                        <div class="form-group autocomplete-container">
-                            <label for="choferPago" style="font-weight: bold;">Chofer</label>
-                            <input type="text" id="choferPago" placeholder="Nombre y Apellido">
-                            <div id="choferPago-suggestions" class="suggestions-list"></div>
-                        </div>
-                        <div class="form-group">
-                            <label for="fechaPago" style="font-weight: bold;">Fecha de Pago</label>
-                            <input type="date" id="fechaPago">
-                        </div>
-                        <div class="form-group">
-                            <label for="tipoPago" style="font-weight: bold;">Tipo de Pago</label>
-                            <select id="tipoPago">
-                                <option value="Cheque">Cheque</option>
-                                <option value="Gasoil">Gasoil</option>
-                                <option value="Otro">Otro</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div
-                        style="background-color: #999999; width: auto; height: 1px; margin-left: 1%; margin-right: 1%;">
-                    </div>
-                    <div id="chequeFields" class="payment-type-fields hidden">
-                        <div class="cheques">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="fechaCheque">Fecha del Cheque</label>
-                                    <input type="date" id="fechaCheque">
-                                </div>
-                                <div class="form-group">
-                                    <label for="nroCheque">Nro. de Cheque</label>
-                                    <input type="number" id="nroCheque" placeholder="Número de Cheque">
-                                </div>
-                                <div class="form-group">
-                                    <label for="terceroCheque">Banco</label>
-                                    <input type="text" id="terceroCheque" placeholder="Nombre del Banco">
-                                </div>
-                                <div class="form-group">
-                                    <label for="destinatarioCheque">Destinatario</label>
-                                    <input type="text" id="destinatarioCheque" placeholder="Nombre del Destinatario">
-                                </div>
-                                <div class="form-group">
-                                    <label for="importeCheque">Importe</label>
-                                    <input type="number" id="importeCheque" placeholder="Importe">
-                                </div>
-                                <div class="form-group autocomplete-container">
-                                    <label for="clienteCheque">Asignar Cliente?</label>
-                                    <input type="search" id="clienteCheque" placeholder="Razon social">
-                                </div>
-                            </div>
-                        </div>
-                        <div style="text-align: center; margin-bottom: 10px;">
-                            <button id="addChequeBtn" class="btn btn-success btn-sm hidden"><i
-                                    class="bi bi-plus"></i></button>
-                        </div>
-                    </div>
-
-                    <div id="gasoilFields" class="payment-type-fields hidden">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="comprobanteGasoil">Comprobante</label>
-                                <input type="text" id="comprobanteGasoil" placeholder="Comprobante">
-                            </div>
-                            <div class="form-group">
-                                <label for="precioGasoil">Precio Gasoil</label>
-                                <input type="number" id="precioGasoil" placeholder="Precio por Litro">
-                            </div>
-                            <div class="form-group">
-                                <label for="litrosGasoil">Litros</label>
-                                <input type="number" id="litrosGasoil" placeholder="Cantidad de Litros">
-                            </div>
-                            <div class="form-group">
-                                <label for="importeGasoil">Importe</label>
-                                <input type="number" id="importeGasoil" placeholder="Importe Total" readonly>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="otroFields" class="payment-type-fields hidden">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="comprobanteOtro">Comprobante</label>
-                                <input type="text" id="comprobanteOtro" placeholder="Comprobante">
-                            </div>
-                            <div class="form-group">
-                                <label for="detalleOtro">Detalle</label>
-                                <input type="text" id="detalleOtro" placeholder="Descripción del pago">
-                            </div>
-                            <div class="form-group">
-                                <label for="importeOtro">Importe</label>
-                                <input type="number" id="importeOtro" placeholder="Importe">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button class="btn btn-success btn-lg" id="addPagoBtn">Registrar Pago</button>
-                    </div>
-                </div>
-
             </div>
-        </section>
-    </main>
+            <div style="text-align: center; margin-bottom: 10px;">
+            <button id="addChequeBtn" class="btn btn-success btn-sm hidden"><i class="bi bi-plus"></i></button>
+        </div>
+        </div>
 
-    <script src="Scripts/header.js"></script>
-    <script src="Scripts/sidebar.js"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" ...></script>
-    <script type="module" src="Scripts/add-viajes.js"></script>
+        <div id="gasoilFields" class="payment-type-fields hidden">
+            <div class="form-grid">
+                <div class="form-group autocomplete-container">
+                        <label for="proveedorGasoil">Proveedor</label>
+                        <input type="search" id="proveedorGasoil" placeholder="Proveedor">
+                    </div>
+                <div class="form-group">
+                    <label for="comprobanteGasoil">Comprobante</label>
+                    <input type="text" id="comprobanteGasoil" placeholder="Comprobante">
+                </div>
+                <div class="form-group">
+                    <label for="precioGasoil">Precio Gasoil</label>
+                    <input type="number" id="precioGasoil" placeholder="Precio por Litro">
+                </div>
+                <div class="form-group">
+                    <label for="litrosGasoil">Litros</label>
+                    <input type="number" id="litrosGasoil" placeholder="Cantidad de Litros">
+                </div>
+                <div class="form-group">
+                    <label for="importeGasoil">Importe</label>
+                    <input type="number" id="importeGasoil" placeholder="Importe Total" readonly>
+                </div>
+            </div>
+        </div>
+
+        <div id="otroFields" class="payment-type-fields hidden">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="comprobanteOtro">Comprobante</label>
+                    <input type="text" id="comprobanteOtro" placeholder="Comprobante">
+                </div>
+                <div class="form-group">
+                    <label for="detalleOtro">Detalle</label>
+                    <input type="text" id="detalleOtro" placeholder="Descripción del pago">
+                </div>
+                <div class="form-group">
+                    <label for="importeOtro">Importe</label>
+                    <input type="number" id="importeOtro" placeholder="Importe">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-success btn-lg" id="addPagoBtn">Registrar Pago</button>
+        </div>
+    </div>
+
+   </div>
+  </section>
+ </main>
+
+ <script src="/FRONTEND/scripts/header.js"></script>
+ <script src="/FRONTEND/scripts/sidebar.js"></script>
+ <script type="module" src="/FRONTEND/scripts/add-viajes.js"></script>
+ <script src="http://localhost:3000/socket.io/socket.io.js"></script>
 
 </body>
-
 </html>
