@@ -36,7 +36,7 @@ function formatDate(dateString) {
 async function generarTA(servicioId) {
   const cuitRepresentada = '20433059221';
   const responseFileSuffix = `-loginTicketResponse_${servicioId}.xml`;
-  const scriptName = servicioId === 'wsfe' ? 'scriptFactura.sh' : 'scriptPadron.sh';
+  const scriptName = servicioId === 'wsfe' ? 'scriptFactura.ps1' : 'scriptPadron.ps1';
   const files = fs.readdirSync(certDir).filter(f => f.endsWith(responseFileSuffix)).sort().reverse();
   const latestResponse = files[0];
 
@@ -76,7 +76,7 @@ async function generarTA(servicioId) {
 
   // CAMBIO PRINCIPAL: Ejecutar bash en lugar de PowerShell
   const scriptPath = path.join(certDir, scriptName);
-  
+
   // Dar permisos de ejecución al script (por si acaso)
   try {
     execSync(`chmod +x ${scriptPath}`, { cwd: certDir });
@@ -86,25 +86,25 @@ async function generarTA(servicioId) {
 
   // Ejecutar el script bash
   const command = `bash ${scriptPath}`;
-  
+
   try {
     execSync(command, { stdio: 'inherit', cwd: certDir });
     const newFiles = fs.readdirSync(certDir).filter(f => f.endsWith(responseFileSuffix)).sort().reverse();
     const newResponse = newFiles[0];
-    
+
     if (!newResponse) {
       throw new Error(`No se encontró el nuevo archivo de respuesta del WSAA para ${servicioId}`);
     }
-    
+
     let xmlContent = fs.readFileSync(path.join(certDir, newResponse), 'utf8');
     xmlContent = limpiarXML(xmlContent);
     const parsed = await parseString(xmlContent, { explicitArray: false });
     const credentials = parsed.loginTicketResponse.credentials;
-    
+
     if (!credentials || !credentials.token || !credentials.sign) {
       throw new Error(`No se encontraron token o sign en la respuesta del WSAA para ${servicioId}`);
     }
-    
+
     console.log(`Nuevo TA generado para ${servicioId}: ${newResponse}`);
     return {
       token: credentials.token,
@@ -170,7 +170,7 @@ async function getLastCbteNro(token, sign, cuit, ptoVta, cbteTipo) {
     const parsed = await parser.parseStringPromise(text);
     const cbteNro = parsed['soap:Envelope']['soap:Body']
       ?.FECompUltimoAutorizadoResponse?.FECompUltimoAutorizadoResult?.CbteNro;
-    
+
     if (!cbteNro) throw new Error('No se pudo obtener CbteNro: ' + text);
     return parseInt(cbteNro) + 1;
   } catch (error) {
@@ -249,7 +249,7 @@ function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servi
               <ar:DocNro>${docNro.replace(/-| /g, '')}</ar:DocNro>
               <ar:CbteDesde>${cbteNro}</ar:CbteDesde>
               <ar:CbteHasta>${cbteNro}</ar:CbteHasta>
-              <ar:CbteFch>${new Date().toISOString().split('T')[0].replaceAll('-','')}</ar:CbteFch>
+              <ar:CbteFch>${new Date().toISOString().split('T')[0].replaceAll('-', '')}</ar:CbteFch>
               <ar:ImpTotal>${impTotal.toFixed(2)}</ar:ImpTotal>
               <ar:ImpTotConc>0</ar:ImpTotConc>
               <ar:ImpNeto>${impNeto.toFixed(2)}</ar:ImpNeto>
@@ -281,11 +281,11 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
 
     // Obtener el próximo CbteNro
     const cbteNro = await getLastCbteNro(token, sign, cuit, ptoVta, 1);
-    
+
     // Generar XML
     const xml = generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servicios, tributos });
     console.log(xml);
-    
+
     // Enviar solicitud SOAP
     const response = await fetch('https://wswhomo.afip.gov.ar/wsfev1/service.asmx', {
       method: 'POST',
@@ -298,12 +298,12 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
     if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
     text = await response.text();
-    
+
     // Parsear respuesta SOAP
     const parsed = await parser.parseStringPromise(text);
     const result = parsed['soap:Envelope']['soap:Body']
       ?.FECAESolicitarResponse?.FECAESolicitarResult;
-    
+
     if (!result) throw new Error('No se encontró FECAESolicitarResult en la respuesta');
     console.log(result);
     const feDetResp = result.FeDetResp?.FECAEDetResponse;
@@ -390,7 +390,7 @@ async function generarEnlaceQR(datos, impTotal) {
   const fechaISO = datos.fechaEmision;
   const [year, month, day] = [fechaISO.slice(0, 4), fechaISO.slice(4, 6), fechaISO.slice(6, 8)];
   const fechaFormatted = `${year}-${month}-${day}`;
-  
+
   const qrData = {
     ver: 1,
     fecha: fechaFormatted,
@@ -408,7 +408,7 @@ async function generarEnlaceQR(datos, impTotal) {
   const qrJson = JSON.stringify(qrData);
   const qrBase64 = Buffer.from(qrJson).toString('base64');
   const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${qrBase64}`;
-  
+
   // Imprimir datos decodificados para facilitar la constatación
   console.log('Datos del QR (decodificados):');
   console.log(`  Versión: ${qrData.ver}`);
@@ -810,7 +810,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
     console.log('QR generado para el PDF');
     const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 120, margin: 6, errorCorrectionLevel: 'M', scale: 8 });
     doc.image(qrBuffer, PADDING_X + 5, bottomSectionStartY + 25, { width: 120 });
-    
+
   } catch (e) {
     console.warn('Error al generar el QR:', e.message || e);
   }

@@ -19,15 +19,15 @@ let deleteFactura;
 const accionesViajes = [
     {
         icon: "bi bi-download",
-        tooltip:"Descargar archivos",
+        tooltip: "Descargar archivos",
         classList: ['navigate-btn'],
         id: null,
         handler: (item) => {
             viaje.push(item); // Establece el viaje actual
             initializeFacturaUpload(
                 handleFacturaActualization,
-                cartaPorteFunc? (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, changeDataDocuments) : null,
-                deleteFactura? (facturaId) => deleteFactura(facturaId, changeDataDocuments) : null,
+                cartaPorteFunc ? (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, changeDataDocuments) : null,
+                deleteFactura ? (facturaId) => deleteFactura(facturaId, changeDataDocuments) : null,
                 "resumenes"
             );
         }
@@ -41,25 +41,25 @@ export const columnasViajes = [
     { label: "Campo", key: "campo", class: [] },
     { label: "Producto", key: "producto", class: [] },
     { label: "KM", key: "km", class: [] },
-    { label: "Tarifa", key: "tarifa", class: [], modify: (content, editingRowId) => {return !editingRowId? `$${content}`: content} },
-    { label: "Variación", key: "variacion", class: [], modify: (content, editingRowId) => {return !editingRowId? `${content * 100}%`: content}},
+    { label: "Tarifa", key: "tarifa", class: [], modify: (content, editingRowId) => { return !editingRowId ? `$${content}` : content } },
+    { label: "Variación", key: "variacion", class: [], modify: (content, editingRowId) => { return !editingRowId ? `${content * 100}%` : content } },
     { label: "Toneladas", key: "toneladas", class: [], },
     { label: "Faltante", key: "faltante", class: [] },
     { label: "Cargado", key: "cargado" },
     { label: "Descargado", key: "descargado" },
-    { label: "Importe", key: "importe", class: ['text-right'], modify: (content) => {return `$${content.toFixed(2)}`} },
-    { label: "Comisión", key: "comision", class: ['text-right'], modify: (content) => {return `$${content.toFixed(2)}`.replace('$-', '-$')} },
-    { label: "Saldo", key: "saldo", class: ['text-right', 'bold'], modify: (content) => {return `$${content.toFixed(2)}`}},
-    { label: "IVA", key: "iva", class: ['text-right'], modify: (content) => {return `$${content.toFixed(2)}`} },
+    { label: "Importe", key: "importe", class: ['text-right'], modify: (content) => { return `$${content.toFixed(2)}` } },
+    { label: "Comisión", key: "comision", class: ['text-right'], modify: (content) => { return `$${content.toFixed(2)}`.replace('$-', '-$') } },
+    { label: "Saldo", key: "saldo", class: ['text-right', 'bold'], modify: (content) => { return `$${content.toFixed(2)}` } },
+    { label: "IVA", key: "iva", class: ['text-right'], modify: (content) => { return `$${content.toFixed(2)}` } },
 ];
 
 // Configuración de columnas para la tabla de pagos
 export const columnasPagos = [
     { label: "Fecha de Pago", key: "fecha_pago", class: [] },
     { label: "Tipo", key: "tipo", class: [] },
-    { label: "Comprobante", key: "id", class: []},
+    { label: "Comprobante", key: "id", class: [] },
     { label: "Descripción", key: "descripcion", class: [] },
-    { label: "Importe", key: "importe", class: ['text-right'], modify: (content) => { return `$${content.toFixed(2)}`.replace('$-',"-$")} }
+    { label: "Importe", key: "importe", class: ['text-right'], modify: (content) => { return `$${content.toFixed(2)}`.replace('$-', "-$") } }
 ];
 
 const checkboxHeaderActionUpload = {
@@ -73,13 +73,13 @@ const checkboxHeaderActionUpload = {
             return;
         }
 
-        initializeFacturaUpload(handleFacturaActualization, null, null, "resumenes", selectedRows.map( r =>  r.comprobante));
+        initializeFacturaUpload(handleFacturaActualization, null, null, "resumenes", selectedRows.map(r => r.comprobante));
     }
 }
 
-function columnasViajesResumenes(){
+function columnasViajesResumenes() {
     console.log(choferIva);
-    if (choferIva) 
+    if (choferIva)
         return columnasViajes.filter(col => !["cargado", "descargado"].includes(col.key));
     else
         return columnasViajes.filter(col => !["cargado", "descargado", "iva"].includes(col.key));
@@ -107,7 +107,7 @@ const optionsViajes = {
 const optionsPagos = {
     containerId: 'pagos-table-resumenes',
     paginacionContainerId: '',
-    columnas: [ columnasPagos ],
+    columnas: [columnasPagos],
     itemsPorPagina: () => 3,
     actions: [],
     onEdit: null,
@@ -126,7 +126,7 @@ export function formatFecha(fecha) {
     return new Date(fecha).toISOString().split('T')[0];
 }
 
-export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo){
+export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo) {
     // Calcular totales
     const subtotal = resumenViajes.viajes.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
     let iva = 0;
@@ -139,35 +139,23 @@ export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo){
         totalResumen = totalViajes - totalPagos;
         if (Math.abs(totalResumen) < 0.01) totalResumen = 0;
     }
-    
+
     const subtotalContainer = document.getElementById("subtotal-resumen");
     const ivaContainer = document.getElementById("iva-resumen");
-<<<<<<< HEAD
-    if (resumenViajes.viajes.length > 0){
-        ivaContainer.classList.remove("hidden");
-        subtotalContainer.classList.remove("hidden");
-    }
-
-    if (resumenSaldo.saldo && parseImporte(resumenSaldo.saldo).toFixed(2) !== totalResumen.toFixed(2)){
-        totalViajes = totalViajes - iva;
-        totalResumen = totalViajes - totalPagos;
-        if (Math.abs(totalResumen) < 0.01) totalResumen = 0;
-=======
-    if (choferIva){
+    if (choferIva) {
         ivaContainer.classList.remove("hidden");
         subtotalContainer.classList.remove("hidden");
     } else {
->>>>>>> origin/InProgress_VyP
         ivaContainer.classList.add("hidden");
         subtotalContainer.classList.add("hidden");
     }
 
     // Actualizar contenedores de totales
-    
+
     if (subtotalContainer) {
         subtotalContainer.textContent = `Subtotal: $${subtotal.toFixed(2)}`;
     }
-    
+
     if (ivaContainer) {
         ivaContainer.textContent = `IVA (21%): $${iva.toFixed(2)}`;
     }
@@ -176,7 +164,7 @@ export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo){
         totalViajesContainer.textContent = `Total Viajes: $${totalViajes.toFixed(2)}`;
     }
     const porcentajeChoferResumen = document.getElementById("porcentaje-chofer-resumen");
-    if (porcentajeChoferResumen && choferData.trabajador === "Chofer"){
+    if (porcentajeChoferResumen && choferData.trabajador === "Chofer") {
         porcentajeChoferResumen.classList.remove("hidden");
         porcentajeChoferResumen.textContent = `Porcentaje Chofer: $${(totalViajes * 0.2).toFixed(2)}`;
     }
@@ -187,13 +175,13 @@ export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo){
     }
 }
 
-function changeDataDocuments(){
-    if (viajesResumenes.length > 0){
+function changeDataDocuments() {
+    if (viajesResumenes.length > 0) {
         //console.log(viajesResumenes);
-        viajesResumenes[currentResumenesPage - 1].viajes.forEach( v => {
-            if (v.comprobante === viaje[0].comprobante){
+        viajesResumenes[currentResumenesPage - 1].viajes.forEach(v => {
+            if (v.comprobante === viaje[0].comprobante) {
                 v.carta_porte = viaje[0].carta_porte;
-                v.factura_id = viaje[0].factura_id? viaje[0].factura_id : null;
+                v.factura_id = viaje[0].factura_id ? viaje[0].factura_id : null;
             }
         });
         renderizarTablasResumenes(currentResumenesPage);
@@ -244,7 +232,7 @@ export function parseViaje(viaje) {
     return retornar;
 }
 
-export function parsePagos(pago){
+export function parsePagos(pago) {
     let descripcion;
     switch (pago.tipo) {
         case "Cheque":
@@ -256,7 +244,7 @@ export function parsePagos(pago){
             descripcion = `${pago.litros}L a $${precio.toFixed(2)} c/L`;
             break;
         case "Otro":
-            descripcion = pago.descripcion? pago.descripcion : pago.detalle;
+            descripcion = pago.descripcion ? pago.descripcion : pago.detalle;
             break;
         default:
             descripcion = "Sin descripción";
@@ -272,22 +260,15 @@ export function parsePagos(pago){
 
 export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null) {
     choferData = chofer;
-<<<<<<< HEAD
-    if (choferData.trabajador !== "Responsable Inscripto"){
-        document.getElementById("iva-resumen").classList.add("hidden");
-        document.getElementById("subtotal-resumen").classList.add("hidden");
-    }
-=======
     if (choferData.trabajador !== "Responsable Inscripto")
         choferIva = false;
-    else 
+    else
         choferIva = true;
 
->>>>>>> origin/InProgress_VyP
     cartaPorteFunc = cartaPorte;
     deleteFactura = deleteFunc;
     const selectCantidad = document.getElementById("selectResumenes");
-    const cantidad = selectCantidad.value !== "Otro"? selectCantidad.value : document.getElementById("inputSelectResumenes").value;
+    const cantidad = selectCantidad.value !== "Otro" ? selectCantidad.value : document.getElementById("inputSelectResumenes").value;
     if (!cantidad) {
         showConfirmModal("Seleccione una cantidad de resúmenes válida.");
         return;
@@ -306,7 +287,7 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null)
             group: resumen.group,
             viajes: resumen.viajes.map(v => parseViaje(v))
         }));
-    
+
         saldosResumenes = data.saldos;
         renderizarTablasResumenes();
     } catch (error) {
@@ -314,8 +295,8 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null)
     }
 }
 
-export function handleFacturaActualization(facturaId, selectedRows){
-    if (viajesResumenes && viajesResumenes.length > 0 && facturaId){
+export function handleFacturaActualization(facturaId, selectedRows) {
+    if (viajesResumenes && viajesResumenes.length > 0 && facturaId) {
         viajesResumenes[currentResumenesPage - 1].viajes.forEach(r => {
             if (selectedRows.includes(r.id))
                 r.factura_id = facturaId;
@@ -340,82 +321,16 @@ function renderizarTablasResumenes(currentPage = 1) {
     // Filtrar viajes y pagos para el grupo actual
     const resumenViajes = viajesResumenes.find(r => r.group === grupoActual) || { viajes: [] };
     const resumenPagos = pagosResumenes.find(r => r.group === grupoActual) || { pagos: [] };
-    const resumenSaldo = saldosResumenes.find (s => s.group === grupoActual) || { saldo: 0};
-<<<<<<< HEAD
-
-    // Renderizar tabla de viajes
-    let columnasViajesResumen = choferData.trabajador === 'Responsable Inscripto'
-        ? columnasViajes
-        : columnasViajes.filter(col => col.key !== "iva");
-
-    renderTabla({
-        containerId: "viajes-table-resumenes",
-        columnas: columnasViajesResumen.filter(col => !["cargado", "descargado"].includes(col.key)),
-        datos: resumenViajes.viajes.map(v => ({
-            id: v.id,
-            cuil: v.cuil,
-            fecha: v.fecha,
-            comprobante: v.comprobante,
-            campo: v.campo,
-            km: v.km,
-            tarifa: `$${parseFloat(v.tarifa).toFixed(2)}`,
-            variacion: `${(v.variacion * 100).toFixed(2)}%`,
-            toneladas: v.toneladas,
-            cargado: v.cargado,
-            descargado: v.descargado,
-            faltante: v.faltante,
-            importe: `$${v.importe.toFixed(2)}`,
-            comision: `$${v.comision.toFixed(2)}`.replace('$-','-$'),
-            saldo: `$${v.saldo.toFixed(2)}`,
-            iva: v.iva ? `$${v.iva.toFixed(2)}` : undefined,
-            factura_id: v.factura_id,
-            carta_porte: v.carta_porte
-        })),
-        itemsPorPagina: null, // Mostrar todos los viajes del grupo
-        currentPage: currentPage,
-        actions: accionesViajes, // Sin acciones de edición
-        tableType: "viajes",
-        checkboxColumn: true,
-        checkboxColumnPosition: "end",
-        useScrollable: true,
-        uploadFactura: true,
-        checkboxHeaderAction: checkboxHeaderActionUpload,
-        onCheckboxChange: (itemId, itemChecked) => { 
-            if (itemChecked)
-                viajesFactura.push(itemId); 
-            else
-                viajesFactura.pop(itemId);
-        }
-    });
-
-    // Renderizar tabla de pagos
-    renderTabla({
-        containerId: "pagos-table-resumenes",
-        columnas: columnasPagos,
-        datos: resumenPagos.pagos.map(p => ({
-            id: p.id,
-            fechaPago: p.fechaPago,
-            tipo: p.tipo,
-            descripcion: p.descripcion,
-            importe: `$${p.importe.toFixed(2)}`.replace("$-","-$")
-        })),
-        itemsPorPagina: null, // Mostrar todos los pagos del grupo
-        currentPage: currentPage,
-        actions: [], // Sin acciones
-        tableType: "pagos",
-        useScrollable: true
-    });
-=======
+    const resumenSaldo = saldosResumenes.find(s => s.group === grupoActual) || { saldo: 0 };
     console.log(resumenSaldo);
     if (saldosResumenes.length > 0 && (typeof resumenSaldo.iva === 'boolean')) choferIva = resumenSaldo.iva;
     renderTables(resumenViajes.viajes, currentResumenesPage, optionsViajes);
     renderTables(resumenPagos.pagos, currentResumenesPage, optionsPagos);
->>>>>>> origin/InProgress_VyP
 
     actualizarValores(resumenViajes, resumenPagos, resumenSaldo);
 
     // Renderizar paginación
-    renderPaginacionResumenes(currentPage, grupos.length > 0? grupos.length : 1);
+    renderPaginacionResumenes(currentPage, grupos.length > 0 ? grupos.length : 1);
 }
 
 // Función para renderizar la paginación de resúmenes

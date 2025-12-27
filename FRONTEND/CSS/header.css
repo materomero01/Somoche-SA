@@ -8,19 +8,25 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     height: 50px;
     box-sizing: border-box;
-    position: fixed; /* Header fijo en la parte superior */
+    position: fixed;
+    /* Header fijo en la parte superior */
     top: 0;
     left: 0;
-    right: 0; /* Se extiende a todo el ancho */
-    z-index: 20; /* Para que esté por encima del sidebar y contenido */
-    padding-left: 60px; /* Espacio inicial para el menú hamburguesa/sidebar colapsado */
-    transition: padding-left 0.3s ease; /* Transición suave del padding */
+    right: 0;
+    /* Se extiende a todo el ancho */
+    z-index: 20;
+    /* Para que esté por encima del sidebar y contenido */
+    padding-left: 60px;
+    /* Espacio inicial para el menú hamburguesa/sidebar colapsado */
+    transition: padding-left 0.3s ease;
+    /* Transición suave del padding */
     overflow: hidden;
 }
 
 /* Cuando el sidebar está expandido, el header necesita más padding */
 .header.expanded-sidebar {
-    padding-left: 200px; /* Espacio para el sidebar expandido */
+    padding-left: 200px;
+    /* Espacio para el sidebar expandido */
 }
 
 .header-left {
@@ -30,32 +36,43 @@
 
 /* Estilos para el botón de menú hamburguesa en el header */
 .menu-toggle {
-    position: absolute; /* Posicionado absolutamente dentro del header */
-    left: 0; /* Al borde izquierdo del header */
+    position: absolute;
+    /* Posicionado absolutamente dentro del header */
+    left: 0;
+    /* Al borde izquierdo del header */
     top: 0;
-    width: 60px; /* Ancho por defecto (sidebar colapsado) */
-    height: 100%; /* Ocupa toda la altura del header */
-    background-color: #333333; /* Color inicial del toggle, puedes ajustar */
+    width: 60px;
+    /* Ancho por defecto (sidebar colapsado) */
+    height: 100%;
+    /* Ocupa toda la altura del header */
+    background-color: #333333;
+    /* Color inicial del toggle, puedes ajustar */
     color: #ffffff;
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 1.5rem;
     cursor: pointer;
-    transition: all 0.3s ease; /* Transición para width, background, etc. */
-    z-index: 2; /* Para que esté por encima del logo si el logo se superpone */
+    transition: all 0.3s ease;
+    /* Transición para width, background, etc. */
+    z-index: 2;
+    /* Para que esté por encima del logo si el logo se superpone */
 }
 
 .menu-toggle:hover {
-    background-color: #333333; /* Un tono un poco más oscuro al pasar el ratón */
+    background-color: #333333;
+    /* Un tono un poco más oscuro al pasar el ratón */
 }
 
 
 /* Cuando el header tiene la clase expanded-sidebar, el menu-toggle se expande */
 .header.expanded-sidebar .menu-toggle {
-    width: 200px; /* Ancho del sidebar expandido */
-    background-color: #333333; /* Un color oscuro para que parezca parte del sidebar */
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2); /* Sombra para profundidad */
+    width: 200px;
+    /* Ancho del sidebar expandido */
+    background-color: #333333;
+    /* Un color oscuro para que parezca parte del sidebar */
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+    /* Sombra para profundidad */
 }
 
 .header-logo {
@@ -65,12 +82,15 @@
     font-size: 22px;
     line-height: 1.28;
     text-align: left;
-    margin-left: 10px; /* Pequeño margen después del toggle colapsado (60px del toggle + 10px) */
-    transition: margin-left 0.3s ease; /* Transición para el margen del logo */
+    margin-left: 10px;
+    /* Pequeño margen después del toggle colapsado (60px del toggle + 10px) */
+    transition: margin-left 0.3s ease;
+    /* Transición para el margen del logo */
 }
 
 .header.expanded-sidebar .header-logo {
-    margin-left: 10px; /* Margen cuando el toggle está expandido (200px del toggle + 10px) */
+    margin-left: 10px;
+    /* Margen cuando el toggle está expandido (200px del toggle + 10px) */
 }
 
 
@@ -83,25 +103,35 @@
 
 /* Estilo para el recuadro de información del usuario */
 .user-info-box {
-    border: 1px solid #e0e0e0; /* Borde gris claro */
-    border-radius: 8px; /* Bordes ligeramente redondeados */
+    border: 1px solid #e0e0e0;
+    /* Borde gris claro */
+    border-radius: 8px;
+    /* Bordes ligeramente redondeados */
     padding: 5px 10px;
-    background-color: #f9f9f9; /* Fondo muy claro */
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* Sombra sutil */
-    display: flex; /* Para mantener nombre y rol en columna */
+    background-color: #f9f9f9;
+    /* Fondo muy claro */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    /* Sombra sutil */
+    display: flex;
+    /* Para mantener nombre y rol en columna */
     flex-direction: column;
-    align-items: flex-end; /* Alinea el texto a la derecha dentro del recuadro */
-    margin-right: 15px; /* Espacio a la derecha antes del icono de logout */
-    transition: all 0.2s ease-in-out; /* Transición para posibles cambios futuros */
+    align-items: flex-end;
+    /* Alinea el texto a la derecha dentro del recuadro */
+    margin-right: 15px;
+    /* Espacio a la derecha antes del icono de logout */
+    transition: all 0.2s ease-in-out;
+    /* Transición para posibles cambios futuros */
 }
 
 .header-user-name {
-    font-weight: 600; /* Más destacado */
+    font-weight: 600;
+    /* Más destacado */
     color: #333;
 }
 
 .header-user-role {
-    font-size: 0.8em; /* Un poco más pequeño que el nombre */
+    font-size: 0.8em;
+    /* Un poco más pequeño que el nombre */
     color: #777;
 }
 
@@ -112,14 +142,19 @@
     font-size: 14px;
     text-align: left;
     margin-right: 20px;
-    display: flex; /* Para alinear el icono y el texto */
-    align-items: center; /* Centrar verticalmente */
-    gap: 5px; /* Espacio entre el icono y el texto */
+    display: flex;
+    /* Para alinear el icono y el texto */
+    align-items: center;
+    /* Centrar verticalmente */
+    gap: 5px;
+    /* Espacio entre el icono y el texto */
 }
 
 .header-date i {
-    color: #007bff; /* Color para el icono del calendario */
-    font-size: 1.1em; /* Ajusta el tamaño del icono si es necesario */
+    color: #007bff;
+    /* Color para el icono del calendario */
+    font-size: 1.1em;
+    /* Ajusta el tamaño del icono si es necesario */
 }
 
 .header-icon {
@@ -130,7 +165,8 @@
 }
 
 .header-icon:hover {
-    color: #dc3545; /* Rojo al pasar el ratón para el icono de logout */
+    color: #dc3545;
+    /* Rojo al pasar el ratón para el icono de logout */
 }
 
 /* NUEVO: user-info-inline sin recuadro */
@@ -160,10 +196,11 @@
 
 /* --- Estilos para dispositivos móviles --- */
 @media (max-width: 1000px) {
- .header {
+    .header {
         /* ELIMINAMOS el padding-left de 60px que reservaba espacio para el sidebar */
-        padding: 10px 15px; 
-        padding-left: 15px; /* Solo padding base, el toggle se superpone */
+        padding: 10px 15px;
+        padding-left: 15px;
+        /* Solo padding base, el toggle se superpone */
     }
 
     /* / Ocultamos elementos que no caben en móvil / */
@@ -176,27 +213,26 @@
 
     /* / Ajustamos el tamaño del icono de menú y su contenedor / */
     .menu-toggle {
-        position: fixed; 
+        position: fixed;
         left: 0;
         top: 0;
-        width: 80px; /* Ancho colapsado */
-        height: 50px; 
+        width: 80px;
+        /* Ancho colapsado */
+        height: 50px;
         z-index: 1000;
         /* CLAVE: Añadir transición de ancho aquí */
-        transition: width 0.3s ease, background-color 0.3s ease; 
+        transition: width 0.3s ease, background-color 0.3s ease;
     }
-    
+
     /* Regla para expandir el botón de menú cuando el sidebar está abierto */
     .header.expanded-sidebar .menu-toggle {
-        width: 150px; /* Se expande al ancho deseado */
+        width: 150px;
+        /* Se expande al ancho deseado */
     }
 
     /* El header no necesita padding extra */
     .header.expanded-sidebar {
-        padding-left: 15px; /* Vuelve a tu padding base o 0px, si es necesario */
+        padding-left: 15px;
+        /* Vuelve a tu padding base o 0px, si es necesario */
     }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> origin/InProgress_VyP

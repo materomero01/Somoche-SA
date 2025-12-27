@@ -309,20 +309,12 @@ exports.updateViajes = async (req, res) => {
                 // Avisar a todos los clientes conectados
                 io.sockets.sockets.forEach((socket) => {
                     if (socket.cuil !== req.user.cuil) {
-<<<<<<< HEAD
-                        if (tablaUpdate === "viaje")
+                        if (tablaUpdate === "viaje") {
                             socket.emit('updateViaje', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData } });
-                        else {
-                            if (new Date(viajeExists.rows[0].update_at) < new Date(viajeUpdateado.rows[0].update_at)) socket.emit('updateViaje', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, kilometros: viajeExists.rows[0].kilometros, tarifa: viajeExists.rows[0].tarifa, variacion: viajeExists.rows[0].variacion, toneladas: viajeExists.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado } });
-                            socket.emit('updateViajeCliente', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData } });
-=======
-                        if (tablaUpdate === "viaje"){
-                            socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData}});
-                            socket.emit('updateViajeCliente',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, producto: validatedData.producto, kilometros: viajeExistsClient.rows[0].kilometros, tarifa: viajeExistsClient.rows[0].tarifa, variacion: viajeExistsClient.rows[0].variacion, toneladas: viajeExistsClient.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado}});
+                            socket.emit('updateViajeCliente', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, producto: validatedData.producto, kilometros: viajeExistsClient.rows[0].kilometros, tarifa: viajeExistsClient.rows[0].tarifa, variacion: viajeExistsClient.rows[0].variacion, toneladas: viajeExistsClient.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado } });
                         } else {
-                            socket.emit('updateViaje',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, producto: validatedData.producto, kilometros: viajeExists.rows[0].kilometros, tarifa: viajeExists.rows[0].tarifa, variacion: viajeExists.rows[0].variacion, toneladas: viajeExists.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado}});
-                            socket.emit('updateViajeCliente',{comprobanteOriginal: comprobante, updatedData: {cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData}});
->>>>>>> origin/InProgress_VyP
+                            socket.emit('updateViaje', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, producto: validatedData.producto, kilometros: viajeExists.rows[0].kilometros, tarifa: viajeExists.rows[0].tarifa, variacion: viajeExists.rows[0].variacion, toneladas: viajeExists.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado } });
+                            socket.emit('updateViajeCliente', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData } });
                         }
                     }
                 });

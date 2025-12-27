@@ -146,28 +146,16 @@ const setupAddViajeBtn = () => {
 
 function validarInputs(payload) {
     // Validate required fields
-<<<<<<< HEAD
     if (!validateInputs(payload, {
         comprobante: 'Comprobante',
         campo: 'Campo',
+        producto: 'Producto',
         kilometros: 'Kilómetro',
         tarifa: 'Tarifa',
         toneladas: 'Toneladas',
         cargado: 'Cargado',
         descargado: 'Descargado'
     })) return false;
-=======
-        if (!validateInputs(payload, {
-            comprobante: 'Comprobante',
-            campo: 'Campo',
-            producto: 'Producto',
-            kilometros: 'Kilómetro',
-            tarifa: 'Tarifa',
-            toneladas: 'Toneladas',
-            cargado: 'Cargado',
-            descargado: 'Descargado'
-        })) return false;
->>>>>>> origin/InProgress_VyP
 
     // Validate comprobante format
     if (!regexInputs.comprobante.test(payload.comprobante)) {
@@ -704,17 +692,10 @@ const setupAddPagoBtn = () => {
                     setTodayDate();
                 } else {
                     // Limpiar otros formularios
-<<<<<<< HEAD
                     const formFields = tipoPago.toLowerCase() === 'gasoil'
-                        ? ['comprobanteGasoil', 'precioGasoil', 'litrosGasoil', 'importeGasoil']
+                        ? ['comprobanteGasoil', 'precioGasoil', 'litrosGasoil', 'importeGasoil', 'proveedorGasoil']
                         : ['comprobanteOtro', 'detalleOtro', 'importeOtro'];
 
-=======
-                    const formFields = tipoPago.toLowerCase() === 'gasoil' 
-                        ? ['comprobanteGasoil','precioGasoil', 'litrosGasoil', 'importeGasoil', 'proveedorGasoil' ]
-                        : ['comprobanteOtro','detalleOtro', 'importeOtro'];
-                        
->>>>>>> origin/InProgress_VyP
                     formFields.forEach(id => {
                         const input = document.getElementById(id);
                         if (input) input.value = '';

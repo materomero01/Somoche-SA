@@ -44,25 +44,20 @@ exports.insertPagos = async (req, res) => {
                 [cliente_cuit]
             );
             if (clienteExists.rows.length === 0) {
-<<<<<<< HEAD
                 return res.status(409).json({
-                    message: `El cliente con CUIL ${cliente_cuit} no está registrado.`
-=======
-                return res.status(409).json({ 
                     message: `El cliente con CUIT ${cliente_cuit} no está registrado.`
->>>>>>> origin/InProgress_VyP
                 });
             }
         }
 
-        if (proveedor_cuit){
+        if (proveedor_cuit) {
             const ProveedorExists = await client.query(
                 'SELECT cuit, razon_social FROM proveedor WHERE valid = true AND cuit = $1',
                 [proveedor_cuit]
             );
             if (!nombre && ProveedorExists.rowCount > 0) nombre = ProveedorExists.rows[0].razon_social;
             if (ProveedorExists.rows.length === 0) {
-                return res.status(409).json({ 
+                return res.status(409).json({
                     message: `El proveedor con CUIT ${proveedor_cuit} no está registrado.`
                 });
             }
@@ -74,17 +69,10 @@ exports.insertPagos = async (req, res) => {
         for (const [index, pago] of validatedData.entries()) {
             // Insertar según el tipo de pago
             if (pago.tipo.toLowerCase() === 'cheque') {
-<<<<<<< HEAD
+
                 if (pago.fecha_pago > pago.fecha_cheque) {
                     return res.status(402).json({ message: "La fecha del pago no puede ser mayor a la fecha del cheque" });
                 }
-
-=======
-
-                if (pago.fecha_pago > pago.fecha_cheque){
-                    return res.status(402).json({message:"La fecha del pago no puede ser mayor a la fecha del cheque"});
-                }
->>>>>>> origin/InProgress_VyP
                 let responseExists = await client.query("SELECT valid FROM pagos_cheque WHERE nro = $1",
                     [pago.nroCheque]
                 );
@@ -109,18 +97,11 @@ exports.insertPagos = async (req, res) => {
                         pago.destinatario,
                         pago.importe,
                         false,
-<<<<<<< HEAD
-                        cliente_cuit ? cliente_cuit : pago.cliente_cuit
+                        cliente_cuit ? cliente_cuit : pago.cliente_cuit,
+                        proveedor_cuit ? proveedor_cuit : pago.proveedor_cuit
                     ]
                 );
-                pagosArray.push({ id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, importe: pago.importe, cliente_cuit: cliente_cuit, nombre: nombre })
-=======
-                        cliente_cuit? cliente_cuit : pago.cliente_cuit,
-                        proveedor_cuit? proveedor_cuit : pago.proveedor_cuit
-                    ]
-                );
-                pagosArray.push({id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, importe: pago.importe, cliente_cuit: cliente_cuit, proveedor_cuit: proveedor_cuit, nombre: nombre})
->>>>>>> origin/InProgress_VyP
+                pagosArray.push({ id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, importe: pago.importe, cliente_cuit: cliente_cuit, proveedor_cuit: proveedor_cuit, nombre: nombre })
                 if (!cliente_cuit)
                     cliente_cuit = pago.cliente_cuit;
                 if (!proveedor_cuit)
@@ -150,17 +131,11 @@ exports.insertPagos = async (req, res) => {
                         pago.proveedor_cuit
                     ]
                 );
-<<<<<<< HEAD
-                pagosArray.push({ id: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, importe: pago.precioGasoil * pago.litros, litros: pago.litros });
-                pagoId = result.rows[0];
-            } else if (pago.tipo.toLowerCase() === 'otro') {
-=======
-                pagosArray.push({id: pago.comprobante, comprobante: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, importe: pago.precioGasoil * pago.litros, litros: pago.litros, proveedor_cuit: pago.proveedor_cuit, nombre: nombre});
+                pagosArray.push({ id: pago.comprobante, comprobante: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, importe: pago.precioGasoil * pago.litros, litros: pago.litros, proveedor_cuit: pago.proveedor_cuit, nombre: nombre });
                 pagoId = result.rows[0];
                 if (!proveedor_cuit)
                     proveedor_cuit = pago.proveedor_cuit;
-            } else if (pago.tipo.toLowerCase() === 'otro') {  
->>>>>>> origin/InProgress_VyP
+            } else if (pago.tipo.toLowerCase() === 'otro') {
                 let responseExists = await client.query("SELECT valid FROM pagos_otro WHERE comprobante = $1",
                     [pago.comprobante]
                 );
@@ -174,13 +149,6 @@ exports.insertPagos = async (req, res) => {
 
                 const result = await client.query(
                     `INSERT INTO pagos_otro (
-<<<<<<< HEAD
-                        comprobante, ${chofer_cuil ? 'chofer_cuil' : 'cliente_cuit'}, fecha_pago, detalle, importe
-                    ) VALUES ($1, $2, $3, $4, $5) RETURNING comprobante AS id`,
-                    [
-                        pago.comprobante,
-                        chofer_cuil ? chofer_cuil : cliente_cuit,
-=======
                         comprobante, chofer_cuil, cliente_cuit, proveedor_cuit, fecha_pago, detalle, importe
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING comprobante AS id`,
                     [
@@ -188,7 +156,6 @@ exports.insertPagos = async (req, res) => {
                         chofer_cuil,
                         cliente_cuit,
                         proveedor_cuit,
->>>>>>> origin/InProgress_VyP
                         pago.fecha_pago,
                         pago.detalle,
                         pago.importe
@@ -211,12 +178,8 @@ exports.insertPagos = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-<<<<<<< HEAD
-                    socket.emit('nuevoPago', { pagosArray: pagosArray, cuil: chofer_cuil, cuit: cliente_cuit });
-=======
                     console.log(proveedor_cuit);
-                    socket.emit('nuevoPago', {pagosArray: pagosArray, cuil: chofer_cuil , cuit: cliente_cuit, proveedor_cuit: proveedor_cuit});
->>>>>>> origin/InProgress_VyP
+                    socket.emit('nuevoPago', { pagosArray: pagosArray, cuil: chofer_cuil, cuit: cliente_cuit, proveedor_cuit: proveedor_cuit });
                 }
             });
         } catch (error) {
@@ -269,23 +232,16 @@ exports.getPagosCheque = async (req, res) => {
     }
     try {
 
-<<<<<<< HEAD
-        let query = `
-=======
         let query;
-        if (choferCuil){
+        if (choferCuil) {
             query = `   
->>>>>>> origin/InProgress_VyP
             SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
                    fecha_cheque, tercero, destinatario, nombre_apellido AS nombre, importe
             FROM pagos_cheque c
             INNER JOIN usuario u ON c.chofer_cuil = u.cuil
-<<<<<<< HEAD
-            WHERE c.valid = true ${choferCuil ? 'AND c.fecha_pago <= CURRENT_DATE' : ''}`;
-=======
             WHERE c.valid = true AND c.fecha_pago <= CURRENT_DATE `;
         } else {
-            query =`   
+            query = `   
             SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
                    fecha_cheque, tercero, destinatario, COALESCE(nombre_apellido, razon_social) AS nombre, importe
             FROM pagos_cheque c
@@ -293,8 +249,7 @@ exports.getPagosCheque = async (req, res) => {
             LEFT JOIN (SELECT razon_social, cuit FROM proveedor WHERE valid = true) p ON c.proveedor_cuit = p.cuit 
             WHERE c.valid = true `;
         }
-        
->>>>>>> origin/InProgress_VyP
+
         const params = [];
         let conditions = [];
 
@@ -310,13 +265,6 @@ exports.getPagosCheque = async (req, res) => {
             query += ` AND ${conditions.join(' AND ')} AND cliente_cuit IS NULL
             `;
         }
-<<<<<<< HEAD
-        query += ` ORDER BY fecha_cheque ASC
-        `;
-
-        if (pagado && cantidad) {
-            query += `LIMIT $${params.length + 1}`;
-=======
         console.log(pagado);
         if (pagado) {
             query += ` ORDER BY fecha_cheque DESC, nro_cheque DESC
@@ -326,11 +274,10 @@ exports.getPagosCheque = async (req, res) => {
             `;
         }
 
-        
-        
-        if (pagado && cantidad){
-            query+= `LIMIT $${params.length + 1}`;
->>>>>>> origin/InProgress_VyP
+
+
+        if (pagado && cantidad) {
+            query += `LIMIT $${params.length + 1}`;
             params.push(cantidad);
         }
         const result = await pool.query(query, params);
@@ -486,7 +433,7 @@ exports.getOrdenesProveedor = async (req, res) => {
         }
 
         const result = await client.query(query, params);
-        res.status(200).json({ordenes: result.rows});
+        res.status(200).json({ ordenes: result.rows });
     } catch (error) {
         console.error('Error en getOrdenesProveedor:', error);
         res.status(500).json({ message: 'Error interno del servidor al obtener las ordenes de gasoil.' });
@@ -500,10 +447,10 @@ exports.getPagosProveedor = async (req, res) => {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
-    const { cuit, cantidad} = req.query;
+    const { cuit, cantidad } = req.query;
 
-    if (!cuit || !cantidad || cuit === "null" || cantidad === "null" || cuit === "undefined" || cantidad === "undefined"){
-        return res.status(405).json({message: "No se reconocieron los datos para obtener los pagos del proveedor"});
+    if (!cuit || !cantidad || cuit === "null" || cantidad === "null" || cuit === "undefined" || cantidad === "undefined") {
+        return res.status(405).json({ message: "No se reconocieron los datos para obtener los pagos del proveedor" });
     }
 
     try {
@@ -524,10 +471,10 @@ exports.pagarOrdenesProveedor = async (req, res) => {
     const ordenes = req.body;
 
     if (ordenes && ordenes.length === 0)
-        return res.status(406).json({ message: "No se obtuvieron las ordenes de gasoil para marcar como pagadas"});
+        return res.status(406).json({ message: "No se obtuvieron las ordenes de gasoil para marcar como pagadas" });
 
     try {
-        client =  await pool.connect();
+        client = await pool.connect();
         await client.query('BEGIN');
 
         const ordenesPagadas = [];
@@ -580,10 +527,10 @@ exports.pagarOrdenesProveedor = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('updatePagadasProveedor', {cuit: cuit, ordenesPagadas: ordenesPagadas});
+                    socket.emit('updatePagadasProveedor', { cuit: cuit, ordenesPagadas: ordenesPagadas });
                 }
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error al sincronizar los datos en pagarOrdenesProveedor", error.stack);
         }
 
@@ -853,13 +800,8 @@ exports.deletePago = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-<<<<<<< HEAD
-                    socket.emit('deletePago', { id: id.trim(), tipo: type.trim(), cuil: responseExists.rows[0].chofer_cuil, cuit: type.toLowerCase() === "cheque" ? responseExists.rows[0].cliente_cuit : null });
+                    socket.emit('deletePago', { id: id.trim(), tipo: type.trim(), cuil: responseExists.rows[0].chofer_cuil, cuit: type.toLowerCase() === "cheque" ? responseExists.rows[0].cliente_cuit : null, proveedor_cuit: responseExists.rows[0].proveedor_cuit });
                     socket.emit('deletePagoCliente', { id: id.trim(), cuit: type.toLowerCase() !== "gasoil" ? responseExists.rows[0].cliente_cuit : null, tipo: type.trim() });
-=======
-                    socket.emit('deletePago', {id: id.trim(), tipo: type.trim(), cuil: responseExists.rows[0].chofer_cuil, cuit: type.toLowerCase() === "cheque"? responseExists.rows[0].cliente_cuit : null, proveedor_cuit: responseExists.rows[0].proveedor_cuit});
-                    socket.emit('deletePagoCliente', {id: id.trim(), cuit: type.toLowerCase() !== "gasoil" ? responseExists.rows[0].cliente_cuit : null, tipo: type.trim()});
->>>>>>> origin/InProgress_VyP
                 }
             });
         } catch (error) {
@@ -871,10 +813,6 @@ exports.deletePago = async (req, res) => {
         if (client) await client.query('ROLLBACK');
         if (client) client.release();
         console.error('Error en deletePago: ', error.message, error.stack);
-<<<<<<< HEAD
         res.status(500).json({ message: error.routine.includes('raise') ? 'Error: ' + error.message : 'Ocurrio un error al intentar eliminar el pago' });
-=======
-        res.status(500).json({message: error.routine.includes('raise')? 'Error: ' + error.message : 'Ocurrio un error al intentar eliminar el pago'});
->>>>>>> origin/InProgress_VyP
     }
 };

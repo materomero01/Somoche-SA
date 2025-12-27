@@ -52,7 +52,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     }
 
     modal = document.createElement('div');
-    modal.id = viaje.length > 0? 'documentUploadModal' : 'documentUploadBoxModal';
+    modal.id = viaje.length > 0 ? 'documentUploadModal' : 'documentUploadBoxModal';
     modal.className = 'modal';
     modal.classList.add('active');
 
@@ -94,24 +94,9 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     // Check if documents already exist for the viaje
     await updateViajeStatus();
 
-<<<<<<< HEAD
-    if (viaje.length > 0 && !cartaPorteFunc && !deleteFunc) {
-        facturaExists = viaje[0].factura_id ? true : false;
-        cartaPorteExists = viaje[0].carta_porte;
-
-        cartaPorteDropArea.remove();
-        deleteCartaPorteBtn.remove();
-        deleteFacturaBtn.remove();
-        toggleCartaPorteDropbox.remove();
-
-        downloadFacturaBtn.disabled = facturaExists ? false : true;
-        cartaPorteActions.style.display = 'flex';
-        downloadCartaPorteBtn.disabled = cartaPorteExists ? false : true;
-
-=======
-    if (viaje.length > 0){
-        if (!cartaPorteFunc){
-            if (tableType === 'ordenProveedor'){
+    if (viaje.length > 0) {
+        if (!cartaPorteFunc) {
+            if (tableType === 'ordenProveedor') {
                 document.getElementById('cartaPorteSection').remove();
                 document.getElementById('section-divider').remove();
                 document.getElementById('headerDocuments').textContent = "Documentos de la Orden";
@@ -121,15 +106,14 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
                 deleteCartaPorteBtn.remove();
                 toggleCartaPorteDropbox.remove();
                 cartaPorteActions.style.display = 'flex';
-                downloadCartaPorteBtn.disabled = cartaPorteExists? false : true;
+                downloadCartaPorteBtn.disabled = cartaPorteExists ? false : true;
             }
         }
         if (!deleteFunc) {
             facturaExists = viaje[0].factura_id ? true : false;
-            downloadFacturaBtn.disabled = facturaExists? false : true;
+            downloadFacturaBtn.disabled = facturaExists ? false : true;
             deleteFacturaBtn.remove();
         }
->>>>>>> origin/InProgress_VyP
     }
 
     // Handle file selection for factura
@@ -228,11 +212,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
                 if (selectedRows.length === 0 && viaje.length > 0) {
                     selectedRows.push(viaje[0].comprobante);
                 }
-<<<<<<< HEAD
                 const facturaResponse = await uploadFactura(viaje.length === 0 && tableType === "viajeCliente" ? selectedRows.map(r => r.comprobante) : selectedRows, facturaFile, localStorage.getItem('userCuil'), tableType);
-=======
-                const facturaResponse = await uploadFactura(viaje.length === 0 && tableType === "viajeCliente"? selectedRows.map( r =>  r.comprobante) : selectedRows, facturaFile, localStorage.getItem('userCuil'), tableType);
->>>>>>> origin/InProgress_VyP
                 const facturaData = await facturaResponse.json();
                 if (!facturaResponse.ok) throw new Error(facturaData.message);
                 facturaId = facturaData.facturaId;
@@ -243,11 +223,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
             }
 
             if (facturaId) {
-<<<<<<< HEAD
                 await changeDataFactura(facturaId, viaje.length > 0 && tableType === "viajeCliente" ? viaje : selectedRows);
-=======
-                await changeDataFactura(facturaId, viaje.length > 0 && tableType === "viajeCliente"? viaje : selectedRows);
->>>>>>> origin/InProgress_VyP
                 if (viaje.length > 0) {
                     viaje[0].factura_id = facturaId; // Actualiza el viaje actual
                 }

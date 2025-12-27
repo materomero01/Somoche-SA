@@ -23,11 +23,7 @@ const principalContent = document.getElementById('principalContent');
 const choferesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido', class: [] },
     { key: 'cuil', label: 'CUIL/CUIT', class: [] },
-<<<<<<< HEAD
     { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{ value: 'Monotributista', text: 'Monotributista' }, { value: 'Responsable Inscripto', text: 'Responsable Inscripto' }, { value: 'Chofer', text: 'Chofer' }] },
-=======
-    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{value: 'Monotributista', text:'Monotributista'} , {value: 'Responsable Inscripto', text: 'Responsable Inscripto'}, {value: 'Chofer', text: 'Chofer'}] },
->>>>>>> origin/InProgress_VyP
     { key: 'patente_chasis', label: 'Chasis', class: [] },
     { key: 'patente_acoplado', label: 'Acoplado', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
@@ -37,19 +33,15 @@ const choferesColumns = [
 const clientesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
-<<<<<<< HEAD
-    { key: 'email', label: 'Email', class: [] }
-=======
-    { key: 'email', label: 'Email', class: []},
-    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$');}}
+    { key: 'email', label: 'Email', class: [] },
+    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$'); } }
 ];
 
 const proveedoresColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
-    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$');}}
->>>>>>> origin/InProgress_VyP
+    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$'); } }
 ];
 
 // --- Acciones para las tablas ---
@@ -60,8 +52,8 @@ const choferesActions = [
         classList: ['edit-btn'],
         id: null,
         handler: (rowData) => {
-            enterEditMode(rowData, 'choferes', () => renderTables(mockChoferes, currentChoferesPage, optionsChoferes), 
-            async (payload) => await saveEditLists(payload, getCurrentData, () => updateChofer(originalEditingData.cuil, payload)));
+            enterEditMode(rowData, 'choferes', () => renderTables(mockChoferes, currentChoferesPage, optionsChoferes),
+                async (payload) => await saveEditLists(payload, getCurrentData, () => updateChofer(originalEditingData.cuil, payload)));
         }
     },
     {
@@ -70,7 +62,7 @@ const choferesActions = [
         id: null,
         classList: ['delete-btn'],
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al chofer ${rowData.nombre}?`, "delete", 
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al chofer ${rowData.nombre}?`, "delete",
                 () => handleDelete(rowData.cuil, 'choferes', (cuil) => deleteChofer(cuil)));
         }
     },
@@ -109,8 +101,8 @@ const clientesActions = [
         classList: ['edit-btn'],
         id: null,
         handler: (rowData) => {
-            enterEditMode(rowData, 'clientes', () => renderTables(mockClientes, currentClientesPage, optionsClientes), 
-            async (payload) => await saveEditLists(payload, getCurrentData, () => updateCliente(originalEditingData.cuit, payload)));
+            enterEditMode(rowData, 'clientes', () => renderTables(mockClientes, currentClientesPage, optionsClientes),
+                async (payload) => await saveEditLists(payload, getCurrentData, () => updateCliente(originalEditingData.cuit, payload)));
         }
     },
     {
@@ -119,7 +111,7 @@ const clientesActions = [
         classList: ['delete-btn'],
         id: null,
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al cliente ${rowData.nombre}?`, "delete", 
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al cliente ${rowData.nombre}?`, "delete",
                 () => handleDelete(rowData.cuit, 'clientes', (cuil) => deleteCliente(cuil)));
         }
     },
@@ -158,8 +150,8 @@ const proveedoresActions = [
         classList: ['edit-btn'],
         id: null,
         handler: (rowData) => {
-            enterEditMode(rowData, 'proveedores', () => renderTables(mockProveedores, currentProveedoresPage, optionsProveedores), 
-            async (payload) => await saveEditLists(payload, getCurrentData, () => updateProveedor(originalEditingData.cuit, payload)));
+            enterEditMode(rowData, 'proveedores', () => renderTables(mockProveedores, currentProveedoresPage, optionsProveedores),
+                async (payload) => await saveEditLists(payload, getCurrentData, () => updateProveedor(originalEditingData.cuit, payload)));
         }
     },
     {
@@ -168,7 +160,7 @@ const proveedoresActions = [
         id: null,
         classList: ['delete-btn'],
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al proveedor ${rowData.nombre}?`, "delete", 
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al proveedor ${rowData.nombre}?`, "delete",
                 () => handleDelete(rowData.cuit, 'proveedores', (cuil) => deleteProveedor(cuil)));
         }
     },
@@ -200,8 +192,8 @@ const optionsProveedores = {
     useScrollable: false
 }
 
-function getCurrentData(){
-    switch (currentEditingTable){
+function getCurrentData() {
+    switch (currentEditingTable) {
         case 'choferes':
             return mockChoferes;
         case 'clientes':
@@ -213,8 +205,8 @@ function getCurrentData(){
     }
 }
 
-export function renderCurrentTable(){
-    switch (currentEditingTable){
+export function renderCurrentTable() {
+    switch (currentEditingTable) {
         case 'choferes':
             return renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
         case 'clientes':
@@ -226,7 +218,7 @@ export function renderCurrentTable(){
     }
 }
 
-async function saveEditLists(payload, currentDataFunc = () => {}, saveEditFunc = () => {}) {
+async function saveEditLists(payload, currentDataFunc = () => { }, saveEditFunc = () => { }) {
     const currentData = currentDataFunc();
     const index = currentData.findIndex(c => c.id === editingRowId);
     const response = await saveEditFunc();
@@ -280,33 +272,8 @@ async function setupChoferesClientesTabSelector() {
 }
 
 async function verViajesModal(choferData, tipo) {
-<<<<<<< HEAD
-    if (tipo === "chofer") {
-        const modalViajesPagos = document.getElementById("viajesPagosModal");
-        if (modalViajesPagos) {
-            try {
-                const response = await fetch('viajes-pagos.html');
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
-                }
-                const viajesPagosHtml = await response.text();
-                modalViajesPagos.innerHTML = viajesPagosHtml;
-                modalViajesPagos.classList.toggle("active");
-                inicializarModal(choferData);
-            } catch (error) {
-                console.log(error.message);
-            }
-        }
-    } else if (tipo === "cliente") {
-        const modalViajesClientes = document.getElementById("viajesClientesModal");
-        if (modalViajesClientes) {
-            try {
-                const response = await fetch('viajes-clientes.html');
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
-=======
     try {
-        switch (tipo){
+        switch (tipo) {
             case 'chofer':
                 const modalViajesPagos = document.getElementById("viajesPagosModal");
                 if (modalViajesPagos) {
@@ -339,7 +306,6 @@ async function verViajesModal(choferData, tipo) {
                     } catch (error) {
                         console.log(error.message);
                     }
->>>>>>> origin/InProgress_VyP
                 }
                 break;
             case 'proveedor':
@@ -361,7 +327,7 @@ async function verViajesModal(choferData, tipo) {
                 break;
             default:
         }
-    } catch (error){
+    } catch (error) {
         console.error("Ocurrio un error al cargar los viajes. ", error.message);
         showConfirmModal("Ocurrio un error al cargar los datos");
     }
@@ -380,27 +346,13 @@ async function handleTabContentDisplay(selectedTab) {
             c.balance = parseImporte(c.balance);
         });
     }
-<<<<<<< HEAD
-    if (selectedTab === 'choferes') {
-        choferesContent.classList.remove('hidden');
-        clientesContent.classList.add('hidden');
-
-        renderChoferesTable(mockChoferes, currentChoferesPage);
-        currentEditingTableType = 'choferes';
-    } else if (selectedTab === 'clientes') {
-        choferesContent.classList.add('hidden');
-        clientesContent.classList.remove('hidden');
-        renderClientesTable(mockClientes, currentClientesPage);
-        currentEditingTableType = 'clientes';
-=======
     if (mockProveedores?.length === 0) {
         mockProveedores = await fetchProveedores();
         mockProveedores.forEach(c => {
             c.balance = parseImporte(c.balance);
         });
->>>>>>> origin/InProgress_VyP
     }
-    switch (selectedTab){
+    switch (selectedTab) {
         case 'choferes':
             choferesContent.classList.remove('hidden');
             clientesContent.classList.add('hidden');
@@ -443,7 +395,7 @@ export function setupSearchBar(searchBarId, filterFunc, renderFunc) {
             let filteredData = [];
             filteredData = filterFunc(searchTerm);
             renderFunc(filteredData);
-            }
+        }
 
         searchIcon.addEventListener('click', performSearch);
         searchInput.addEventListener('input', performSearch);
@@ -535,23 +487,17 @@ function setupAddButtons() {
             });
             if (!valid) { return showConfirmModal('Por favor completá los campos obligatorios.'); }
             const payload = {
-<<<<<<< HEAD
-                cuit: cuit,
-                nombre: nombre,
-                email: email !== '' ? email : null
-=======
                 cuit: clienteData.cuit,
                 nombre: clienteData.nombre,
-                email: clienteData.email !== ''? clienteData.email : null
->>>>>>> origin/InProgress_VyP
+                email: clienteData.email !== '' ? clienteData.email : null
             };
             const response = await insertCliente(payload);
             if (response.ok) {
                 const data = await response.json();
                 const nuevoCliente = {
                     id: payload.cuit,
-                    balance: data.balance? data.balance : 0,
-                    ... payload
+                    balance: data.balance ? data.balance : 0,
+                    ...payload
                 };
                 mockClientes.push(nuevoCliente);
                 renderTables(mockClientes, currentClientesPage, optionsClientes);
@@ -597,14 +543,14 @@ function setupAddButtons() {
                 const data = await response.json();
                 const nuevoProveedor = {
                     id: payload.cuit,
-                    balance: data.balance? data.balance : 0,
-                    ... payload
+                    balance: data.balance ? data.balance : 0,
+                    ...payload
                 };
                 mockProveedores.push(nuevoProveedor);
                 renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
                 formProveedor.reset();
                 formCardProveedor.classList.add('hidden');
-                
+
                 showConfirmModal(data.message);
             } else {
                 const dataError = await response.json();
@@ -614,149 +560,11 @@ function setupAddButtons() {
     }
 }
 
-<<<<<<< HEAD
-// --- Lógica de Edición ---
-export function enterEditMode(rowData, tableType) {
-    if (editingRowId !== null && editingRowId !== rowData.id) {
-        if (hasChanges(originalEditingData, stagedEditingData)) {
-            showConfirmModal(
-                "Hay cambios sin guardar en la fila actual. ¿Deseas guardarlos antes de editar otra?",
-                "confirm",
-                async () => {
-                    await handleSaveEdit();
-                    setTimeout(() => enterEditMode(rowData, tableType), 100);
-                },
-                () => {
-                    resetEditingState();
-                    enterEditMode(rowData, tableType);
-                }
-            );
-            return;
-        } else {
-            resetEditingState();
-        }
-    }
-
-    if (editingRowId === rowData.id) {
-        if (hasChanges(originalEditingData, stagedEditingData)) {
-            showConfirmModal(
-                "Hay cambios sin guardar. ¿Deseas guardarlos o descartarlos?",
-                "confirm",
-                handleSaveEdit,
-                handleCancelEdit
-            );
-        } else {
-            exitEditMode();
-        }
-        return;
-    }
-
-    originalEditingData = JSON.parse(JSON.stringify(rowData));
-    stagedEditingData = JSON.parse(JSON.stringify(rowData));
-    editingRowId = rowData.id;
-    currentEditingTableType = tableType;
-
-    renderCurrentTable();
-}
-
-export function handleEdit(id, field, value, tableType) {
-    if (id === editingRowId && tableType === currentEditingTableType) {
-        stagedEditingData[field] = value;
-        // Lógica específica para actualizar tarifa cuando se cambia km en la tabla de viajes
-        if ((tableType === 'viajes' || tableType === 'viajesCliente') && field === 'km') {
-            const currentKm = parseInt(value.trim(), 10);
-            const tarifaCatacCalculada = (!isNaN(currentKm) && currentKm > 0 && currentKm <= tarifasCatac.length && tarifasCatac[currentKm - 1]?.valor !== undefined)
-                ? parseImporte(tarifasCatac[currentKm - 1].valor)
-                : parseImporte(tarifasCatac[tarifasCatac.length - 1]?.valor) || 0;
-            stagedEditingData['tarifa'] = tarifaCatacCalculada;
-            //console.log(`Tarifa actualizada a ${tarifaCatacCalculada} para km ${value}`);
-
-            // Actualizar el input de tarifa en el DOM
-            const tarifaInput = document.getElementById('tarifaEdit');
-            if (tarifaInput) {
-                tarifaInput.value = tarifaCatacCalculada;
-            }
-        }
-    }
-}
-
-export function hasChanges(originalData, stagedData) {
-    Object.keys(stagedData).forEach(key => {
-        stagedData[key] = stagedData[key] === '' ? null : stagedData[key];
-    });
-    return JSON.stringify(originalData) !== JSON.stringify(stagedData);
-}
-
-export async function handleSaveEdit() {
-    if (!hasChanges(originalEditingData, stagedEditingData)) {
-        exitEditMode();
-        return;
-    }
-
-    try {
-        if (currentEditingTableType === 'choferes') {
-            const index = mockChoferes.findIndex(c => c.id === editingRowId);
-            const payload = {
-                nombre: stagedEditingData.nombre || null,
-                cuil: stagedEditingData.cuil || null,
-                trabajador: stagedEditingData.trabajador || null,
-                patente_chasis: stagedEditingData.patente_chasis?.toUpperCase() || null,
-                patente_acoplado: stagedEditingData.patente_acoplado?.toUpperCase() || null,
-                telefono: stagedEditingData.telefono || null,
-                email: stagedEditingData.email || null
-            };
-            const response = await updateChofer(originalEditingData.cuil, payload);
-            if (response && index !== -1) {
-                mockChoferes[index] = { ...mockChoferes[index], ...stagedEditingData };
-                showConfirmModal('Cambios guardados para el chofer.');
-            }
-        } else if (currentEditingTableType === 'clientes') {
-            const index = mockClientes.findIndex(c => c.id === editingRowId);
-            const payload = {
-                cuit: stagedEditingData.cuit || null,
-                nombre: stagedEditingData.nombre || null,
-                email: stagedEditingData.email || null
-            };
-            const response = await updateCliente(originalEditingData.cuit, payload);
-            if (response && index !== -1) {
-                mockClientes[index] = { ...mockClientes[index], ...stagedEditingData };
-                showConfirmModal('Cambios guardados para el cliente.');
-            }
-        } else if (currentEditingTableType === 'viajes') {
-            await handleSaveEditViajes();
-        } else if (currentEditingTableType === 'viajesCliente') {
-            await handleSaveEditViajesCliente();
-        }
-    } catch (error) {
-        console.error('Error al guardar cambios:', error);
-    }
-
-    exitEditMode();
-}
-
-export function handleCancelEdit() {
-    //console.log('Cancelando edición');
-    exitEditMode();
-}
-
-export function exitEditMode() {
-    resetEditingState();
-    renderCurrentTable();
-}
-
-export function resetEditingState() {
-    editingRowId = null;
-    originalEditingData = {};
-    stagedEditingData = {};
-}
-
-=======
->>>>>>> origin/InProgress_VyP
 // --- Lógica de Eliminación ---
-async function handleDelete(cuil, tableType, deleteFunc = () => {}) {
+async function handleDelete(cuil, tableType, deleteFunc = () => { }) {
     try {
         const response = await deleteFunc(cuil);
-        if (response){
+        if (response) {
             const currentData = getCurrentData();
             console.log(currentData);
             const index = currentData.findIndex(data => data.id === cuil);
@@ -764,7 +572,7 @@ async function handleDelete(cuil, tableType, deleteFunc = () => {}) {
             const totalItemsAfter = currentData.length;
             const itemsPerPage = 10;
             const maxPage = Math.ceil(totalItemsAfter / itemsPerPage) || 1;
-            switch (tableType){
+            switch (tableType) {
                 case 'choferes':
                     if (currentChoferesPage > maxPage) currentChoferesPage = maxPage;
                     renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
@@ -783,7 +591,7 @@ async function handleDelete(cuil, tableType, deleteFunc = () => {}) {
                     break;
             }
         }
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 
@@ -830,32 +638,35 @@ document.addEventListener('DOMContentLoaded', async function () {
     setupTableEventListeners();
     await setupChoferesClientesTabSelector();
     setupSearchBar('choferesSearchBar',
-        (searchTerm) => { currentChoferesPage = 1;
-                        return mockChoferes.filter(chofer =>
-                            chofer.nombre?.toLowerCase().includes(searchTerm) ||
-                            chofer.cuil?.toLowerCase().includes(searchTerm) ||
-                            chofer.patente_chasis?.toLowerCase().includes(searchTerm) ||
-                            chofer.patente_acoplado?.toLowerCase().includes(searchTerm)
-                        );
-                    },
+        (searchTerm) => {
+            currentChoferesPage = 1;
+            return mockChoferes.filter(chofer =>
+                chofer.nombre?.toLowerCase().includes(searchTerm) ||
+                chofer.cuil?.toLowerCase().includes(searchTerm) ||
+                chofer.patente_chasis?.toLowerCase().includes(searchTerm) ||
+                chofer.patente_acoplado?.toLowerCase().includes(searchTerm)
+            );
+        },
         (filteredData) => renderTables(filteredData, 1, optionsChoferes)
     );
     setupSearchBar('clientesSearchBar',
-        (searchTerm) => {currentClientesPage = 1;
-                    return mockClientes.filter(cliente =>
-                        cliente.nombre.toLowerCase().includes(searchTerm) ||
-                        cliente.cuit.toLowerCase().includes(searchTerm)
-                    );
-                },
+        (searchTerm) => {
+            currentClientesPage = 1;
+            return mockClientes.filter(cliente =>
+                cliente.nombre.toLowerCase().includes(searchTerm) ||
+                cliente.cuit.toLowerCase().includes(searchTerm)
+            );
+        },
         (filteredData) => renderTables(filteredData, 1, optionsClientes)
     );
-    setupSearchBar('proveedoresSearchBar', 
-        (searchTerm) => { currentProveedoresPage = 1;
-                    return mockProveedores.filter(proveedor => 
-                        proveedor.nombre.toLowerCase().includes(searchTerm) || 
-                        proveedor.cuit.toLowerCase().includes(searchTerm)
-                    );
-                },
+    setupSearchBar('proveedoresSearchBar',
+        (searchTerm) => {
+            currentProveedoresPage = 1;
+            return mockProveedores.filter(proveedor =>
+                proveedor.nombre.toLowerCase().includes(searchTerm) ||
+                proveedor.cuit.toLowerCase().includes(searchTerm)
+            );
+        },
         (filteredData) => renderTables(filteredData, 1, optionsProveedores)
     );
     setupAddButtons();
@@ -877,12 +688,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             //console.log(`Chofer con cuil ${user.cuilOriginal} modificado`);
             Object.assign(chofer, updatedData);
             if (currentEditingTableType === "choferes" && editingRowId) {
-<<<<<<< HEAD
                 if (editingRowId === user.cuilOriginal) {
-                    Object.assign(chofer, updatedData);
-=======
-                if (editingRowId === user.cuilOriginal){
->>>>>>> origin/InProgress_VyP
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
@@ -891,58 +697,35 @@ document.addEventListener('DOMContentLoaded', async function () {
                     changeSpinnerText(principalContent);
                     showConfirmModal("Se han actualizado los datos");
                 }
-<<<<<<< HEAD
-                Object.assign(chofer, updatedData);
-                return;
-            }
-            Object.assign(chofer, updatedData);
-            renderChoferesTable(mockChoferes, currentChoferesPage);
-=======
                 return;
             }
             renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
->>>>>>> origin/InProgress_VyP
         }
     });
 
     socket.on('deleteUsuario', async (user) => {
         const chofer = mockChoferes.find(chofer => chofer.cuil === user.cuil);
         mockChoferes = mockChoferes.filter(chofer => chofer.cuil !== user.cuil);
-<<<<<<< HEAD
         if (currentEditingTableType === "choferes" && editingRowId) {
             if (chofer.id === editingRowId) {
                 resetEditingState();
                 changeSpinnerText(principalContent, "Actualizando datos...");
                 toggleSpinnerVisible(principalContent);
-                await renderChoferesTable(mockChoferes, currentChoferesPage);
+                await renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
                 toggleSpinnerVisible(principalContent);
                 changeSpinnerText(principalContent);
                 showConfirmModal("Se han actualizado los datos");
             }
             return;
         }
-        renderChoferesTable(mockChoferes, currentChoferesPage);
-=======
-        if (currentEditingTableType === "choferes" && editingRowId){
-            if (chofer.id === editingRowId){
-                    resetEditingState();
-                    changeSpinnerText(principalContent, "Actualizando datos...");
-                    toggleSpinnerVisible(principalContent);
-                    await renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
-                    toggleSpinnerVisible(principalContent);
-                    changeSpinnerText(principalContent);
-                    showConfirmModal("Se han actualizado los datos");
-                }
-                return;
-            }
         renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
     });
 
     socket.on('balanceUpdatedCliente', async (data) => {
-        console.log("Balance cliente "+ data.cuit +" actualizado.");
-        const client = mockClientes.find( client => client.cuit === data.cuit);
-        if (client){
-            if (client.cuit !== getClienteCuit()) 
+        console.log("Balance cliente " + data.cuit + " actualizado.");
+        const client = mockClientes.find(client => client.cuit === data.cuit);
+        if (client) {
+            if (client.cuit !== getClienteCuit())
                 client.balance = data.balance;
             else
                 return;
@@ -958,12 +741,12 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     socket.on('balanceUpdatedProveedor', async (data) => {
-        console.log("Balance proveedor "+ data.cuit +" actualizado.");
-        const proveedor = mockProveedores.find( proveedor => proveedor.cuit === data.cuit);
-        if (proveedor){
-            if (proveedor.cuit !== getProveedorCuit()) 
+        console.log("Balance proveedor " + data.cuit + " actualizado.");
+        const proveedor = mockProveedores.find(proveedor => proveedor.cuit === data.cuit);
+        if (proveedor) {
+            if (proveedor.cuit !== getProveedorCuit())
                 proveedor.balance = data.balance;
-            else 
+            else
                 return;
             if (currentEditingTableType === "proveedores" && editingRowId)
                 if (editingRowId === proveedor.cuit) {
@@ -973,7 +756,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                     return;
             renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
         }
->>>>>>> origin/InProgress_VyP
     });
 
     socket.on('nuevoCliente', async (client) => {
@@ -986,19 +768,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateCliente', async (client) => {
         let cliente = mockClientes.find(cliente => cliente.cuit === client.cuitOriginal);
         const updatedData = client.updatedData;
-<<<<<<< HEAD
         if (cliente) {
-            //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
-            if (currentEditingTableType === "clientes" && editingRowId) {
-                if (editingRowId === client.cuitOriginal) {
-                    Object.assign(cliente, updatedData);
-=======
-        if (cliente){
             Object.assign(cliente, updatedData);
             //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
             if (currentEditingTableType === "clientes" && editingRowId) {
-                if (editingRowId === client.cuitOriginal){
->>>>>>> origin/InProgress_VyP
+                if (editingRowId === client.cuitOriginal) {
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
@@ -1042,8 +816,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.log(proveedor);
         const proveedorData = mockProveedores.find(p => p.cuit === proveedor.cuit);
         mockProveedores = mockProveedores.filter(p => p.cuit !== proveedor.cuit);
-        if (currentEditingTableType === "proveedores" && editingRowId){
-            if (proveedorData.id === editingRowId){
+        if (currentEditingTableType === "proveedores" && editingRowId) {
+            if (proveedorData.id === editingRowId) {
                 resetEditingState();
                 changeSpinnerText(principalContent, "Actualizando datos...");
                 toggleSpinnerVisible(principalContent);
@@ -1060,11 +834,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateProveedor', async (proveedor) => {
         let proveedorData = mockProveedores.find(p => p.cuit === proveedor.cuitOriginal);
         const updatedData = proveedor.updatedData;
-        if (proveedorData){
+        if (proveedorData) {
             //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
             Object.assign(proveedorData, updatedData);
             if (currentEditingTableType === "proveedores" && editingRowId) {
-                if (editingRowId === proveedor.cuitOriginal){
+                if (editingRowId === proveedor.cuitOriginal) {
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);

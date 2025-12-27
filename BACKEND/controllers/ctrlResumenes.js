@@ -23,13 +23,9 @@ exports.insertResumen = async (req, res) => {
         const groupStamp = req.body.groupStamp;
         const pagos = req.body.pagos;
         const viajes = req.body.viajes;
-<<<<<<< HEAD
-
-=======
         const iva = req.body.iva === 'Responsable Inscripto';
-        
-        
->>>>>>> origin/InProgress_VyP
+
+
         if (!groupStamp || !viajes)
             return res.status(405).json({ message: 'Faltan datos ensenciales para cerrar el resumen' });
 

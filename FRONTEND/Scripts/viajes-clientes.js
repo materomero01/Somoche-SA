@@ -1,5 +1,5 @@
 import { cargarNombreChofer, deleteModal, cartaPorteFunc, deleteFactura, setupPaymentTypeSelector, validateInputs } from "./viajes-pagos.js";
-import { mockChoferes, mockProveedores, renderCurrentTable, setupSearchBar} from "./choferes-clientes.js";
+import { mockChoferes, mockProveedores, renderCurrentTable, setupSearchBar } from "./choferes-clientes.js";
 import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete } from "./api.js";
 import { changeSpinnerText, createLoadingSpinner, showConfirmModal, toggleSpinnerVisible } from "./apiPublic.js";
 import { renderTables, originalEditingData, resetEditingState, stagedEditingData, editingRowId, enterEditMode, handleEdit } from "./tabla.js";
@@ -33,20 +33,20 @@ const accionesViajes = [
         classList: ['edit-btn'],
         id: null,
         handler: (item) => {
-            enterEditMode({ ...item, clienteCuit: clienteData.cuit }, 'viajesCliente', 
+            enterEditMode({ ...item, clienteCuit: clienteData.cuit }, 'viajesCliente',
                 () => renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales), handleSaveEditViajesCliente);
         }
     },
     {
         icon: "bi bi-download",
-        tooltip:"Descargar archivos",
+        tooltip: "Descargar archivos",
         classList: ['navigate-btn'],
         id: null,
         handler: (item) => {
             viaje.push(item);
-            initializeFacturaUpload( changeDataFactura,
-                (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles,  changeDataDocuments),
-                (facturaId) => deleteFactura(facturaId, changeDataDocuments,  'viajeCliente'),
+            initializeFacturaUpload(changeDataFactura,
+                (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, changeDataDocuments),
+                (facturaId) => deleteFactura(facturaId, changeDataDocuments, 'viajeCliente'),
                 "viajeCliente");
         }
     },
@@ -57,16 +57,17 @@ const accionesViajes = [
         id: null,
         handler: (item, tr) => {
             showConfirmModal("¿Estás seguro de eliminar este viaje?", "delete", async () => {
-            const result = await deleteViaje(item.id);
-            if (result.ok) {
-                viajesAFacturarData = viajesAFacturarData.filter(v => v.id !== item.id);
-                renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
-                showConfirmModal("Viaje eliminado con éxito");
-            } else {
-                const data = await result.json();
-                showConfirmModal(`Error: ${data.message}`);
-            }
-        })}
+                const result = await deleteViaje(item.id);
+                if (result.ok) {
+                    viajesAFacturarData = viajesAFacturarData.filter(v => v.id !== item.id);
+                    renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
+                    showConfirmModal("Viaje eliminado con éxito");
+                } else {
+                    const data = await result.json();
+                    showConfirmModal(`Error: ${data.message}`);
+                }
+            })
+        }
     }
 ];
 
@@ -93,7 +94,7 @@ const checkboxHeaderAction = {
                 try {
                     const response = await pagarViajeCliente(viajesToMark);
                     const data = await response.json();
-                    if (response.ok){
+                    if (response.ok) {
                         // Update local data
                         viajesFacturadosData = viajesFacturadosData.map(v => {
                             if (selectedRows.some(selected => selected.comprobante === v.comprobante)) {
@@ -155,15 +156,15 @@ const checkboxHeaderActionGenerate = {
         generateFactura.onclick = () => {
             modal.classList.remove("active");
             showConfirmModal(
-            `¿Estás seguro de generar la factura para los  ${selectedRows.length} viaje(s) seleccionado(s)?`,
-            "confirm",
-            () => { 
+                `¿Estás seguro de generar la factura para los  ${selectedRows.length} viaje(s) seleccionado(s)?`,
+                "confirm",
+                () => {
                     modal.remove();
                     handleGenerateInvoice(selectedRows);
-            },
-            () => {
-                modal.classList.add("active");
-            }
+                },
+                () => {
+                    modal.classList.add("active");
+                }
             );
         };
 
@@ -175,10 +176,6 @@ const checkboxHeaderActionGenerate = {
         cancelBtn.onclick = () => {
             modal.remove();
         }
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/InProgress_VyP
     }
 }
 
@@ -191,11 +188,11 @@ const optionsGeneral = {
 }
 
 const optionsViajes = {
-    ... optionsGeneral,
+    ...optionsGeneral,
     columnas: [columnasViajes.filter(col => !["cargado", "descargado", "comision", "saldo"].includes(col.key)), columnasViajes.filter(col => !["faltante", "importe", "comision", "iva", "saldo"].includes(col.key))],
     itemsPorPagina: () => 8,
     actions: accionesViajes,
-    onEdit: (id, field, value) => handleEdit(id, field, value, 'viajesCliente', () => {return tarifasCatac}),
+    onEdit: (id, field, value) => handleEdit(id, field, value, 'viajesCliente', () => { return tarifasCatac }),
     tableType: 'viajesCliente',
     onPageChange: (page) => { currentViajesClientesPage = page; },
     checkboxColumn: true,
@@ -204,9 +201,9 @@ const optionsViajes = {
 };
 
 const optionsViajesFacturados = {
-    ... optionsGeneral,
+    ...optionsGeneral,
     columnas: [columnasViajes.filter(col => !["cargado", "descargado", "comision", "saldo"].includes(col.key))],
-    itemsPorPagina: () => pagosOpen? 3 : 8,
+    itemsPorPagina: () => pagosOpen ? 3 : 8,
     actions: [accionesViajes[1]],
     onEdit: null,
     tableType: 'viajesFacturados',
@@ -217,9 +214,9 @@ const optionsViajesFacturados = {
 };
 
 const optionsHistorial = {
-    ... optionsGeneral,
+    ...optionsGeneral,
     columnas: [columnasViajes.filter(col => !["cargado", "descargado", "comision", "saldo"].includes(col.key))],
-    itemsPorPagina: () => pagosOpen? 3 : 8,
+    itemsPorPagina: () => pagosOpen ? 3 : 8,
     actions: accionesViajes[1],
     onEdit: null,
     tableType: 'viajesCliente',
@@ -237,10 +234,10 @@ const accionesPagos = [
         classList: ['delete-btn'],
         id: null,
         handler: (item, tr) => {
-            showConfirmModal("¿Estás seguro de eliminar este pago?", "delete" , async () => {
+            showConfirmModal("¿Estás seguro de eliminar este pago?", "delete", async () => {
                 const response = await deletePago(item.id, item.tipo);
                 const data = await response.json();
-                if(!response.ok){
+                if (!response.ok) {
                     showConfirmModal(data.message);
                     return;
                 }
@@ -272,8 +269,8 @@ const optionsPagos = {
     useScrollable: true
 };
 
-function getCurrentData(){
-    switch (currentEditingTable){
+function getCurrentData() {
+    switch (currentEditingTable) {
         case "viajes":
             return viajesAFacturarData;
         case "viajesFacturados":
@@ -283,8 +280,8 @@ function getCurrentData(){
     }
 }
 
-function getCurrentOptions(){
-    switch (currentEditingTable){
+function getCurrentOptions() {
+    switch (currentEditingTable) {
         case "viajes":
             return optionsViajes;
         case "viajesFacturados":
@@ -294,34 +291,30 @@ function getCurrentOptions(){
     }
 }
 
-export function getClienteCuit(){
+export function getClienteCuit() {
     return clienteData.cuit;
 }
 
-function changeDataDocuments(){
-    switch (currentEditingTable){
+function changeDataDocuments() {
+    switch (currentEditingTable) {
         case 'historial':
-            if (viajesHistorialData.length > 0){
+            if (viajesHistorialData.length > 0) {
                 viajesHistorialData.forEach(v => {
-                    if (v.comprobante === viaje[0].comprobante){
+                    if (v.comprobante === viaje[0].comprobante) {
                         v.carta_porte = viaje[0].carta_porte;
-                        v.factura_id = viaje[0].factura_id? viaje[0].factura_id : null;
+                        v.factura_id = viaje[0].factura_id ? viaje[0].factura_id : null;
                     }
                 });
             }
             renderTables(viajesHistorialData, 1, optionsHistorial, actualizarTotales);
             break;
         case 'viajesFacturados':
-            if (viajesFacturadosData.length > 0){
+            if (viajesFacturadosData.length > 0) {
                 viajesFacturadosData = viajesFacturadosData.filter(v => {
-                    if (v.comprobante === viaje[0].comprobante){
+                    if (v.comprobante === viaje[0].comprobante) {
                         v.carta_porte = viaje[0].carta_porte;
-                        v.factura_id = viaje[0].factura_id? viaje[0].factura_id : null;
-                        clienteData.balance = parseFloat((parseImporte(clienteData.balance) + (viaje[0].factura_id? parseImporte(v.importe) + parseImporte(v.iva) : -(parseImporte(v.importe) + parseImporte(v.iva)))).toFixed(2));
-<<<<<<< HEAD
-                        console.log(clienteData.balance);
-=======
->>>>>>> origin/InProgress_VyP
+                        v.factura_id = viaje[0].factura_id ? viaje[0].factura_id : null;
+                        clienteData.balance = parseFloat((parseImporte(clienteData.balance) + (viaje[0].factura_id ? parseImporte(v.importe) + parseImporte(v.iva) : -(parseImporte(v.importe) + parseImporte(v.iva)))).toFixed(2));
                         return v.factura_id !== null;
                     }
                     return true;
@@ -332,25 +325,21 @@ function changeDataDocuments(){
     }
 }
 
-function changeDataFactura(facturaId, selectedRows){
+function changeDataFactura(facturaId, selectedRows) {
     if (!facturaId) {
         console.warn('No se recibió el facturaId en los encabezados');
     } else {
-        switch (currentEditingTable){
+        switch (currentEditingTable) {
             case "viajes":
                 clienteData.balance = parseImporte(clienteData.balance) + parseFloat(selectedRows.reduce((sum, viaje) => sum + (parseImporte(viaje.importe) + parseImporte(viaje.iva) || 0), 0).toFixed(2));
                 viajesAFacturarData = viajesAFacturarData.filter(v => !selectedRows.some(row => row.id === v.id));
-<<<<<<< HEAD
-                renderizarTablaVC(viajesAFacturarData, currentViajesClientesPage);
-=======
                 renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
                 renderCurrentTable();
->>>>>>> origin/InProgress_VyP
                 break;
             case "historial":
-                if (viajesHistorialData.length > 0){
+                if (viajesHistorialData.length > 0) {
                     viajesHistorialData.forEach(v => {
-                        if (v.comprobante === viaje[0].comprobante){
+                        if (v.comprobante === viaje[0].comprobante) {
                             v.factura_id = facturaId;
                         }
                     });
@@ -372,17 +361,17 @@ function actualizarTotales(viajes, tablesTab = currentEditingTable) {
     if (subtotalContainer)
         subtotalContainer.textContent = `Subtotal: $${subtotal.toFixed(2)}`;
     const ivaContainer = document.getElementById("iva")
-        ivaContainer.textContent = `IVA (21%): $${iva.toFixed(2)}`;
+    ivaContainer.textContent = `IVA (21%): $${iva.toFixed(2)}`;
     const totalViajesContainer = document.getElementById("total-viajes");
     if (totalViajesContainer)
         totalViajesContainer.textContent = `Total Viajes: $${totalViajes.toFixed(2)}`;
     const totalPagarContainer = document.getElementById("total-cobrar");
-    if (totalPagarContainer){
+    if (totalPagarContainer) {
         if (tablesTab === "historial")
             totalPagarContainer.classList.add('gray');
         else
             totalPagarContainer.classList.remove('gray');
-        totalPagarContainer.textContent = `Total a Cobrar: ${`${clienteData.balance}`.includes('$')? clienteData.balance : ('$' + clienteData.balance).replace('$-','-$')}`;
+        totalPagarContainer.textContent = `Total a Cobrar: ${`${clienteData.balance}`.includes('$') ? clienteData.balance : ('$' + clienteData.balance).replace('$-', '-$')}`;
     }
 }
 
@@ -396,7 +385,7 @@ async function handleSaveEditViajesCliente() {
             producto: stagedEditingData.producto || null,
             kilometros: parseInt(stagedEditingData.km) || null,
             tarifa: parseImporte(stagedEditingData.tarifa) || null,
-            variacion: parseFloat(stagedEditingData.variacion) > 1? parseFloat(stagedEditingData.variacion) /100 : parseFloat(stagedEditingData.variacion),
+            variacion: parseFloat(stagedEditingData.variacion) > 1 ? parseFloat(stagedEditingData.variacion) / 100 : parseFloat(stagedEditingData.variacion),
             toneladas: parseFloat(stagedEditingData.toneladas) || null,
             cargado: parseFloat(stagedEditingData.cargado) || null,
             descargado: parseFloat(stagedEditingData.descargado) || null,
@@ -436,7 +425,7 @@ async function handleSaveEditViajesCliente() {
         showConfirmModal('Los cambios se realizaron con exito.');
         const viajeIndex = viajesAFacturarData.findIndex(v => v.comprobante === comprobanteOriginal);
         if (viajeIndex !== -1)
-            viajesAFacturarData[viajeIndex] = parseViaje({...payload[comprobanteOriginal], factura_id: stagedEditingData.factura_id, carta_porte: stagedEditingData.carta_porte});
+            viajesAFacturarData[viajeIndex] = parseViaje({ ...payload[comprobanteOriginal], factura_id: stagedEditingData.factura_id, carta_porte: stagedEditingData.carta_porte });
     } else {
         const data = await response.json();
         showConfirmModal(data.message);
@@ -452,7 +441,7 @@ const setupAddPagoBtn = () => {
 
     const asignar = document.getElementById('tipoAsignarSelect');
     asignar?.addEventListener('change', () => {
-        switch (asignar.value){
+        switch (asignar.value) {
             case 'chofer':
                 document.getElementById('asignarChofer')?.classList.remove("hidden");
                 document.getElementById('asignarProveedor')?.classList.add("hidden");
@@ -466,7 +455,7 @@ const setupAddPagoBtn = () => {
                 document.getElementById('asignarProveedor')?.classList.add("hidden");
         }
     })
-    
+
     btn?.addEventListener('click', async () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPagoInput = document.getElementById('fechaPago')?.value;
@@ -535,11 +524,11 @@ const setupAddPagoBtn = () => {
                     }
                 };
 
-                if (!payload.pagos.comprobante){
+                if (!payload.pagos.comprobante) {
                     showConfirmModal('Ingrese el comprobante para el pago');
                     return;
                 }
-                
+
                 if (isNaN(payload.pagos.importe)) {
                     showConfirmModal(`El valor ingresado para el importe no es válido`);
                     return;
@@ -552,21 +541,15 @@ const setupAddPagoBtn = () => {
 
         try {
             const response = await addPagos(payload);
-            if (response.ok){
+            if (response.ok) {
                 const data = await response.json();
                 showConfirmModal(data.message);
-<<<<<<< HEAD
-                clienteData.balance = parseFloat((parseImporte(clienteData.balance) - parseImporte(payload.pagos.importe)).toFixed(2));
-                ultimosPagosCliente.push(parsePagos({id: data.pagoId.id, fecha_cheque: payload.pagos.fechaCheque, fecha_pago: payload.pagos.fechaPago, ...payload.pagos}));
-                renderPagosVC();
-=======
                 clienteData.balance = parseImporte(clienteData.balance) - parseFloat(parseImporte(payload.pagos.importe));
-                ultimosPagosCliente.push(parsePagos({id: data.pagoId.id, ...payload.pagos}));
+                ultimosPagosCliente.push(parsePagos({ id: data.pagoId.id, ...payload.pagos }));
                 renderTables(ultimosPagosCliente, 1, optionsPagos);
->>>>>>> origin/InProgress_VyP
                 actualizarTotales(viajesFacturadosData);
                 renderCurrentTable();
-                [comprobante, detalle, importeOtro, nroCheque, tercero, destinatario, importe, cuitChofer, cuitProveedor].forEach( input => {
+                [comprobante, detalle, importeOtro, nroCheque, tercero, destinatario, importe, cuitChofer, cuitProveedor].forEach(input => {
                     input.value = '';
                     input.removeAttribute('data-selected-chofer-nombre');
                     input.removeAttribute('data-selected-chofer-cuil')
@@ -604,9 +587,9 @@ async function handleGenerateInvoice(data) {
     // Validate and clean fields
     for (const row of selectedRows) {
         console.log(typeof row.tarifa);
-        const tarifa = typeof row.tarifa !== "number"? parseFloat(row.tarifa?.replace(/[^0-9.]/g, '')) : row.tarifa; // Clean tarifa
-        const importe = typeof row.importe !== "number"? parseFloat(row.importe?.replace(/[^0-9.]/g, '')) : row.importe; // Clean importe
-        const iva = typeof row.iva !== "number"? parseFloat(row.iva?.replace(/[^0-9.]/g, '')) : row.iva; // Clean iva
+        const tarifa = typeof row.tarifa !== "number" ? parseFloat(row.tarifa?.replace(/[^0-9.]/g, '')) : row.tarifa; // Clean tarifa
+        const importe = typeof row.importe !== "number" ? parseFloat(row.importe?.replace(/[^0-9.]/g, '')) : row.importe; // Clean importe
+        const iva = typeof row.iva !== "number" ? parseFloat(row.iva?.replace(/[^0-9.]/g, '')) : row.iva; // Clean iva
         if (isNaN(tarifa)) {
             showConfirmModal(`Error: Tarifa inválida en viaje: ${row.campo || 'Sin campo'}`);
             return;
@@ -622,11 +605,11 @@ async function handleGenerateInvoice(data) {
     }
 
     const servicios = await Promise.all(selectedRows.map(async (row, index) => {
-        const importe = typeof row.importe !== "number"? parseFloat(row.importe?.replace(/[^0-9.]/g, '')) : row.importe; // Clean importe
-        const iva = typeof row.iva !== "number"? parseFloat(row.iva?.replace(/[^0-9.]/g, '')) : row.iva; // Clean iva
+        const importe = typeof row.importe !== "number" ? parseFloat(row.importe?.replace(/[^0-9.]/g, '')) : row.importe; // Clean importe
+        const iva = typeof row.iva !== "number" ? parseFloat(row.iva?.replace(/[^0-9.]/g, '')) : row.iva; // Clean iva
         const subtotal = importe; // Importe is the subtotal
         const subtotalConIVA = (importe + iva).toFixed(2); // Subtotal + IVA
-        const tarifa = typeof row.tarifa !== "number"? parseFloat(row.tarifa?.replace(/[^0-9.]/g, '')) : row.tarifa; // Clean tarifa
+        const tarifa = typeof row.tarifa !== "number" ? parseFloat(row.tarifa?.replace(/[^0-9.]/g, '')) : row.tarifa; // Clean tarifa
         let choferNombre = '';
         try {
             const response = await getViajeComprobante(row.comprobante);
@@ -635,7 +618,7 @@ async function handleGenerateInvoice(data) {
                 choferNombre = ` CHOFER ${data.nombre}`;
             else
                 console.log(data.message);
-        } catch (error){
+        } catch (error) {
             console.error("Error al obtener el nombre del chofer:", error);
         }
 
@@ -647,17 +630,10 @@ async function handleGenerateInvoice(data) {
 
         return {
             codigo: `${formatearCodigo(index + 1)}`,
-<<<<<<< HEAD
-            descripcion: `${row.comprobante.length !== 13? "CTG": "CRE"} ${row.comprobante}${choferNombre} CAMPO ${row.campo || 'Sin campo'} KM ${row.km}`.toUpperCase(),
-            cantidad: parseFloat(row.toneladas).toFixed(2), // Per trip; change to row.cargado if billing by tonnage
-            unidad: 'Toneladas',
-            precioUnit: (tarifa - (tarifa * (parseFloat(row.variacion.replace('%', '')) / 100))).toFixed(2),
-=======
-            descripcion: `FLETE ${row.producto} ${row.comprobante.length !== 13? "CTG": "CRE"} ${row.comprobante}${choferNombre} CAMPO ${row.campo || 'Sin campo'} KM ${row.km}`.toUpperCase(),
+            descripcion: `FLETE ${row.producto} ${row.comprobante.length !== 13 ? "CTG" : "CRE"} ${row.comprobante}${choferNombre} CAMPO ${row.campo || 'Sin campo'} KM ${row.km}`.toUpperCase(),
             cantidad: parseFloat(row.toneladas).toFixed(2), // Per trip; change to row.cargado if billing by tonnage
             unidad: 'Toneladas',
             precioUnit: (tarifa - (tarifa * parseFloat(row.variacion.replace('%', '')))).toFixed(2),
->>>>>>> origin/InProgress_VyP
             bonif: '0.00',
             subtotal: subtotal.toFixed(2),
             ivaId: 5, // 21% IVA
@@ -704,10 +680,6 @@ async function handleGenerateInvoice(data) {
         }
 
         await changeDataFactura(facturaId, selectedRows);
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/InProgress_VyP
         const data = await response.blob();
 
         const url = window.URL.createObjectURL(data);
@@ -715,8 +687,8 @@ async function handleGenerateInvoice(data) {
         // Abrir el PDF en una nueva pestaña
         const pdfWindow = window.open(url, '_blank');
 
-        
-        
+
+
         // Liberar la URL del blob después de abrir la pestaña
         if (!pdfWindow) {
             console.error('No se pudo abrir la ventana del navegador');
@@ -740,7 +712,7 @@ function formatDate(date, separator = '') {
     return separator ? `${day}${separator}${month}${separator}${year}` : `${year}${month}${day}`;
 }
 
-function setupTabSelectorCliente(){
+function setupTabSelectorCliente() {
     const tabSelector = document.getElementById('facturasSelector');
     if (!tabSelector) {
         console.warn("Elemento #facturasSelector no encontrado. La funcionalidad de pestañas no se inicializará.");
@@ -768,88 +740,88 @@ function setupTabSelectorCliente(){
     }
 }
 
-async function setUltimosPagos(cantidad){
+async function setUltimosPagos(cantidad) {
     const responsePagos = await getPagosCliente(clienteData.cuit, cantidad);
-    if (responsePagos.ok){
+    if (responsePagos.ok) {
         const data = await responsePagos.json();
         ultimosPagosCliente = data.map(p => {
             return parsePagos(p);
         });
         console.log(optionsPagos.columnas);
         renderTables(ultimosPagosCliente, 1, optionsPagos);
-        
+
     } else {
         showConfirmModal("No se obtuvieron los ultimos pagos del cliente");
     }
 }
 
-async function handleTabContentDisplay(selectedTab){
-        const viajesFacturadosContent = document.getElementById('content-viajes-facturados');
-        const historialBtn = document.getElementById("historial");
-        const closeButton = document.getElementById("closeBtnViaje");
-        const paginacionContainer = document.getElementById("paginacion-viajes");
-        const backHistorialBtn = document.getElementById("back-historialBtn");
-        const searchInput = document.getElementById('searchInput');
+async function handleTabContentDisplay(selectedTab) {
+    const viajesFacturadosContent = document.getElementById('content-viajes-facturados');
+    const historialBtn = document.getElementById("historial");
+    const closeButton = document.getElementById("closeBtnViaje");
+    const paginacionContainer = document.getElementById("paginacion-viajes");
+    const backHistorialBtn = document.getElementById("back-historialBtn");
+    const searchInput = document.getElementById('searchInput');
 
-        if (searchInput) searchInput.value = '';
-        toggleSpinnerVisible(mainContent);
-        try {
-            if (selectedTab === 'aFacturar') {
-                const response = await getViajesCliente(clienteData.cuit, false, null);
-                if (response.ok){
-                    viajesFacturadosContent.classList.add('hidden');
-                    backHistorialBtn.click();
-                    historialBtn.classList.add("hidden");
-                    const data = await response.json();
-                    
-                    viajesAFacturarData = data.viajes.map(c => {
-                        const viaje = parseViaje(c);
-                        viaje.iva = viaje.importe * 0.21;
-                        return viaje;
-                    });
-                    paginacionContainer.classList.remove("hidden");
-                    currentEditingTable = "viajes";
-                    await renderTables(viajesAFacturarData, 1, optionsViajes, actualizarTotales);
+    if (searchInput) searchInput.value = '';
+    toggleSpinnerVisible(mainContent);
+    try {
+        if (selectedTab === 'aFacturar') {
+            const response = await getViajesCliente(clienteData.cuit, false, null);
+            if (response.ok) {
+                viajesFacturadosContent.classList.add('hidden');
+                backHistorialBtn.click();
+                historialBtn.classList.add("hidden");
+                const data = await response.json();
 
-                } else {
-                    showConfirmModal("Ocurrio un error al cargar los viajes del cliente");
-                    closeButton.click();
-                }
-            } else if (selectedTab === 'facturados') {
-                const response = await getViajesCliente(clienteData.cuit, true, null);
-                if (response.ok){
-                    viajesFacturadosContent.classList.remove('hidden');
-                    backHistorialBtn.click();
-                    paginacionContainer.classList.add("hidden");
-                    const data = await response.json();
-                    viajesFacturadosData = data.viajes.map(c => {
-                        const viaje = parseViaje(c);
-                        viaje.iva = viaje.importe * 0.21;
-                        return viaje;
-                    });
-                    console.log(viajesFacturadosData);
-                    currentEditingTable = "viajesFacturados";
-                    await renderTables(viajesFacturadosData, 1, optionsViajesFacturados, actualizarTotales);
-                } else {
-                    showConfirmModal("Ocurrio un error al cargar los viajes del cliente");
-                    closeButton.click();
-                }
+                viajesAFacturarData = data.viajes.map(c => {
+                    const viaje = parseViaje(c);
+                    viaje.iva = viaje.importe * 0.21;
+                    return viaje;
+                });
+                paginacionContainer.classList.remove("hidden");
+                currentEditingTable = "viajes";
+                await renderTables(viajesAFacturarData, 1, optionsViajes, actualizarTotales);
 
-                const selectPagos = document.getElementById("selectPagos");
-                const selectCantidad = selectPagos?.value !== "Otro"? selectPagos.value : document.getElementById('inputSelectPago')?.value;
-            
-                await setUltimosPagos(selectCantidad);
+            } else {
+                showConfirmModal("Ocurrio un error al cargar los viajes del cliente");
+                closeButton.click();
             }
-        } catch (error){
-            console.log(error.message);
-            closeButton.click();
+        } else if (selectedTab === 'facturados') {
+            const response = await getViajesCliente(clienteData.cuit, true, null);
+            if (response.ok) {
+                viajesFacturadosContent.classList.remove('hidden');
+                backHistorialBtn.click();
+                paginacionContainer.classList.add("hidden");
+                const data = await response.json();
+                viajesFacturadosData = data.viajes.map(c => {
+                    const viaje = parseViaje(c);
+                    viaje.iva = viaje.importe * 0.21;
+                    return viaje;
+                });
+                console.log(viajesFacturadosData);
+                currentEditingTable = "viajesFacturados";
+                await renderTables(viajesFacturadosData, 1, optionsViajesFacturados, actualizarTotales);
+            } else {
+                showConfirmModal("Ocurrio un error al cargar los viajes del cliente");
+                closeButton.click();
+            }
+
+            const selectPagos = document.getElementById("selectPagos");
+            const selectCantidad = selectPagos?.value !== "Otro" ? selectPagos.value : document.getElementById('inputSelectPago')?.value;
+
+            await setUltimosPagos(selectCantidad);
         }
-        toggleSpinnerVisible(mainContent);
+    } catch (error) {
+        console.log(error.message);
+        closeButton.click();
+    }
+    toggleSpinnerVisible(mainContent);
 }
 
 async function setHistorial() {
     const selectCantidad = document.getElementById("selectResumenes");
-    const cantidad = selectCantidad.value !== "Otro"? selectCantidad.value : document.getElementById('inputSelectViaje')?.value;
+    const cantidad = selectCantidad.value !== "Otro" ? selectCantidad.value : document.getElementById('inputSelectViaje')?.value;
     if (!cantidad) {
         showConfirmModal("Seleccione una cantidad de resúmenes válida.");
         return;
@@ -888,14 +860,14 @@ export async function inicializarModaCliente(data) {
     const closeButton = document.getElementById('closeBtnViaje');
     if (closeButton) {
         closeButton.onclick = () => {
-            
-            deleteModal("viajesClientesModal","contentModalViajes", () => {
+
+            deleteModal("viajesClientesModal", "contentModalViajes", () => {
                 viajesFacturadosData = [];
                 viajesAFacturarData = [];
                 clienteData = [];
                 viajesHistorialData = [];
                 currentViajesClientesPage = 1;
-                
+
                 socket.off('nuevoViaje');
                 socket.off('nuevoCartaPorte');
                 socket.off('actualizarFacturaCliente');
@@ -908,7 +880,7 @@ export async function inicializarModaCliente(data) {
                 socket.off('updatePagados');
                 socket.off('nuevoPago');
             });
-            
+
         };
     }
 
@@ -919,10 +891,10 @@ export async function inicializarModaCliente(data) {
     const fields = {
         cheque: document.getElementById('chequeFields'),
         otro: document.getElementById('otroFields')
-    }; 
+    };
 
     function manejarDeleteCliente(client) {
-        if (client.cuit === clienteData.cuit){
+        if (client.cuit === clienteData.cuit) {
             closeModalFactura();
             document.getElementById('documentGenerateModal')?.remove();
             showConfirmModal(`El cliente ${clienteData.nombre} fue eliminado`);
@@ -932,7 +904,7 @@ export async function inicializarModaCliente(data) {
     socket.on('deleteCliente', manejarDeleteCliente);
 
     async function manejarUpdateCliente(client) {
-        if (client && client.cuitOriginal === clienteData.cuit){
+        if (client && client.cuitOriginal === clienteData.cuit) {
             console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
             closeModalFactura();
             if (currentEditingTable === "viajes" && editingRowId) resetEditingState();
@@ -942,27 +914,27 @@ export async function inicializarModaCliente(data) {
     }
     socket.on('updateCliente', manejarUpdateCliente);
 
-    function setCartaPorte(cartaPorte, setValue){
+    function setCartaPorte(cartaPorte, setValue) {
         let viajeEditado = false;
         let currentData = getCurrentData();
         currentData.forEach(viaje => {
-            if ( viaje.comprobante === cartaPorte.comprobante){
+            if (viaje.comprobante === cartaPorte.comprobante) {
                 viaje.carta_porte = setValue;
                 viajeEditado = true;
             }
         });
 
-        if (!viajeEditado && currentEditingTable === "historial"){
+        if (!viajeEditado && currentEditingTable === "historial") {
             viajesFacturadosData.forEach(viaje => {
-                if ( viaje.comprobante === cartaPorte.comprobante){
+                if (viaje.comprobante === cartaPorte.comprobante) {
                     viaje.carta_porte = setValue;
                     viajeEditado = true;
                 }
             });
         }
 
-        if (viajeEditado){
-            if (viaje.length > 0 && viaje[0].id === cartaPorte.comprobante){
+        if (viajeEditado) {
+            if (viaje.length > 0 && viaje[0].id === cartaPorte.comprobante) {
                 viaje[0].carta_porte = setValue;
                 updateViajeStatus();
             }
@@ -977,14 +949,14 @@ export async function inicializarModaCliente(data) {
     });
 
     socket.on('deleteCartaPorte', (cartaPorte) => {
-        if (cartaPorte.cuit === clienteData.cuit){
+        if (cartaPorte.cuit === clienteData.cuit) {
             setCartaPorte(cartaPorte, false);
         }
     });
 
     socket.on('updatePagados', (pagados) => {
-        if (pagados.cuit === clienteData.cuit && currentEditingTable !== "viajes"){
-            viajesFacturadosData = viajesFacturadosData.filter( viaje => {
+        if (pagados.cuit === clienteData.cuit && currentEditingTable !== "viajes") {
+            viajesFacturadosData = viajesFacturadosData.filter(viaje => {
                 if (pagados.viajesPagados.includes(viaje.comprobante))
                     viajesHistorialData.push(viaje);
                 return !pagados.viajesPagados.includes(viaje.comprobante);
@@ -995,8 +967,8 @@ export async function inicializarModaCliente(data) {
     });
 
     socket.on('nuevoPago', async (pago) => {
-        if (pago.cuit === clienteData.cuit){
-            console.log("nuevo pago: "+ pago.cuit);
+        if (pago.cuit === clienteData.cuit) {
+            console.log("nuevo pago: " + pago.cuit);
             pago.pagosArray.forEach(p => {
                 ultimosPagosCliente.push(parsePagos(p));
                 clienteData.balance = parseImporte(clienteData.balance) - parseFloat(parseImporte(p.importe));
@@ -1010,7 +982,7 @@ export async function inicializarModaCliente(data) {
     });
 
     socket.on('deletePagoCliente', async (pago) => {
-        if (pago.cuit && pago.cuit === clienteData.cuit){
+        if (pago.cuit && pago.cuit === clienteData.cuit) {
             const lenght = ultimosPagosCliente.lenght;
             ultimosPagosCliente = ultimosPagosCliente.filter(p => {
                 const cond = p.id === pago.id && p.tipo === pago.tipo;
@@ -1018,7 +990,7 @@ export async function inicializarModaCliente(data) {
                     clienteData.balance = parseImporte(clienteData.balance) + parseFloat(parseImporte(p.importe));
                 return !cond;
             });
-            if (lenght !== ultimosPagosCliente.length){
+            if (lenght !== ultimosPagosCliente.length) {
                 await renderTables(ultimosPagosCliente, 1, optionsPagos);
                 showConfirmModal("Se actualizaron los pagos del cliente");
                 if (currentEditingTable !== "viajes")
@@ -1032,19 +1004,19 @@ export async function inicializarModaCliente(data) {
         if (viaje.cuit === clienteData.cuit && currentEditingTable === "viajes") {
             const lenght = viajesAFacturarData.length;
             viajesAFacturarData = viajesAFacturarData.filter(v => v.id !== viaje.comprobante);
-            if (lenght !== viajesAFacturarData.length){
+            if (lenght !== viajesAFacturarData.length) {
                 showConfirmModal("Se actualizaron los viajes del cliente");
                 if (editingRowId && editingRowId === viaje.comprobante)
-                        resetEditingState();
-                    else 
-                        return;
+                    resetEditingState();
+                else
+                    return;
                 renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
             }
         }
     });
 
     socket.on('nuevoViaje', async (viaje) => {
-        if (viaje.cliente_cuit === clienteData.cuit && currentEditingTable === "viajes"){
+        if (viaje.cliente_cuit === clienteData.cuit && currentEditingTable === "viajes") {
             viaje.variacion = 0;
             let viajeParseado = parseViaje(viaje);
             viajesAFacturarData.push(viajeParseado);
@@ -1055,7 +1027,7 @@ export async function inicializarModaCliente(data) {
     });
 
     socket.on('updateViajeCliente', async (viaje) => {
-        if (viaje.updatedData.cuit === clienteData.cuit && currentEditingTable === "viajes"){
+        if (viaje.updatedData.cuit === clienteData.cuit && currentEditingTable === "viajes") {
             const index = viajesAFacturarData.findIndex(v => v.id === viaje.comprobanteOriginal);
             if (index !== -1) {
                 // viajesAFacturarData[index] = parseViaje(viaje.updatedData);
@@ -1066,19 +1038,11 @@ export async function inicializarModaCliente(data) {
                     else
                         return;
                 showConfirmModal("Se actualizaron los viajes del cliente");
-<<<<<<< HEAD
-                if (editingRowId && editingRowId === viaje.comprobanteOriginal)
-                    resetEditingState();
-                else if (editingRowId)
-                    return;
-                renderizarTablaVC(viajesAFacturarData, currentViajesClientesPage);
-=======
                 renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
->>>>>>> origin/InProgress_VyP
             }
         }
     });
-    
+
 
     const selectPagosCantidad = document.getElementById("selectPagos");
     const pagosHeader = document.getElementById('headerPagos');
@@ -1095,26 +1059,27 @@ export async function inicializarModaCliente(data) {
         clienteAddPago.classList.toggle('hidden');
         if (searchInput) searchInput.value = '';
         pagosOpen = !pagosOpen;
-        renderTables( getCurrentData(), 1, getCurrentOptions(), actualizarTotales);
+        renderTables(getCurrentData(), 1, getCurrentOptions(), actualizarTotales);
     });
 
 
     try {
         setupTabSelectorCliente();
         setupSearchBar("clientesViajesSearchBar",
-            (searchTerm) => { currentViajesClientesPage = 1;
-                            let currentData = getCurrentData();
-                            return currentData.filter(viaje =>
-                                formatFecha(viaje.fecha)?.includes(searchTerm) ||
-                                viaje.comprobante?.toLowerCase().includes(searchTerm) ||
-                                viaje.campo?.toLowerCase().includes(searchTerm)
-                            );
-                        },
+            (searchTerm) => {
+                currentViajesClientesPage = 1;
+                let currentData = getCurrentData();
+                return currentData.filter(viaje =>
+                    formatFecha(viaje.fecha)?.includes(searchTerm) ||
+                    viaje.comprobante?.toLowerCase().includes(searchTerm) ||
+                    viaje.campo?.toLowerCase().includes(searchTerm)
+                );
+            },
             (filteredData) => renderTables(filteredData, 1, getCurrentOptions(), actualizarTotales)
         );
         setupAddPagoBtn();
         setupPaymentTypeSelector(fields);
-        
+
         const historialBtn = document.getElementById("historial");
         const backHistorialBtn = document.getElementById("back-historialBtn");
         const headerModal = document.getElementById("headerModal");
@@ -1124,19 +1089,15 @@ export async function inicializarModaCliente(data) {
         const inputCantViajes = document.getElementById('inputSelectViaje');
 
         socket.on('actualizarFacturaCliente', async (factura) => {
-            if (factura.cuit === clienteData.cuit){
+            if (factura.cuit === clienteData.cuit) {
                 closeModalFactura();
                 changeSpinnerText(mainContent, "Actualizando datos del cliente...");
                 toggleSpinnerVisible(mainContent);
-<<<<<<< HEAD
-                clienteData.balance = parseFloat(parseImporte(factura.balance).toFixed(2));
-=======
                 clienteData.balance = parseImporte(factura.balance);
                 renderCurrentTable();
->>>>>>> origin/InProgress_VyP
                 try {
                     const response = await getViajesCliente(clienteData.cuit, false, null);
-                    if (response.ok){
+                    if (response.ok) {
                         const data = await response.json();
                         viajesAFacturarData = data.viajes.map(c => {
                             const viaje = parseViaje(c);
@@ -1144,10 +1105,10 @@ export async function inicializarModaCliente(data) {
                             return viaje;
                         });
                     } else {
-                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => {closeButton.click()});
+                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => { closeButton.click() });
                     }
                     const responseFacturados = await getViajesCliente(clienteData.cuit, true, null);
-                    if (responseFacturados.ok){
+                    if (responseFacturados.ok) {
                         const data = await responseFacturados.json();
                         viajesFacturadosData = data.viajes.map(c => {
                             const viaje = parseViaje(c);
@@ -1155,12 +1116,12 @@ export async function inicializarModaCliente(data) {
                             return viaje;
                         });
                     } else {
-                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => {closeButton.click()});
+                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => { closeButton.click() });
                     }
                     inputCantViajes.value = '';
                     selectCantidad.value = "10";
                     const responseHistorial = await getViajesCliente(clienteData.cuit, true, selectCantidad.value, true);
-                    if (responseHistorial.ok){
+                    if (responseHistorial.ok) {
                         const data = await responseHistorial.json();
                         viajesHistorialData = data.viajes.map(c => {
                             const viaje = parseViaje(c);
@@ -1168,11 +1129,11 @@ export async function inicializarModaCliente(data) {
                             return viaje;
                         });
                     } else {
-                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => {closeButton.click()});
+                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => { closeButton.click() });
                     }
-                } catch (error){
+                } catch (error) {
                     console.error(error.message, error.stack);
-                    return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => {closeButton.click()});
+                    return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => { closeButton.click() });
                 }
                 await renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
                 toggleSpinnerVisible(mainContent);
@@ -1186,7 +1147,7 @@ export async function inicializarModaCliente(data) {
         });
 
         selectPagosCantidad?.addEventListener("change", () => {
-            if (selectPagosCantidad.value !== "Otro"){
+            if (selectPagosCantidad.value !== "Otro") {
                 inputCantPagos.classList.add('hidden');
                 inputCantPagos.value = '';
                 setUltimosPagos(selectPagosCantidad.value);
@@ -1202,7 +1163,7 @@ export async function inicializarModaCliente(data) {
 
 
         selectCantidad?.addEventListener("change", () => {
-            if (selectCantidad.value !== "Otro"){
+            if (selectCantidad.value !== "Otro") {
                 inputCantViajes.classList.add("hidden");
                 inputCantViajes.value = '';
                 historialBtn.click();
@@ -1214,7 +1175,7 @@ export async function inicializarModaCliente(data) {
             historialBtn.click();
         })
 
-        historialBtn?.addEventListener("click", async () =>{
+        historialBtn?.addEventListener("click", async () => {
             changeSpinnerText(mainContent, "Cargando historial...");
             toggleSpinnerVisible(mainContent);
             summaryBoxes.classList.add("hidden");
@@ -1225,12 +1186,12 @@ export async function inicializarModaCliente(data) {
             document.getElementById("back-historial").classList.remove("hidden");
             headerModal.textContent = "Viajes - Historial";
             historialBtn.classList.add("hidden");
-            if (!viajesHistorialData){
+            if (!viajesHistorialData) {
                 backHistorialBtn?.click();
             }
         });
 
-        backHistorialBtn?.addEventListener("click", () =>{
+        backHistorialBtn?.addEventListener("click", () => {
             document.getElementById("back-historial").classList.add("hidden");
             headerModal.textContent = "Viajes";
             historialBtn.classList.remove("hidden");

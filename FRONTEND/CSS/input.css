@@ -1,7 +1,8 @@
 .text-input {
     width: 100%;
     height: 55px;
-    padding: 0px 10px 0px 48px !important;/* Desplazamiento para icono */
+    padding: 0px 10px 0px 48px !important;
+    /* Desplazamiento para icono */
     background: #FFFFFF;
     color: #444444;
     border-color: #D6D6D6;
@@ -12,16 +13,18 @@
     font-weight: 500;
     font-size: 16px;
     text-align: left;
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    box-sizing: border-box;
+    /* Include padding and border in the element's total width and height */
 }
 
 .form-group input,
-.form-group select { /* Añadido 'select' para que tenga los mismos estilos básicos que los inputs */
- padding: 8px 12px;
- border: 1px solid #ccc;
- border-radius: 5px;
- font-size: 15px;
- outline: none;
+.form-group select {
+    /* Añadido 'select' para que tenga los mismos estilos básicos que los inputs */
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 15px;
+    outline: none;
 }
 
 .select-format {
@@ -33,7 +36,7 @@
 }
 
 .input[type="date"] {
-  padding: 6.5px 12px;
+    padding: 6.5px 12px;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
@@ -44,8 +47,8 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* Estilos para campos de solo lectura */
 .form-group input[readonly] {
-    background-color: #f0f0f0; 
-    cursor: default; 
+    background-color: #f0f0f0;
+    cursor: default;
     border-color: #e0e0e0;
 }
 
@@ -55,8 +58,8 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .form-group input[editing] {
-    background-color: #FFFFFF; 
-    cursor: default; 
+    background-color: #FFFFFF;
+    cursor: default;
 }
 
 .form-group input[editing]:focus {
@@ -72,7 +75,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 
 .form-group input:focus,
-.form-group select:focus { 
+.form-group select:focus {
     border-color: #007bff;
     box-shadow: 0 0 3px rgba(0, 123, 255, 0.3);
 }
@@ -96,15 +99,3 @@ input[type="number"]::-webkit-inner-spin-button {
     align-items: center;
     justify-content: center;
 }
-
-<<<<<<< HEAD
-@media (max-width: 768px) {
-    input[type="date"]{
-        -webkit-appearance: none !important;
-        -moz-appearance: none !important;
-        appearance: none !important;
-    }
-}
-=======
-
->>>>>>> origin/InProgress_VyP
