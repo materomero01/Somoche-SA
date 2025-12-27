@@ -49,11 +49,18 @@ const createLogsTable = async () => {
                     v_entity_id := NEW.cuit::text;
                 END IF;
 
-            ELSIF TG_TABLE_NAME IN ('pagos_gasoil', 'pagos_otro', 'viaje', 'carta_porte') THEN
+            ELSIF TG_TABLE_NAME IN ('pagos_gasoil', 'pagos_otro', 'viaje') THEN
                 IF TG_OP = 'DELETE' THEN
                     v_entity_id := OLD.comprobante::text;
                 ELSE
                     v_entity_id := NEW.comprobante::text;
+                END IF;
+
+            ELSIF TG_TABLE_NAME = 'carta_porte' THEN
+                IF TG_OP = 'DELETE' THEN
+                    v_entity_id := OLD.viaje_comprobante::text;
+                ELSE
+                    v_entity_id := NEW.viaje_comprobante::text;
                 END IF;
 
             ELSIF TG_TABLE_NAME = 'pagos_cheque' THEN

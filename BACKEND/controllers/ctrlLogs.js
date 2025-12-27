@@ -80,19 +80,19 @@ exports.getLogs = async (req, res) => {
                     WHEN main.table_name = 'viaje_cliente' AND main.operation = 'UPDATE' THEN 'Editar viaje cliente'
                     WHEN main.table_name = 'viaje_cliente' AND main.operation = 'DELETE' THEN 'Eliminar viaje cliente'
                     -- Facturas (soft delete)
-                    WHEN main.table_name = 'factura' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar factura'
-                    WHEN main.table_name = 'factura_arca' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar factura (ARCA)'
+                    WHEN main.table_name = 'factura' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar factura (chofer)'
+                    WHEN main.table_name = 'factura_arca' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar factura (cliente)'
                     -- Facturas
-                    WHEN main.table_name = 'factura' AND main.operation = 'INSERT' THEN 'Cargar factura'
-                    WHEN main.table_name = 'factura' AND main.operation = 'UPDATE' THEN 'Editar factura'
-                    WHEN main.table_name = 'factura' AND main.operation = 'DELETE' THEN 'Eliminar factura'
+                    WHEN main.table_name = 'factura' AND main.operation = 'INSERT' THEN 'Cargar factura (chofer)'
+                    WHEN main.table_name = 'factura' AND main.operation = 'UPDATE' THEN 'Editar factura (chofer)'
+                    WHEN main.table_name = 'factura' AND main.operation = 'DELETE' THEN 'Eliminar factura (chofer)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'INSERT' THEN 'Cargar factura (cliente)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'UPDATE' THEN 'Editar factura (cliente)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'DELETE' THEN 'Eliminar factura (cliente)'
                     -- Carta de porte (soft delete)
                     WHEN main.table_name = 'carta_porte' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar carta de porte'
                     -- Carta de porte
-                    WHEN main.table_name = 'carta_porte' AND main.operation = 'INSERT' THEN 'Crear carta de porte'
+                    WHEN main.table_name = 'carta_porte' AND main.operation = 'INSERT' THEN 'Cargar carta de porte'
                     WHEN main.table_name = 'carta_porte' AND main.operation = 'UPDATE' THEN 'Editar carta de porte'
                     WHEN main.table_name = 'carta_porte' AND main.operation = 'DELETE' THEN 'Eliminar carta de porte'
                     -- CATAC (tarifas)
@@ -134,7 +134,7 @@ exports.getLogs = async (req, res) => {
                     )
                     ELSE NULL
                 END AS related_viaje_clientes,
-                -- Agregar viajes relacionados para logs de factura (crear y eliminar)
+                -- Agregar viajes relacionados para logs de factura (chofer)
                 CASE 
                     WHEN main.table_name = 'factura' AND (
                         main.operation = 'INSERT' OR 
@@ -155,8 +155,51 @@ exports.getLogs = async (req, res) => {
                           AND v.created_at = main.created_at
                           AND (v.before_data->>'factura_id') IS DISTINCT FROM (v.after_data->>'factura_id')
                     )
+                    -- Agregar viajes relacionados para logs de factura_arca (cliente)
+                    WHEN main.table_name = 'factura_arca' AND (
+                        main.operation = 'INSERT' OR 
+                        main.operation = 'DELETE' OR
+                        (main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false)
+                    ) THEN (
+                        SELECT COALESCE(jsonb_agg(
+                            jsonb_build_object(
+                                'comprobante', COALESCE(vc.after_data->>'viaje_comprobante', vc.before_data->>'viaje_comprobante'),
+                                'cliente_cuit', COALESCE(vc.after_data->>'cliente_cuit', vc.before_data->>'cliente_cuit'),
+                                'factura_id', COALESCE(vc.after_data->>'factura_id', vc.before_data->>'factura_id'),
+                                'data', COALESCE(vc.after_data, vc.before_data)
+                            )
+                        ), '[]'::jsonb)
+                        FROM audit_logs vc
+                        WHERE vc.table_name = 'viaje_cliente' 
+                          AND vc.operation = 'UPDATE'
+                          AND vc.created_at = main.created_at
+                          AND (vc.before_data->>'factura_id') IS DISTINCT FROM (vc.after_data->>'factura_id')
+                    )
                     ELSE NULL
                 END AS related_viajes,
+                -- Agregar datos del viaje relacionado para logs de carta_porte (mismos campos que factura)
+                CASE 
+                    WHEN main.table_name = 'carta_porte' THEN (
+                        SELECT jsonb_build_object(
+                            'comprobante', v.comprobante,
+                            'chofer_cuil', v.chofer_cuil,
+                            'cliente_cuit', v.cliente_cuit,
+                            'tarifa', v.tarifa,
+                            'variacion', v.variacion,
+                            'fecha', v.fecha,
+                            'campo', v.campo,
+                            'kilometros', v.kilometros,
+                            'toneladas', v.toneladas,
+                            'cargado', v.cargado,
+                            'descargado', v.descargado
+                        )
+                        FROM viaje v
+                        WHERE v.valid = true 
+                          AND v.comprobante = COALESCE(main.after_data->>'viaje_comprobante', main.before_data->>'viaje_comprobante')
+                        LIMIT 1
+                    )
+                    ELSE NULL
+                END AS related_viaje_data,
                 -- Agregar datos del chofer para logs de usuario
                 CASE 
                     WHEN main.table_name = 'usuario' THEN (

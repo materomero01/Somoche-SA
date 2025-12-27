@@ -22,8 +22,8 @@ var facturasRouter = require('./routes/facturas');
 var logsRouter = require('./routes/logs'); // Nuevo router
 
 // Inicializar tabla de logs
-const { createLogsTable } = require('./utils/logger');
-createLogsTable();
+//const { createLogsTable } = require('./utils/logger');
+//createLogsTable();
 
 var app = express();
 

@@ -1,4 +1,4 @@
-import { createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText, getFactura } from "./apiPublic.js";
+import { createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText, getFactura, getCartaPorte } from "./apiPublic.js";
 import { fetchLogs } from "./api.js";
 
 // Función para parsear valores con formato de moneda ($376,529.16) a número
@@ -50,7 +50,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         usuario: ['valid', 'create_at', 'update_at', 'password'],
         chofer: ['valid', 'create_at', 'update_at'],
         factura: ['valid', 'create_at', 'update_at', 'factura_pdf', 'id', 'cuil'],
-        factura_arca: ['valid', 'create_at', 'update_at', 'factura_pdf', 'id']
+        factura_arca: ['valid', 'create_at', 'update_at', 'factura_pdf', 'id'],
+        carta_porte: ['valid', 'create_at', 'update_at', 'carta_porte_pdf']
     };
 
     // Filtrar campos ocultos y nulls
@@ -127,10 +128,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const isHardDeleteForPreview = log.operation === 'DELETE';
                     const isDeleteForPreview = isSoftDeleteForPreview || isHardDeleteForPreview;
 
-                    // Para factura (cargar o eliminar), mostrar comprobante del viaje asociado
-                    if (tabla === 'factura' && log.related_viajes && log.related_viajes.length > 0) {
-                        const comprobantes = log.related_viajes.map(v => v.comprobante).filter(c => c).join(', ');
-                        previewText = comprobantes ? `Viaje: ${comprobantes}` : (isDeleteForPreview ? 'Factura eliminada' : 'Factura cargada');
+                    // Para factura (cargar o eliminar), mostrar chofer/cliente en lugar de viaje
+                    if ((tabla === 'factura' || tabla === 'factura_arca') && log.related_viajes && log.related_viajes.length > 0) {
+                        // Para facturas, obtener el chofer o cliente del viaje
+                        const viaje = log.related_viajes[0];
+                        const identificador = viaje.chofer_cuil || viaje.cliente_cuit || '';
+                        if (identificador) {
+                            previewText = tabla === 'factura_arca' ? `Cliente: ${identificador}` : `Chofer: ${identificador}`;
+                        } else {
+                            previewText = isDeleteForPreview ? 'Factura eliminada' : 'Factura cargada';
+                        }
                     } else {
                         let mainData = filtrarDatos(isDeleteForPreview ? detailsObj.before : (detailsObj.after || detailsObj.before || {}), tabla);
 
@@ -182,6 +189,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                         previewText = `Saldo: ${signo}$${Math.abs(saldo).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
                     }
 
+                    // Preview especial para carta porte - mostrar chofer del viaje vinculado
+                    if (tabla === 'carta_porte' && log.related_viaje_data) {
+                        const viajeData = log.related_viaje_data;
+                        const comprobante = viajeData.comprobante || '';
+                        const clienteCuit = viajeData.cliente_cuit || '';
+                        if (comprobante && clienteCuit) {
+                            previewText = `Viaje: ${comprobante} | CUIT: ${clienteCuit}`;
+                        } else if (comprobante) {
+                            previewText = `Viaje: ${comprobante}`;
+                        } else if (clienteCuit) {
+                            previewText = `CUIT: ${clienteCuit}`;
+                        }
+                    }
+
+                    // Preview especial para facturas - mostrar cliente/chofer
+                    if ((tabla === 'factura' || tabla === 'factura_arca') && detailsObj) {
+                        const fData = detailsObj.after || detailsObj.before || {};
+                        const identificador = fData.cliente_cuit || fData.cuil || '';
+                        if (identificador) {
+                            previewText = tabla === 'factura_arca' ? `Cliente: ${identificador}` : `Chofer: ${identificador}`;
+                        }
+                    }
+
                     // Truncar preview si es muy largo
                     if (previewText.length > 60) {
                         previewText = previewText.substring(0, 60) + '...';
@@ -220,6 +250,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                             const facturaData = isFacturaTabla ? (detailsObj.after && detailsObj.after.factura_pdf ? detailsObj.after : detailsObj.before) : null;
                             const isFacturaConPdf = facturaData && facturaData.factura_pdf;
                             const isFacturaCliente = tabla === 'factura_arca';
+
+                            // Detectar si es carta de porte con PDF
+                            const isCartaPorte = tabla === 'carta_porte';
+                            const cartaPorteData = isCartaPorte ? (detailsObj.after && detailsObj.after.carta_porte_pdf ? detailsObj.after : detailsObj.before) : null;
+                            const isCartaPorteConPdf = cartaPorteData && cartaPorteData.carta_porte_pdf;
 
                             // Detectar actualización de tarifas CATAC
                             const isCatacUpdate = log.action === 'Actualizar tarifas CATAC';
@@ -395,14 +430,70 @@ document.addEventListener('DOMContentLoaded', async () => {
                                             ${isDeleteOperation ? 'Factura eliminada' : tipoFactura}
                                         </h4>
                                         <p style="margin: 5px 0;"><strong>${isFacturaCliente ? 'Cliente CUIT:' : 'Chofer CUIL:'}</strong> ${clienteCuit}</p>
-                                        ${facturaId ? `
+                                        ${!isDeleteOperation && facturaId ? `
                                             <button class="btn-view-factura" data-factura-id="${facturaId}" data-cuil="${clienteCuit}" data-type="${isFacturaCliente ? 'viajeCliente' : 'viaje'}" 
                                                 style="margin-top: 10px; padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                                                 <i class="bi bi-eye"></i> Ver factura
                                             </button>
                                         ` : ''}
+                                        ${isDeleteOperation ? '<p style="margin-top: 10px; color: #856404; font-style: italic;">El documento fue eliminado y ya no está disponible.</p>' : ''}
                                     </div>
                                 `;
+                            } else if (isCartaPorteConPdf) {
+                                // Carta de porte con PDF: mostrar info y botón para ver
+                                const viajeComprobante = cartaPorteData.viaje_comprobante || 'N/A';
+                                const viajeData = log.related_viaje_data;
+                                const clienteCuit = viajeData?.cliente_cuit || 'N/A';
+                                const bgColor = isDeleteOperation ? '#f8d7da' : '#e8f5e9';
+                                const borderColor = isDeleteOperation ? '#dc3545' : '#4caf50';
+                                const titleColor = isDeleteOperation ? '#721c24' : '#2e7d32';
+                                const iconClass = isDeleteOperation ? 'bi-file-earmark-x' : 'bi-file-earmark-text';
+
+                                modalContent += `
+                                    <div style="padding: 15px; background: ${bgColor}; border-radius: 8px; border-left: 4px solid ${borderColor};">
+                                        <h4 style="margin: 0 0 15px; color: ${titleColor}; display: flex; align-items: center; gap: 8px;">
+                                            <i class="bi ${iconClass}"></i>
+                                            ${isDeleteOperation ? 'Carta de porte eliminada' : 'Carta de porte'}
+                                        </h4>
+                                        <p style="margin: 5px 0;"><strong>Viaje:</strong> ${viajeComprobante}</p>
+                                        <p style="margin: 5px 0;"><strong>CUIT:</strong> ${clienteCuit}</p>
+                                        ${!isDeleteOperation ? `
+                                            <button class="btn-view-carta-porte" data-viaje-comprobante="${viajeComprobante}" 
+                                                style="margin-top: 10px; padding: 8px 16px; background: #388e3c; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                                <i class="bi bi-eye"></i> Ver carta de porte
+                                            </button>
+                                        ` : '<p style="margin-top: 10px; color: #856404; font-style: italic;">El documento fue eliminado y ya no está disponible.</p>'}
+                                    </div>
+                                `;
+
+                                // Agregar viaje vinculado (mismo formato que facturas)
+                                // viajeData ya está declarado arriba
+                                if (viajeComprobante && viajeComprobante !== 'N/A') {
+                                    const isCartaPorteEliminada = isDeleteOperation;
+                                    const bgColorViaje = isCartaPorteEliminada ? '#ffebee' : '#e3f2fd';
+                                    const borderColorViaje = isCartaPorteEliminada ? '#f44336' : '#2196f3';
+                                    const textColorViaje = isCartaPorteEliminada ? '#c62828' : '#1565c0';
+                                    const actionTextViaje = isCartaPorteEliminada ? 'desvinculado de' : 'vinculado a';
+
+                                    modalContent += `
+                                        <div style="margin-top: 20px; padding: 15px; background: ${bgColorViaje}; border-radius: 8px; border-left: 4px solid ${borderColorViaje};">
+                                            <h4 style="margin: 0 0 10px; color: ${textColorViaje}; display: flex; align-items: center; gap: 8px;">
+                                                <i class="bi bi-link-45deg"></i>
+                                                1 viaje ${actionTextViaje} esta carta de porte
+                                            </h4>
+                                            <ul style="list-style: none; padding: 0; margin: 0;" id="related-viajes-carta-porte">
+                                                <li style="padding: 8px 12px; background: white; border-radius: 4px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                                                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                        <strong>Comprobante:</strong> ${viajeComprobante}
+                                                    </span>
+                                                    <button class="btn btn-primary btn-sm btn-view-viaje-carta-porte" data-viaje-comprobante="${viajeComprobante}" style="padding: 4px 10px; font-size: 0.85em; flex-shrink: 0; margin-left: auto;">
+                                                        Ver detalle
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    `;
+                                }
                             } else if ((isSoftDelete || isHardDelete) && hasBefore) {
                                 // Delete: mostrar datos eliminados solo si hay datos después de filtrar
                                 const filteredBefore = filtrarDatos(detailsObj.before, tabla);
@@ -520,31 +611,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 modalContent += formatDataToHTML(filtrarDatos(detailsObj.before, tabla));
                             } else {
                                 modalContent = '<p style="color: #999; font-style: italic;">No hay detalles disponibles.</p>';
-                            }
-
-                            // Agregar botón para ver la factura PDF si existe (solo para facturas de chofer, no factura_arca)
-                            if (isFacturaConPdf && !isDeleteOperation && !isFacturaCliente) {
-                                modalContent += `
-                                    <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4caf50;">
-                                        <h4 style="margin: 0 0 10px; color: #2e7d32; display: flex; align-items: center; gap: 8px;">
-                                            <i class="bi bi-file-earmark-pdf-fill"></i>
-                                            Documento adjunto
-                                        </h4>
-                                        <button class="btn btn-success btn-sm btn-view-pdf" style="padding: 8px 16px;">
-                                            <i class="bi bi-eye"></i> Ver factura PDF
-                                        </button>
-                                    </div>
-                                `;
-                            } else if (isFacturaConPdf && isDeleteOperation && !isFacturaCliente) {
-                                // Factura eliminada - mostrar mensaje informativo (solo para facturas de chofer)
-                                modalContent += `
-                                    <div style="margin-top: 20px; padding: 15px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #ff9800;">
-                                        <h4 style="margin: 0; color: #e65100; display: flex; align-items: center; gap: 8px;">
-                                            <i class="bi bi-file-earmark-pdf-fill"></i>
-                                            La factura PDF fue eliminada y ya no está disponible para visualización
-                                        </h4>
-                                    </div>
-                                `;
                             }
                             // Mostrar viajes asociados para clientes si existen
                             const relatedClientes = log.related_viaje_clientes;
@@ -813,6 +879,68 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 attachViajeListeners(mainModalContent);
                             }
 
+                            // Listener para botón de ver carta de porte
+                            const cartaPorteBtn = jsonContent.querySelector('.btn-view-carta-porte');
+                            if (cartaPorteBtn) {
+                                cartaPorteBtn.addEventListener('click', async () => {
+                                    const viajeComprobante = cartaPorteBtn.getAttribute('data-viaje-comprobante');
+                                    if (viajeComprobante) {
+                                        try {
+                                            const response = await getCartaPorte(null, viajeComprobante);
+                                            if (response && response.ok) {
+                                                const blob = await response.blob();
+                                                const url = window.URL.createObjectURL(blob);
+                                                window.open(url, '_blank');
+                                            } else {
+                                                alert('No se pudo cargar la carta de porte (puede haber sido eliminada)');
+                                            }
+                                        } catch (error) {
+                                            console.error('Error al obtener carta de porte:', error);
+                                            alert('Error al obtener la carta de porte');
+                                        }
+                                    }
+                                });
+                            }
+
+                            // Listener para botón de ver viaje vinculado desde carta de porte
+                            const viajeCartaPorteBtn = jsonContent.querySelector('.btn-view-viaje-carta-porte');
+                            if (viajeCartaPorteBtn) {
+                                viajeCartaPorteBtn.addEventListener('click', () => {
+                                    const viajeData = log.related_viaje_data;
+                                    if (viajeData) {
+                                        // Mostrar info del viaje en el modal (igual que facturas)
+                                        const previousContent = jsonContent.innerHTML;
+                                        let viajeContent = '<h4 style="margin: 15px 0 5px; color: #333;">Detalle del viaje vinculado</h4>';
+                                        viajeContent += formatDataToHTML(viajeData);
+                                        viajeContent += `
+                                            <button class="btn btn-secondary btn-sm btn-back-to-main" style="margin-top: 15px;">
+                                                <i class="bi bi-arrow-left"></i> Volver
+                                            </button>
+                                        `;
+                                        jsonContent.innerHTML = viajeContent;
+                                        const backBtn = jsonContent.querySelector('.btn-back-to-main');
+                                        if (backBtn) {
+                                            backBtn.addEventListener('click', () => {
+                                                jsonContent.innerHTML = previousContent;
+                                                // Re-attach listeners
+                                                const newCartaPorteBtn = jsonContent.querySelector('.btn-view-carta-porte');
+                                                if (newCartaPorteBtn) {
+                                                    newCartaPorteBtn.addEventListener('click', async () => {
+                                                        const vc = newCartaPorteBtn.getAttribute('data-viaje-comprobante');
+                                                        if (vc) {
+                                                            const response = await getCartaPorte(null, vc);
+                                                            if (response && response.ok) {
+                                                                const blob = await response.blob();
+                                                                window.open(window.URL.createObjectURL(blob), '_blank');
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    }
+                                });
+                            }
                             // Agregar event listener para ver factura PDF
                             if (isFacturaConPdf) {
                                 const pdfBtn = jsonContent.querySelector('.btn-view-pdf');
