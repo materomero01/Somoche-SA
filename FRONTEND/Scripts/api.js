@@ -1108,6 +1108,53 @@ export async function deleteDocument(id, comprobante, type = "viajes") {
     }
 }
 
+//////////////////////////////////////////////////////////////////////
+//                    API LLAMADA LOGS                              //
+//////////////////////////////////////////////////////////////////////
+
+// Obtener Logs de actividad
+export async function fetchLogs(page = 1, limit = 50) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+
+        const response = await fetch(`${apiURL}/logs?page=${page}&limit=${limit}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        // Renovamos el token si el backend lo envía
+        const newToken = response.headers.get('X-New-Token');
+        if (newToken) {
+            setToken(newToken);
+        }
+
+        // Manejo de error 403 (sin autorización - ej: chofer intentando acceder)
+        if (response.status === 403) {
+            handleAuthError(data);
+            return { logs: [], page: 1, limit: 50 };
+        }
+
+        // Otros errores HTTP
+        if (!response.ok) {
+            console.error('Error al obtener logs:', data.message || response.status);
+            return { logs: [], page: 1, limit: 50 };
+        }
+
+        // El controller devuelve { logs: [...], page, limit }, devolvemos todo
+        return data;
+    } catch (error) {
+        console.error("Error en fetchLogs:", error.message);
+        return { logs: [], page: 1, limit: 50 };
+    }
+}
+
 socket.on('updateCatac', async () => {
     if (window.location.href.includes("catac.html"))
         return showConfirmModal("Se actualizaron las tarifas de Catac", "aviso", () => { window.location.reload() });

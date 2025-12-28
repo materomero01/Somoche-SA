@@ -476,6 +476,8 @@ exports.pagarOrdenesProveedor = async (req, res) => {
     try {
         client = await pool.connect();
         await client.query('BEGIN');
+        // Configurar usuario para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
         const ordenesPagadas = [];
         const updatedRows = [];

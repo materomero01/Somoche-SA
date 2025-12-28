@@ -5,6 +5,10 @@ exports.getLogs = async (req, res) => {
         return res.status(403).json({ message: 'No tienes autorización.' });
     }
 
+    const limit = parseInt(req.query.limit) || 50;
+    const page = parseInt(req.query.page) || 1;
+    const offset = (page - 1) * limit;
+
     try {
         const query = `
             WITH viaje_cliente_logs AS (
@@ -41,7 +45,9 @@ exports.getLogs = async (req, res) => {
                     WHEN main.table_name = 'pagos_gasoil' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar pago (gasoil)'
                     WHEN main.table_name = 'pagos_otro' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar pago (otro)'
                     -- Cheque marcado como pagado
-                    WHEN main.table_name = 'pagos_cheque' AND main.operation = 'UPDATE' AND (main.before_data->>'pagado')::boolean = false AND (main.after_data->>'pagado')::boolean = true THEN 'Marcar cheque como pagado'
+                    WHEN main.table_name = 'pagos_cheque' AND main.operation = 'UPDATE' AND COALESCE((main.before_data->>'pagado')::boolean, false) = false AND (main.after_data->>'pagado')::boolean = true THEN 'Marcar cheque como pagado'
+                    -- Orden de gasoil marcada como pagada
+                    WHEN main.table_name = 'pagos_gasoil' AND main.operation = 'UPDATE' AND COALESCE((main.before_data->>'pagado')::boolean, false) = false AND (main.after_data->>'pagado')::boolean = true THEN 'Marcar orden gasoil pagada'
                     -- Pagos
                     WHEN main.table_name = 'pagos_cheque' AND main.operation = 'INSERT' THEN 'Crear pago (cheque)'
                     WHEN main.table_name = 'pagos_cheque' AND main.operation = 'UPDATE' THEN 'Editar pago (cheque)'
@@ -70,6 +76,19 @@ exports.getLogs = async (req, res) => {
                     WHEN main.table_name = 'cliente' AND main.operation = 'UPDATE' AND main.user_cuil IS NULL THEN 'Cliente actualizado (automático)'
                     WHEN main.table_name = 'cliente' AND main.operation = 'UPDATE' THEN 'Editar cliente'
                     WHEN main.table_name = 'cliente' AND main.operation = 'DELETE' THEN 'Eliminar cliente'
+                    -- Proveedores (soft delete)
+                    WHEN main.table_name = 'proveedor' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar proveedor'
+                    -- Proveedor: actualización automática de balance (solo cambió el balance y update_at)
+                    WHEN main.table_name = 'proveedor' AND main.operation = 'UPDATE' 
+                         AND (main.before_data->>'balance') IS DISTINCT FROM (main.after_data->>'balance')
+                         AND (main.before_data - 'balance' - 'update_at') = (main.after_data - 'balance' - 'update_at')
+                         THEN 'Actualización de balance (proveedor)'
+                    -- Proveedores
+                    WHEN main.table_name = 'proveedor' AND main.operation = 'INSERT' THEN 'Crear proveedor'
+                    WHEN main.table_name = 'proveedor' AND main.operation = 'UPDATE' AND main.user_cuil IS NULL THEN 'Proveedor actualizado (automático)'
+                    WHEN main.table_name = 'proveedor' AND main.operation = 'UPDATE' THEN 'Editar proveedor'
+                    WHEN main.table_name = 'proveedor' AND main.operation = 'DELETE' THEN 'Eliminar proveedor'
+
                     -- Viajes (soft delete)
                     WHEN main.table_name = 'viaje' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar viaje'
                     WHEN main.table_name = 'viaje_cliente' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar viaje cliente'
@@ -83,6 +102,14 @@ exports.getLogs = async (req, res) => {
                     WHEN main.table_name = 'factura' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar factura (chofer)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar factura (cliente)'
                     -- Facturas
+                    WHEN main.table_name = 'factura' AND main.operation = 'INSERT' AND EXISTS (
+                        SELECT 1 FROM audit_logs pg 
+                        WHERE pg.table_name = 'pagos_gasoil' 
+                          AND pg.operation = 'UPDATE'
+                          AND pg.created_at >= main.created_at - interval '2 seconds' 
+                          AND pg.created_at <= main.created_at + interval '2 seconds'
+                          AND (pg.after_data->>'factura_id')::text = main.entity_id
+                    ) THEN 'Cargar factura (proveedor)'
                     WHEN main.table_name = 'factura' AND main.operation = 'INSERT' THEN 'Cargar factura (chofer)'
                     WHEN main.table_name = 'factura' AND main.operation = 'UPDATE' THEN 'Editar factura (chofer)'
                     WHEN main.table_name = 'factura' AND main.operation = 'DELETE' THEN 'Eliminar factura (chofer)'
@@ -134,7 +161,27 @@ exports.getLogs = async (req, res) => {
                     )
                     ELSE NULL
                 END AS related_viaje_clientes,
-                -- Agregar viajes relacionados para logs de factura (chofer)
+                 -- Agregar pagos de gasoil relacionados para logs de factura (proveedor)
+                 CASE 
+                    WHEN main.table_name = 'factura' AND main.operation = 'INSERT' THEN (
+                        SELECT COALESCE(jsonb_agg(
+                            jsonb_build_object(
+                                'comprobante', pg.after_data->>'comprobante',
+                                'proveedor_cuit', pg.after_data->>'proveedor_cuit',
+                                'created_at', pg.created_at,
+                                'data', pg.after_data
+                            )
+                        ), '[]'::jsonb)
+                        FROM audit_logs pg
+                        WHERE pg.table_name = 'pagos_gasoil'
+                          AND pg.operation = 'UPDATE'
+                          AND pg.created_at >= main.created_at - interval '2 seconds'
+                          AND pg.created_at <= main.created_at + interval '2 seconds'
+                          AND (pg.after_data->>'factura_id')::text = main.entity_id
+                    )
+                    ELSE NULL
+                END AS related_pagos_gasoil,
+                 -- Agregar viajes relacionados para logs de factura (chofer)
                 CASE 
                     WHEN main.table_name = 'factura' AND (
                         main.operation = 'INSERT' OR 
@@ -284,6 +331,11 @@ exports.getLogs = async (req, res) => {
                   AND (main.before_data - 'factura_id' - 'update_at') = (main.after_data - 'factura_id' - 'update_at')
                   AND (main.before_data->>'factura_id') IS DISTINCT FROM (main.after_data->>'factura_id')
               )
+              -- Ocultar pagos_gasoil UPDATE que solo cambiaron factura_id
+              AND NOT (main.table_name = 'pagos_gasoil' AND main.operation = 'UPDATE'
+                  AND (main.before_data - 'factura_id' - 'update_at') = (main.after_data - 'factura_id' - 'update_at')
+                  AND (main.before_data->>'factura_id') IS DISTINCT FROM (main.after_data->>'factura_id')
+              )
               -- Ocultar viaje UPDATE que solo cambian group_r (parte de cerrar resumen)
               AND NOT (main.table_name = 'viaje' AND main.operation = 'UPDATE'
                   AND (main.before_data - 'group_r' - 'update_at') = (main.after_data - 'group_r' - 'update_at')
@@ -316,13 +368,13 @@ exports.getLogs = async (req, res) => {
                   )
               )
             ORDER BY main.created_at DESC
-            LIMIT 200
+            LIMIT $1 OFFSET $2
         `;
 
 
-        const result = await pool.query(query);
+        const result = await pool.query(query, [limit, offset]);
 
-        res.status(200).json({ logs: result.rows });
+        res.status(200).json({ logs: result.rows, page: page, limit: limit });
     } catch (error) {
         console.error("Error al obtener logs:", error);
         res.status(500).json({ message: 'Error interno al obtener logs.' });

@@ -7,7 +7,13 @@ const pool = require('../db');
  * - Entity ID correcto según la tabla
  */
 const createLogsTable = async () => {
-    //const query = `SELECT trigger_name, event_manipulation, event_object_table, action_statement FROM information_schema.triggers WHERE trigger_schema = 'public';`
+    // Índices para optimización (ejecutados individualmente para evitar fallos en bloque)
+    try { await pool.query("CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);"); } catch (e) { console.warn('Aviso índice created_at:', e.message); }
+    try { await pool.query("CREATE INDEX IF NOT EXISTS idx_audit_logs_composite ON audit_logs(table_name, operation, created_at);"); } catch (e) { console.warn('Aviso índice composite:', e.message); }
+    try { await pool.query("CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_id);"); } catch (e) { console.warn('Aviso índice entity:', e.message); }
+    try { await pool.query("CREATE INDEX IF NOT EXISTS idx_audit_logs_before_json ON audit_logs USING GIN (before_data);"); } catch (e) { console.warn('Aviso índice GIN before:', e.message); }
+    try { await pool.query("CREATE INDEX IF NOT EXISTS idx_audit_logs_after_json ON audit_logs USING GIN (after_data);"); } catch (e) { console.warn('Aviso índice GIN after:', e.message); }
+
     const query = `
         CREATE OR REPLACE FUNCTION audit_trigger()
         RETURNS trigger AS $$
@@ -42,7 +48,7 @@ const createLogsTable = async () => {
                     v_entity_id := NEW.cuil::text;
                 END IF;
 
-            ELSIF TG_TABLE_NAME = 'cliente' THEN
+            ELSIF TG_TABLE_NAME IN ('cliente', 'proveedor') THEN
                 IF TG_OP = 'DELETE' THEN
                     v_entity_id := OLD.cuit::text;
                 ELSE
@@ -144,6 +150,25 @@ const createLogsTable = async () => {
         const result = await pool.query(query);
         console.log(result);
         console.log('[Logger] Trigger de auditoría actualizado correctamente');
+
+        // Crear trigger para la tabla proveedor si no existe
+        await pool.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.triggers 
+                    WHERE trigger_name = 'audit_trigger_proveedor' 
+                    AND event_object_table = 'proveedor'
+                ) THEN
+                    CREATE TRIGGER audit_trigger_proveedor
+                    AFTER INSERT OR UPDATE OR DELETE ON proveedor
+                    FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+                    RAISE NOTICE 'Trigger audit_trigger_proveedor creado';
+                END IF;
+            END $$;
+        `);
+        console.log('[Logger] Trigger de proveedor verificado/creado');
+
     } catch (error) {
         console.error("Error al actualizar trigger de auditoría:", error);
     }

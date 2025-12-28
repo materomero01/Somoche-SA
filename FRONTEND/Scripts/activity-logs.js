@@ -24,6 +24,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     const closeModal = document.querySelector('.close-modal');
     const jsonContent = document.getElementById('log-json-content');
 
+    // Variables de paginación
+    let currentPage = 1;
+    const limit = 50;
+    let isLoading = false;
+
+    // Crear botón "Cargar más" si no existe
+    let loadMoreBtn = document.querySelector('#loadMoreBtn');
+    if (!loadMoreBtn) {
+        const tableContainer = document.querySelector('.table-container') || document.querySelector('#logsTable').parentElement;
+        const btnContainer = document.createElement('div');
+        btnContainer.style.textAlign = 'center';
+        btnContainer.style.margin = '20px 0';
+
+        loadMoreBtn = document.createElement('button');
+        loadMoreBtn.id = 'loadMoreBtn';
+        loadMoreBtn.textContent = 'Cargar más registros';
+        loadMoreBtn.className = 'btn btn-primary btn-lg';
+        loadMoreBtn.style.display = 'none'; // Oculto inicialmente
+
+        btnContainer.appendChild(loadMoreBtn);
+        tableContainer.parentElement.appendChild(btnContainer); // Agregar después del contenedor de la tabla
+
+        loadMoreBtn.onclick = () => {
+            currentPage++;
+            loadLogs(currentPage, true);
+        };
+    }
+
     // Cerrar modal
     if (closeModal) {
         closeModal.onclick = () => {
@@ -47,6 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         pagos_gasoil: ['valid', 'group_r', 'create_at', 'update_at', 'pagado'],
         pagos_otro: ['valid', 'group_r', 'create_at', 'update_at', 'id', 'cliente_cuit'],
         cliente: ['valid', 'create_at', 'update_at'],
+        proveedor: ['valid', 'create_at', 'update_at'],
         usuario: ['valid', 'create_at', 'update_at', 'password'],
         chofer: ['valid', 'create_at', 'update_at'],
         factura: ['valid', 'create_at', 'update_at', 'factura_pdf', 'id', 'cuil'],
@@ -71,10 +100,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Limpiar símbolos de moneda (solo $)
             const cleanNumber = (val) => {
                 if (typeof val === 'number') return val;
-                if (typeof val === 'string') {
-                    return parseFloat(val.replace(/[$]/g, ''));
+                if (!val) return 0;
+                let s = String(val).replace(/[$]/g, '').trim();
+
+                const lastDot = s.lastIndexOf('.');
+                const lastComma = s.lastIndexOf(',');
+
+                // Si hay ambos, el último es el decimal
+                if (lastDot > -1 && lastComma > -1) {
+                    if (lastDot > lastComma) {
+                        s = s.replace(/,/g, ''); // US
+                    } else {
+                        s = s.replace(/\./g, '').replace(',', '.'); // AR
+                    }
                 }
-                return NaN;
+                else if (lastComma > -1) s = s.replace(',', '.');
+
+                return parseFloat(s) || 0;
             };
             const litros = cleanNumber(filtrado.litros);
             const precio = cleanNumber(filtrado.precio);
@@ -86,14 +128,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         return filtrado;
     };
 
-    const loadLogs = async () => {
+    const loadLogs = async (page = 1, append = false) => {
+        if (isLoading) return;
+        isLoading = true;
+
         try {
-            createLoadingSpinner(content);
-            changeSpinnerText(content, "Cargando registros de actividad...");
+            if (!append) {
+                createLoadingSpinner(content);
+                changeSpinnerText(content, "Cargando registros de actividad...");
+                currentPage = 1;
+            } else {
+                if (loadMoreBtn) {
+                    loadMoreBtn.textContent = 'Cargando...';
+                    loadMoreBtn.disabled = true;
+                }
+            }
 
-            const logs = await fetchLogs();
+            const response = await fetchLogs(page, limit);
+            const logs = response.logs || [];
 
-            tableBody.innerHTML = '';
+            if (!append) {
+                tableBody.innerHTML = '';
+            }
 
             if (logs.length > 0) {
                 logs.forEach(log => {
@@ -128,13 +184,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const isHardDeleteForPreview = log.operation === 'DELETE';
                     const isDeleteForPreview = isSoftDeleteForPreview || isHardDeleteForPreview;
 
+                    // Preview especial para factura de proveedor (cargada a orden gasoil)
+                    if (log.action === 'Cargar factura (proveedor)' && log.related_pagos_gasoil && log.related_pagos_gasoil.length > 0) {
+                        const pago = log.related_pagos_gasoil[0];
+                        const comprobantePago = pago.comprobante || '';
+                        if (comprobantePago) {
+                            previewText = `Orden Gasoil: ${comprobantePago}`;
+                        } else {
+                            previewText = 'Factura cargada';
+                        }
+                    }
                     // Para factura (cargar o eliminar), mostrar chofer/cliente en lugar de viaje
-                    if ((tabla === 'factura' || tabla === 'factura_arca') && log.related_viajes && log.related_viajes.length > 0) {
+                    else if ((tabla === 'factura' || tabla === 'factura_arca') && log.related_viajes && log.related_viajes.length > 0) {
                         // Para facturas, obtener el chofer o cliente del viaje
                         const viaje = log.related_viajes[0];
                         const identificador = viaje.chofer_cuil || viaje.cliente_cuit || '';
                         if (identificador) {
                             previewText = tabla === 'factura_arca' ? `Cliente: ${identificador}` : `Chofer: ${identificador}`;
+                        } else {
+                            previewText = isDeleteForPreview ? 'Factura eliminada' : 'Factura cargada';
+                        }
+                    } else if ((tabla === 'factura' || tabla === 'factura_arca') && log.related_viajes_cliente && log.related_viajes_cliente.length > 0) {
+                        const viaje = log.related_viajes_cliente[0];
+                        const identificador = viaje.cliente_cuit || '';
+                        if (identificador) {
+                            previewText = `Cliente: ${identificador}`;
                         } else {
                             previewText = isDeleteForPreview ? 'Factura eliminada' : 'Factura cargada';
                         }
@@ -152,6 +226,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 viaje_cliente: ['viaje_comprobante', 'cliente_cuit'],
                                 carta_porte: ['comprobante', 'cuil_chofer'],
                                 cliente: ['cuit', 'razon_social', 'email'],
+                                proveedor: ['cuit', 'razon_social', 'telefono'],
                                 usuario: ['cuil', 'nombre_apellido', 'role'],
                                 chofer: ['cuil', 'nombre_apellido']
                             };
@@ -221,16 +296,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <td>${date}</td>
                         <td>${user}</td>
                         <td>${actionText}</td>
-                        <td class="details-cell" style="position: relative; padding-right: 90px;">
-                            <span class="preview-text">${previewText}</span>
-                            <button class="btn btn-primary btn-sm btn-view-more" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);">
-                                Ver más
-                            </button>
+                        <td>
+                             <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span class="log-preview" style="color: #555; font-size: 0.9em; margin-right: 10px;">${previewText}</span>
+                                <button class="view-details-btn btn btn-primary btn-sm">Ver más</button>
+                            </div>
                         </td>
                     `;
 
                     // Botón Ver más
-                    const viewMoreBtn = row.querySelector('.btn-view-more');
+                    const viewMoreBtn = row.querySelector('.view-details-btn');
                     if (viewMoreBtn) {
                         viewMoreBtn.addEventListener('click', () => {
                             let modalContent = '';
@@ -245,6 +320,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             const isDeleteOperation = isSoftDelete || isHardDelete;
                             // Detectar marcar cheque como pagado
                             const isChequePagado = log.action === 'Marcar cheque como pagado';
+                            const isOrdenGasoilPagada = log.action === 'Marcar orden gasoil pagada';
                             // Detectar si es una factura con PDF (en after para crear, en before para eliminar)
                             const isFacturaTabla = tabla === 'factura' || tabla === 'factura_arca';
                             const facturaData = isFacturaTabla ? (detailsObj.after && detailsObj.after.factura_pdf ? detailsObj.after : detailsObj.before) : null;
@@ -261,7 +337,94 @@ document.addEventListener('DOMContentLoaded', async () => {
                             // Detectar cerrar resumen
                             const isCerrarResumen = log.action === 'Cerrar resumen';
 
-                            if (isCerrarResumen && log.related_resumen_data) {
+                            // Detectar carga de factura proveedor
+                            const isCargarFacturaProveedor = log.action === 'Cargar factura (proveedor)';
+
+                            if (isCargarFacturaProveedor) {
+                                if (log.related_pagos_gasoil && log.related_pagos_gasoil.length > 0) {
+                                    const pago = log.related_pagos_gasoil[0];
+                                    const pagoData = pago.data || {};
+                                    // Helper para limpiar valores numéricos/moneda
+                                    const cleanVal = (v) => {
+                                        if (typeof v === 'number') return v;
+                                        if (!v) return 0;
+                                        return parseFloat(String(v).replace(/[^0-9.-]/g, ''));
+                                    };
+
+                                    const litrosVal = cleanVal(pagoData.litros);
+                                    const precioVal = cleanVal(pagoData.precio);
+
+                                    // Calcular importe si no existe o es cero
+                                    let importe = cleanVal(pagoData.importe);
+                                    if ((!importe || importe === 0) && litrosVal > 0 && precioVal > 0) {
+                                        importe = litrosVal * precioVal;
+                                    }
+                                    const impFormatted = importe ? `$${importe.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : 'N/A';
+
+                                    // Precio para mostrar (evitar doble $)
+                                    const precioDisplay = pagoData.precio ? (String(pagoData.precio).includes('$') ? pagoData.precio : `$${pagoData.precio}`) : 'N/A';
+
+                                    // Formatear fecha
+                                    let fecha = pagoData.fecha || pago.created_at || 'N/A';
+                                    if (fecha !== 'N/A' && !fecha.includes('/')) {
+                                        const dateObj = new Date(fecha);
+                                        if (!isNaN(dateObj)) {
+                                            fecha = dateObj.toLocaleDateString('es-AR');
+                                        }
+                                    }
+
+                                    const detalleHtml = pagoData.detalle && pagoData.detalle !== '-'
+                                        ? `<div><strong style="color: #555;">Detalle:</strong> ${pagoData.detalle}</div>`
+                                        : '';
+
+                                    modalContent += `
+                                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 20px;">
+                                        <h4 style="margin-top: 0; color: #007bff; display: flex; align-items: center; gap: 8px;">
+                                           <i class="bi bi-fuel-pump"></i> Orden de Gasoil Vinculada
+                                        </h4>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95em;">
+                                            <div><strong style="color: #555;">Comprobante:</strong> ${pagoData.comprobante || pago.comprobante || 'N/A'}</div>
+                                            <div><strong style="color: #555;">Proveedor CUIT:</strong> ${pagoData.proveedor_cuit || pago.proveedor_cuit || 'N/A'}</div>
+                                            <div><strong style="color: #555;">Fecha:</strong> ${fecha}</div>
+                                            <div><strong style="color: #555;">Litros:</strong> ${pagoData.litros || 'N/A'}</div>
+                                            <div><strong style="color: #555;">Precio:</strong> ${precioDisplay}</div>
+                                            <div><strong style="color: #555;">Importe:</strong> ${impFormatted}</div>
+                                            ${detalleHtml}
+                                        </div>
+                                    </div>
+                                    `;
+                                }
+
+                                // Mostrar datos de la factura
+                                const facturaData = detailsObj.after || {};
+
+                                if (Object.keys(facturaData).length > 0) {
+                                    let cuit = facturaData.cuil;
+                                    if (!cuit && log.related_pagos_gasoil && log.related_pagos_gasoil.length > 0) {
+                                        cuit = log.related_pagos_gasoil[0].data?.proveedor_cuit || log.related_pagos_gasoil[0].data?.provedor_cuit;
+                                    }
+                                    cuit = cuit || 'N/A';
+                                    modalContent += `
+                                    <div style="padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3; margin-top: 15px;">
+                                        <h4 style="margin: 0 0 15px; color: #1565c0; display: flex; align-items: center; gap: 8px;">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                            Factura de proveedor
+                                        </h4>
+                                        <p style="margin: 5px 0;"><strong>Proveedor CUIT:</strong><br>${cuit}</p>
+                                        ${facturaData.factura_pdf ? `
+                                            <button class="btn-view-factura" 
+                                                data-factura-id="${facturaData.id}" 
+                                                data-cuil="${cuit}" 
+                                                data-type="proveedor"
+                                                style="margin-top: 10px; padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                                <i class="bi bi-eye"></i> Ver factura
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                    `;
+                                }
+
+                            } else if (isCerrarResumen && log.related_resumen_data) {
                                 // Cerrar resumen: mostrar chofer, saldo, viajes y pagos
                                 const resumen = log.related_resumen_data;
                                 const saldo = parseCurrency(resumen.saldo);
@@ -411,6 +574,69 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         <p style="margin: 5px 0;"><strong>Nro:</strong> ${nro}</p>
                                         <p style="margin: 5px 0;"><strong>Importe:</strong> ${importe}</p>
                                         ${destinatario ? `<p style="margin: 5px 0;"><strong>Destinatario:</strong> ${destinatario}</p>` : ''}
+                                    </div>
+                                `;
+                            } else if (isOrdenGasoilPagada && hasAfter) {
+                                const pagoData = detailsObj.after;
+                                const comprobante = pagoData.comprobante || 'N/A';
+
+                                // Calcular importe siempre (forzado) para asegurar validez vs datos corruptos en DB
+                                let importeValor = 0;
+                                if (pagoData.litros && pagoData.precio) {
+                                    // Lógica clean robusta: Detectar separador decimal por posición
+                                    const cleanNum = (v) => {
+                                        let s = String(v).replace(/[^0-9.,-]/g, '');
+                                        const lastDot = s.lastIndexOf('.');
+                                        const lastComma = s.lastIndexOf(',');
+
+                                        // Si hay ambos, el último es el decimal
+                                        if (lastDot > -1 && lastComma > -1) {
+                                            if (lastDot > lastComma) {
+                                                // Formato US: 1,450.00 -> Borrar comas
+                                                s = s.replace(/,/g, '');
+                                            } else {
+                                                // Formato AR: 1.450,00 -> Borrar puntos, cambiar coma
+                                                s = s.replace(/\./g, '').replace(',', '.');
+                                            }
+                                        }
+                                        // Si solo hay coma, asumimos decimal AR (145,50)
+                                        else if (lastComma > -1) {
+                                            s = s.replace(',', '.');
+                                        }
+                                        // Si solo hay punto, lo dejamos (parseFloat maneja 145.50)
+
+                                        return parseFloat(s) || 0;
+                                    };
+                                    const l = cleanNum(pagoData.litros);
+                                    const p = cleanNum(pagoData.precio);
+                                    importeValor = l * p;
+                                } else {
+                                    // Fallback al importe guardado
+                                    const cleanSimple = (v) => parseFloat(String(v).replace(/[^0-9.-]/g, '')) || 0;
+                                    importeValor = cleanSimple(pagoData.importe);
+                                }
+
+                                const impFormatted = `$${importeValor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+
+                                // Formatear fecha
+                                let fechaRaw = pagoData.fecha || pagoData.created_at || log.timestamp;
+                                let fecha = 'N/A';
+                                if (fechaRaw) {
+                                    const d = new Date(fechaRaw);
+                                    if (!isNaN(d)) fecha = d.toLocaleDateString('es-AR');
+                                }
+
+                                const debugInfo = `Raw L:${pagoData.litros} P:${pagoData.precio} I_Calc:${importeValor}`;
+
+                                modalContent += `
+                                    <div style="padding: 15px; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                                        <h4 style="margin: 0 0 15px; color: #155724; display: flex; align-items: center; gap: 8px;">
+                                            <i class="bi bi-check-circle-fill"></i>
+                                            Orden de gasoil marcada como pagada
+                                        </h4>
+                                        <p style="margin: 5px 0;"><strong>Comprobante:</strong> ${comprobante}</p>
+                                        <p style="margin: 5px 0;"><strong>Fecha:</strong> ${fecha}</p>
+                                        <p style="margin: 5px 0;" title="${debugInfo}"><strong>Importe:</strong> ${impFormatted}</p>
                                     </div>
                                 `;
                             } else if (isFacturaConPdf) {
@@ -998,14 +1224,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     tableBody.appendChild(row);
                 });
+
+                // Manejar visibilidad del botón "Cargar más"
+                if (logs.length < limit) {
+                    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+                } else {
+                    if (loadMoreBtn) loadMoreBtn.style.display = 'inline-block';
+                }
+
             } else {
-                tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 40px; color: #666;">No hay actividad registrada aún.</td></tr>`;
+                if (!append) {
+                    tableBody.innerHTML = `<tr><td->No hay actividad registrada aún.</td></tr>`;
+                }
+                if (loadMoreBtn) loadMoreBtn.style.display = 'none';
             }
         } catch (error) {
             console.error("Error cargando logs:", error);
-            tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 40px; color: red;">Error al cargar los registros.</td></tr>`;
+            if (!append) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 40px; color: red;">Error al cargar los registros.</td></tr>`;
+            }
         } finally {
-            toggleSpinnerVisible(content);
+            if (!append) toggleSpinnerVisible(content);
+            isLoading = false;
+            if (loadMoreBtn) {
+                loadMoreBtn.textContent = 'Cargar más registros';
+                loadMoreBtn.disabled = false;
+            }
         }
     };
 
