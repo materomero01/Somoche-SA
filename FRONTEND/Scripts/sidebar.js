@@ -1,9 +1,9 @@
-// /FRONTEND/js/sidebar.js
+// /js/sidebar.js
 
 async function loadSidebar(role = 'admin ') { // Mantén el default 'admin'
     try {
         const sidebarFile = role === 'chofer' ? 'sidebar-chofer.html' : 'sidebar.html';
-        const response = await fetch(`/FRONTEND/${sidebarFile}`); // Ruta correcta
+        const response = await fetch(`${sidebarFile}`); // Ruta relativa
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
@@ -27,21 +27,21 @@ function setupSidebarInteractions() {
         return;
     }
 
-    menuToggle.addEventListener('click', function() {
+    menuToggle.addEventListener('click', function () {
         sidebar.classList.toggle('expanded');
         content.classList.toggle('expanded');
         header.classList.toggle('expanded-sidebar');
     });
 
     sidebarItems.forEach(item => {
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function () {
             // Puedes mantener estas líneas si quieres el efecto visual efímero antes de la redirección
             sidebarItems.forEach(el => el.classList.remove('active'));
             this.classList.add('active');
-            
+
             const targetPage = this.dataset.targetPage;
             if (targetPage) {
-                window.location.href = `/FRONTEND/${targetPage}`;
+                window.location.href = targetPage;
             } else {
                 console.warn("El elemento del sidebar no tiene un atributo 'data-target-page'.");
             }

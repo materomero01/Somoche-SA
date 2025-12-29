@@ -1,4 +1,4 @@
-import { showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText} from "./apiPublic.js";
+import { showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText, BASE_URL } from "./apiPublic.js";
 
 // FRONTEND/scripts/login-register.js
 const formSesion = document.getElementById("formSesion");
@@ -38,14 +38,14 @@ function formatCuil(input) {
 function seePassword(passwordId) {
     const iconoToggle = document.querySelector(".toggle");
     const inputPassword = document.getElementById("password-input");
-    iconoToggle.addEventListener("click", (e) =>{
-    if (inputPassword?.type ==="password"){
-        inputPassword.type = "text";
-        e.target.classList.replace("bi-eye-slash", "bi-eye");
-    } else {
-        inputPassword.type = "password";
-        e.target.classList.replace("bi-eye","bi-eye-slash");
-    }
+    iconoToggle.addEventListener("click", (e) => {
+        if (inputPassword?.type === "password") {
+            inputPassword.type = "text";
+            e.target.classList.replace("bi-eye-slash", "bi-eye");
+        } else {
+            inputPassword.type = "password";
+            e.target.classList.replace("bi-eye", "bi-eye-slash");
+        }
     });
 }
 const contentPrincipal = document.getElementById("contentPrincipal");
@@ -53,12 +53,12 @@ const contentPrincipal = document.getElementById("contentPrincipal");
 
 formSesion?.addEventListener("submit", async (event) => {
     event.preventDefault(); // Evita que el formulario se envíe por defecto
-    
+
     var valid = true;
-    for (let i=0; i < targetsInputs.length; i++)
-    if(!validFormat(targetsInputs[i], regexInputs[targetsInputs[i].id], document.getElementById(targetsInputs[i].id + "-error")))
-        valid = false;
-    if(!valid) {return;}
+    for (let i = 0; i < targetsInputs.length; i++)
+        if (!validFormat(targetsInputs[i], regexInputs[targetsInputs[i].id], document.getElementById(targetsInputs[i].id + "-error")))
+            valid = false;
+    if (!valid) { return; }
     const isRegisterForm = document.getElementById('register');
     const userData = new FormData(formSesion);
     // Convertir FormData a un objeto plano y trim() los valores de cadena
@@ -66,16 +66,16 @@ formSesion?.addEventListener("submit", async (event) => {
     for (let [key, value] of userData.entries()) {
         payload[key] = typeof value === 'string' ? value.trim() : value;
     }
-    
+
     let apiURL;
     let redirectURL;
 
     // Ajustar el payload y la URL según sea formulario de registro o login
-    if (isRegisterForm){
-        apiURL = 'http://localhost:3000/api/users/register';
+    if (isRegisterForm) {
+        apiURL = `${BASE_URL}/users/register`;
         redirectURL = 'login.html';
     } else {
-        apiURL = 'http://localhost:3000/api/users/login';
+        apiURL = `${BASE_URL}/users/login`;
         redirectURL = 'home-admin.html';
     }
 
@@ -85,8 +85,8 @@ formSesion?.addEventListener("submit", async (event) => {
     // --- Enviar datos al Backend ---
     try {
         createLoadingSpinner(contentPrincipal);
-        isRegisterForm? changeSpinnerText(contentPrincipal,"Registrando usuario..."): changeSpinnerText(contentPrincipal, "Iniciando Sesion...");
-        
+        isRegisterForm ? changeSpinnerText(contentPrincipal, "Registrando usuario...") : changeSpinnerText(contentPrincipal, "Iniciando Sesion...");
+
 
         const response = await fetch(apiURL, {
             method: 'POST', // El método es siempre POST para login y register
@@ -100,7 +100,7 @@ formSesion?.addEventListener("submit", async (event) => {
 
         if (response.ok) {
             formSesion.reset(); // Limpiar el formulario
-            
+
             if (!isRegisterForm && data.token) {
                 localStorage.setItem('jwtToken', data.token);
                 localStorage.setItem('userName', data.nombre_apellido);
@@ -146,12 +146,12 @@ document.addEventListener('DOMContentLoaded', async () => {
  * @param {HTMLElement} text
  * @returns {boolean} El resultado utilizado para enviar el form.
  */
-function validFormat(input, regex, text){
+function validFormat(input, regex, text) {
     if (input.value !== '' && !regex.test(input.value)) {
         text.style.display = 'block';
         return false;
-      } else {
+    } else {
         text.style.display = 'none';
         return true;
-      }
+    }
 }

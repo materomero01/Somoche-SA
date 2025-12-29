@@ -1,4 +1,4 @@
-// /FRONTEND/scripts/cheques.js
+// /scripts/cheques.js
 
 import { createLoadingSpinner, getCheques, showConfirmModal, toggleSpinnerVisible } from './apiPublic.js';
 import { renderTabla, renderTables } from './tabla.js'; // Asegúrate que la ruta sea correcta
@@ -10,11 +10,10 @@ let datosChequesProximos = [];
 let datosChequesPagos = [];
 
 const contentPrincipal = document.getElementById("contentPrincipal");
-
 const userCuil = localStorage.getItem("userCuil");
 
 const columnasProximos = [
-    { label: 'Días', key: 'fecha_cheque', class: ['text-right', 'bold'], modify: (content) => calcularDiasRestantes(content) > 0? `${calcularDiasRestantes(content)} días` : calcularDiasRestantes(content) === 0? 'Hoy' : formatFecha(content) },
+    { label: 'Días', key: 'fecha_cheque', class: ['text-right', 'bold'], modify: (content) => calcularDiasRestantes(content) > 0 ? `${calcularDiasRestantes(content)} días` : calcularDiasRestantes(content) === 0 ? 'Hoy' : formatFecha(content) },
     { label: 'Fecha Cobro', key: 'fecha_cheque', class: [], modify: (content) => formatFecha(content) },
     { label: 'Cheque', key: 'nro_cheque', class: [] },
     { label: 'Destinatario', key: 'destinatario', class: [] },
@@ -35,7 +34,7 @@ const columnasPagos = [
 const optionsProximos = {
     containerId: 'tabla-proximos',
     paginacionContainerId: 'paginacion-proximos',
-    columnas: [ columnasProximos ],
+    columnas: [columnasProximos],
     itemsPorPagina: () => 10,
     actions: [],
     onEdit: null,
@@ -52,7 +51,7 @@ const optionsProximos = {
 const optionsPagos = {
     containerId: 'tabla-pagos',
     paginacionContainerId: 'paginacion-pagos',
-    columnas: [ columnasPagos ],
+    columnas: [columnasPagos],
     itemsPorPagina: () => 10,
     actions: [],
     onEdit: null,
@@ -110,7 +109,6 @@ function actualizarTotal() {
     if (totalDiv) totalDiv.textContent = `Total a cobrar: $${total}`;
 }
 
-
 async function setupChequesTabSelector() {
     const tabSelector = document.getElementById('chequesSelector');
     if (!tabSelector) {
@@ -140,7 +138,7 @@ async function setupChequesTabSelector() {
 async function mostrarContenidoTabCheques(tab) {
     const proximosDiv = document.getElementById('content-proximos');
     const pagosDiv = document.getElementById('content-pagos');
-    
+
     if (tab === 'proximos') {
         proximosDiv.classList.remove('hidden');
         pagosDiv.classList.add('hidden');

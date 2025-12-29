@@ -11,6 +11,8 @@ exports.insertPagos = async (req, res) => {
     try {
         client = await pool.connect();
         await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
         // Asegurar que req.body sea un array
         let { chofer_cuil, cliente_cuit, proveedor_cuit } = req.body || null;
@@ -23,39 +25,39 @@ exports.insertPagos = async (req, res) => {
             return res.status(400).json({ message: 'Errores de validación', errors });
         }
         let nombre;
-        if (chofer_cuil){
+        if (chofer_cuil) {
             const userExists = await client.query(
                 'SELECT cuil, nombre_apellido AS nombre FROM usuario WHERE valid = true AND cuil = $1',
                 [chofer_cuil]
             );
             if (userExists.rows.length === 0) {
-                return res.status(409).json({ 
+                return res.status(409).json({
                     message: `El chofer con CUIL ${chofer_cuil} no está registrado.`
                 });
             }
             nombre = userExists.rows[0].nombre;
         }
 
-        if (cliente_cuit){
+        if (cliente_cuit) {
             const clienteExists = await client.query(
                 'SELECT cuit FROM cliente WHERE valid = true AND cuit = $1',
                 [cliente_cuit]
             );
             if (clienteExists.rows.length === 0) {
-                return res.status(409).json({ 
+                return res.status(409).json({
                     message: `El cliente con CUIT ${cliente_cuit} no está registrado.`
                 });
             }
         }
 
-        if (proveedor_cuit){
+        if (proveedor_cuit) {
             const ProveedorExists = await client.query(
                 'SELECT cuit, razon_social FROM proveedor WHERE valid = true AND cuit = $1',
                 [proveedor_cuit]
             );
             if (!nombre && ProveedorExists.rowCount > 0) nombre = ProveedorExists.rows[0].razon_social;
             if (ProveedorExists.rows.length === 0) {
-                return res.status(409).json({ 
+                return res.status(409).json({
                     message: `El proveedor con CUIT ${proveedor_cuit} no está registrado.`
                 });
             }
@@ -68,8 +70,8 @@ exports.insertPagos = async (req, res) => {
             // Insertar según el tipo de pago
             if (pago.tipo.toLowerCase() === 'cheque') {
 
-                if (pago.fecha_pago > pago.fecha_cheque){
-                    return res.status(402).json({message:"La fecha del pago no puede ser mayor a la fecha del cheque"});
+                if (pago.fecha_pago > pago.fecha_cheque) {
+                    return res.status(402).json({ message: "La fecha del pago no puede ser mayor a la fecha del cheque" });
                 }
                 let responseExists = await client.query("SELECT valid FROM pagos_cheque WHERE nro = $1",
                     [pago.nroCheque]
@@ -77,8 +79,8 @@ exports.insertPagos = async (req, res) => {
 
                 if (responseExists.rowCount > 0) {
                     if (responseExists.rows[0].valid)
-                        return res.status(409).json({message: `El cheque con número ${pago.nroCheque} ya se encuentra registrado`});
-                    else 
+                        return res.status(409).json({ message: `El cheque con número ${pago.nroCheque} ya se encuentra registrado` });
+                    else
                         await client.query("DELETE FROM pagos_cheque WHERE valid = false AND nro = $1", [pago.nroCheque]);
                 };
 
@@ -87,7 +89,7 @@ exports.insertPagos = async (req, res) => {
                         chofer_cuil, fecha_pago, fecha_cheque, nro, tercero, destinatario, importe, pagado, cliente_cuit, proveedor_cuit
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING nro AS id`,
                     [
-                        chofer_cuil? chofer_cuil : pago.chofer_cuil,
+                        chofer_cuil ? chofer_cuil : pago.chofer_cuil,
                         pago.fecha_pago,
                         pago.fecha_cheque,
                         pago.nroCheque,
@@ -95,11 +97,11 @@ exports.insertPagos = async (req, res) => {
                         pago.destinatario,
                         pago.importe,
                         false,
-                        cliente_cuit? cliente_cuit : pago.cliente_cuit,
-                        proveedor_cuit? proveedor_cuit : pago.proveedor_cuit
+                        cliente_cuit ? cliente_cuit : pago.cliente_cuit,
+                        proveedor_cuit ? proveedor_cuit : pago.proveedor_cuit
                     ]
                 );
-                pagosArray.push({id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, importe: pago.importe, cliente_cuit: cliente_cuit, proveedor_cuit: proveedor_cuit, nombre: nombre})
+                pagosArray.push({ id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, importe: pago.importe, cliente_cuit: cliente_cuit, proveedor_cuit: proveedor_cuit, nombre: nombre })
                 if (!cliente_cuit)
                     cliente_cuit = pago.cliente_cuit;
                 if (!proveedor_cuit)
@@ -110,9 +112,9 @@ exports.insertPagos = async (req, res) => {
                     [pago.comprobante]
                 );
 
-                if (responseExists.rowCount > 0){ 
+                if (responseExists.rowCount > 0) {
                     if (responseExists.rows[0].valid)
-                        return res.status(409).json({message: `El pago de gasoil con comprobante ${pago.comprobante} ya se encuentra registrado`})
+                        return res.status(409).json({ message: `El pago de gasoil con comprobante ${pago.comprobante} ya se encuentra registrado` })
                     else
                         await client.query("DELETE FROM pagos_gasoil WHERE valid = false AND comprobante = $1", [pago.comprobante]);
                 };
@@ -129,22 +131,22 @@ exports.insertPagos = async (req, res) => {
                         pago.proveedor_cuit
                     ]
                 );
-                pagosArray.push({id: pago.comprobante, comprobante: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, importe: pago.precioGasoil * pago.litros, litros: pago.litros, proveedor_cuit: pago.proveedor_cuit, nombre: nombre});
+                pagosArray.push({ id: pago.comprobante, comprobante: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, importe: pago.precioGasoil * pago.litros, litros: pago.litros, proveedor_cuit: pago.proveedor_cuit, nombre: nombre });
                 pagoId = result.rows[0];
                 if (!proveedor_cuit)
                     proveedor_cuit = pago.proveedor_cuit;
-            } else if (pago.tipo.toLowerCase() === 'otro') {  
+            } else if (pago.tipo.toLowerCase() === 'otro') {
                 let responseExists = await client.query("SELECT valid FROM pagos_otro WHERE comprobante = $1",
                     [pago.comprobante]
                 );
 
-                if (responseExists.rowCount > 0){
+                if (responseExists.rowCount > 0) {
                     if (responseExists.rows[0].valid)
-                        return res.status(409).json({message: `El pago con comprobante ${pago.comprobante} ya se encuentra registrado`})
+                        return res.status(409).json({ message: `El pago con comprobante ${pago.comprobante} ya se encuentra registrado` })
                     else
                         await client.query("DELETE FROM pagos_otro WHERE valid = false AND comprobante = $1", [pago.comprobante]);
-                };  
-                
+                };
+
                 const result = await client.query(
                     `INSERT INTO pagos_otro (
                         comprobante, chofer_cuil, cliente_cuit, proveedor_cuit, fecha_pago, detalle, importe
@@ -159,16 +161,17 @@ exports.insertPagos = async (req, res) => {
                         pago.importe
                     ]
                 );
-                pagosArray.push({id: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, detalle: pago.detalle, importe: pago.importe});
+                pagosArray.push({ id: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, detalle: pago.detalle, importe: pago.importe });
                 pagoId = result.rows[0];
             }
         }
 
         await client.query('COMMIT');
 
-        res.status(201).json({ 
+        res.status(201).json({
             message: `Se registraron ${validatedData.length} pago(s) con éxito`, pagoId
         });
+
 
         try {
             const io = getIO();
@@ -176,10 +179,10 @@ exports.insertPagos = async (req, res) => {
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
                     console.log(proveedor_cuit);
-                    socket.emit('nuevoPago', {pagosArray: pagosArray, cuil: chofer_cuil , cuit: cliente_cuit, proveedor_cuit: proveedor_cuit});
+                    socket.emit('nuevoPago', { pagosArray: pagosArray, cuil: chofer_cuil, cuit: cliente_cuit, proveedor_cuit: proveedor_cuit });
                 }
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error al sincronizar los datos en insertPagos", error.stack);
         }
 
@@ -208,10 +211,10 @@ exports.getAllPagos = async (req, res) => {
 };
 
 exports.getPagosCheque = async (req, res) => {
-    const choferCuil = req.query.choferCuil !== 'null'? req.query.choferCuil : null;
+    const choferCuil = req.query.choferCuil !== 'null' ? req.query.choferCuil : null;
     let pagado;
     const cantidad = parseInt(req.query.cantidad) || null;
-    switch (req.query.pagado){
+    switch (req.query.pagado) {
         case "false":
             pagado = false;
             break;
@@ -221,8 +224,8 @@ exports.getPagosCheque = async (req, res) => {
         default:
             pagado = null;
     }
-        
-    if (!choferCuil || choferCuil != req.user.cuil){
+
+    if (!choferCuil || choferCuil != req.user.cuil) {
         if (req.user.role === 'chofer') {
             return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
         }
@@ -230,7 +233,7 @@ exports.getPagosCheque = async (req, res) => {
     try {
 
         let query;
-        if (choferCuil){
+        if (choferCuil) {
             query = `   
             SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
                    fecha_cheque, tercero, destinatario, nombre_apellido AS nombre, importe
@@ -238,7 +241,7 @@ exports.getPagosCheque = async (req, res) => {
             INNER JOIN usuario u ON c.chofer_cuil = u.cuil
             WHERE c.valid = true AND c.fecha_pago <= CURRENT_DATE `;
         } else {
-            query =`   
+            query = `   
             SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
                    fecha_cheque, tercero, destinatario, COALESCE(nombre_apellido, razon_social) AS nombre, importe
             FROM pagos_cheque c
@@ -246,7 +249,7 @@ exports.getPagosCheque = async (req, res) => {
             LEFT JOIN (SELECT razon_social, cuit FROM proveedor WHERE valid = true) p ON c.proveedor_cuit = p.cuit 
             WHERE c.valid = true `;
         }
-        
+
         const params = [];
         let conditions = [];
 
@@ -271,10 +274,10 @@ exports.getPagosCheque = async (req, res) => {
             `;
         }
 
-        
-        
-        if (pagado && cantidad){
-            query+= `LIMIT $${params.length + 1}`;
+
+
+        if (pagado && cantidad) {
+            query += `LIMIT $${params.length + 1}`;
             params.push(cantidad);
         }
         const result = await pool.query(query, params);
@@ -283,7 +286,7 @@ exports.getPagosCheque = async (req, res) => {
     } catch (error) {
         console.error('Error en getPagosCheque:', error);
         res.status(500).json({ message: 'Error interno del servidor al obtener los pagos de cheque.' });
-    } 
+    }
 };
 
 exports.setChequesPagos = async (req, res) => {
@@ -292,11 +295,17 @@ exports.setChequesPagos = async (req, res) => {
     }
 
     const data = req.body;
-    if(!data || data.length === 0){
-        return res.status(404).json({message: 'No se encontraron cheques para marcar como pagos.'});
+    if (!data || data.length === 0) {
+        return res.status(404).json({ message: 'No se encontraron cheques para marcar como pagos.' });
     }
 
+    let client;
     try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
+
         let query = `
         UPDATE pagos_cheque
         SET pagado = true
@@ -312,29 +321,35 @@ exports.setChequesPagos = async (req, res) => {
         if (conditions.length > 0) {
             query += `WHERE ${conditions.join(' OR ')}`;
         }
-        
-        const result = await pool.query(query, params);
+
+        const result = await client.query(query, params);
         if (result.rowCount === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ message: 'No se encontraron cheques para actualizar.' });
         }
+
+        await client.query('COMMIT');
 
         try {
             const io = getIO();
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('marcarPago', {nros: data} );
+                    socket.emit('marcarPago', { nros: data });
                 }
             });
-        } catch (error){
-            console.error("Error al sincronizar los datos en deletePago", error.stack);
+        } catch (error) {
+            console.error("Error al sincronizar los datos en setChequesPagos", error.stack);
         }
 
-        return res.status(200).json({message: "Cheques actualizados con exito"});
+        return res.status(200).json({ message: "Cheques actualizados con exito" });
 
-    } catch (error){
+    } catch (error) {
+        if (client) await client.query('ROLLBACK');
         console.error('Error en setChequesPagos:', error);
         res.status(500).json({ message: 'Error interno del servidor al marcar los cheques como pagos.' });
+    } finally {
+        client?.release();
     }
 }
 
@@ -418,7 +433,7 @@ exports.getOrdenesProveedor = async (req, res) => {
         }
 
         const result = await client.query(query, params);
-        res.status(200).json({ordenes: result.rows});
+        res.status(200).json({ ordenes: result.rows });
     } catch (error) {
         console.error('Error en getOrdenesProveedor:', error);
         res.status(500).json({ message: 'Error interno del servidor al obtener las ordenes de gasoil.' });
@@ -432,10 +447,10 @@ exports.getPagosProveedor = async (req, res) => {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
-    const { cuit, cantidad} = req.query;
+    const { cuit, cantidad } = req.query;
 
-    if (!cuit || !cantidad || cuit === "null" || cantidad === "null" || cuit === "undefined" || cantidad === "undefined"){
-        return res.status(405).json({message: "No se reconocieron los datos para obtener los pagos del proveedor"});
+    if (!cuit || !cantidad || cuit === "null" || cantidad === "null" || cuit === "undefined" || cantidad === "undefined") {
+        return res.status(405).json({ message: "No se reconocieron los datos para obtener los pagos del proveedor" });
     }
 
     try {
@@ -456,11 +471,13 @@ exports.pagarOrdenesProveedor = async (req, res) => {
     const ordenes = req.body;
 
     if (ordenes && ordenes.length === 0)
-        return res.status(406).json({ message: "No se obtuvieron las ordenes de gasoil para marcar como pagadas"});
+        return res.status(406).json({ message: "No se obtuvieron las ordenes de gasoil para marcar como pagadas" });
 
     try {
-        client =  await pool.connect();
+        client = await pool.connect();
         await client.query('BEGIN');
+        // Configurar usuario para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
         const ordenesPagadas = [];
         const updatedRows = [];
@@ -512,10 +529,10 @@ exports.pagarOrdenesProveedor = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('updatePagadasProveedor', {cuit: cuit, ordenesPagadas: ordenesPagadas});
+                    socket.emit('updatePagadasProveedor', { cuit: cuit, ordenesPagadas: ordenesPagadas });
                 }
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error al sincronizar los datos en pagarOrdenesProveedor", error.stack);
         }
 
@@ -537,10 +554,10 @@ exports.getPagosCliente = async (req, res) => {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
-    const { cuit, cantidad} = req.query;
+    const { cuit, cantidad } = req.query;
 
-    if (!cuit || !cantidad || cuit === "null" || cantidad === "null" || cuit === "undefined" || cantidad === "undefined"){
-        return res.status(405).json({message: "No se reconocieron los datos para obtener los pagos del cliente"});
+    if (!cuit || !cantidad || cuit === "null" || cantidad === "null" || cuit === "undefined" || cantidad === "undefined") {
+        return res.status(405).json({ message: "No se reconocieron los datos para obtener los pagos del cliente" });
     }
 
     try {
@@ -566,6 +583,8 @@ exports.updatePagos = async (req, res) => {
     try {
         client = await pool.connect();
         await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
         const updatedPagos = [];
         const errors = [];
@@ -716,6 +735,7 @@ exports.updatePagos = async (req, res) => {
         }
 
         await client.query('COMMIT');
+
         res.status(200).json({ message: 'Pagos actualizados con éxito.', updatedPagos });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
@@ -731,17 +751,19 @@ exports.deletePago = async (req, res) => {
     }
 
     const { id, type } = req.query;
-    if (!id || !type || id === "undefined" || type === "undefined" || id === "null" || type === "null"){
-        return res.status(404).json({ message: "No se pudo obtener información sobre el pago a eliminar"});
+    if (!id || !type || id === "undefined" || type === "undefined" || id === "null" || type === "null") {
+        return res.status(404).json({ message: "No se pudo obtener información sobre el pago a eliminar" });
     }
 
     let cliente;
     try {
         client = await pool.connect();
         await client.query('BEGIN');
-        
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
+
         let querySelect, queryDelete;
-        switch (type.toLowerCase()){
+        switch (type.toLowerCase()) {
             case 'cheque':
                 querySelect = 'SELECT nro, chofer_cuil, cliente_cuit, proveedor_cuit FROM pagos_cheque WHERE valid = true AND nro = $1';
                 queryDelete = 'UPDATE pagos_cheque SET valid = false WHERE nro = $1';
@@ -755,19 +777,19 @@ exports.deletePago = async (req, res) => {
                 queryDelete = 'UPDATE pagos_otro SET valid = false WHERE comprobante = $1';
                 break;
             default:
-                return res.status(404).json({ message: "No se pudo reconocer el pago a eliminar"});
+                return res.status(404).json({ message: "No se pudo reconocer el pago a eliminar" });
         }
 
         const responseExists = await client.query(querySelect, [id]);
-        
-        if (!(responseExists.rows.length > 0)){
-            if (type.toLowerCase() === 'otro'){
+
+        if (!(responseExists.rows.length > 0)) {
+            if (type.toLowerCase() === 'otro') {
                 const responseOtro = await client.query('SELECT id FROM pagos_otro WHERE valid = true AND id = $1', [id]);
-                if (responseOtro.rows.length > 0){
-                    return res.status(405).json({ message: "Los pagos por saldo de anteriores resumenes no pueden eliminarse"});
+                if (responseOtro.rows.length > 0) {
+                    return res.status(405).json({ message: "Los pagos por saldo de anteriores resumenes no pueden eliminarse" });
                 }
             }
-            return res.status(405).json({ message: "El pago a eliminar no se encuentra registrado o ya fue eliminado previamente"});
+            return res.status(405).json({ message: "El pago a eliminar no se encuentra registrado o ya fue eliminado previamente" });
         }
 
         await client.query(queryDelete, [id]);
@@ -780,19 +802,19 @@ exports.deletePago = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('deletePago', {id: id.trim(), tipo: type.trim(), cuil: responseExists.rows[0].chofer_cuil, cuit: type.toLowerCase() === "cheque"? responseExists.rows[0].cliente_cuit : null, proveedor_cuit: responseExists.rows[0].proveedor_cuit});
-                    socket.emit('deletePagoCliente', {id: id.trim(), cuit: type.toLowerCase() !== "gasoil" ? responseExists.rows[0].cliente_cuit : null, tipo: type.trim()});
+                    socket.emit('deletePago', { id: id.trim(), tipo: type.trim(), cuil: responseExists.rows[0].chofer_cuil, cuit: type.toLowerCase() === "cheque" ? responseExists.rows[0].cliente_cuit : null, proveedor_cuit: responseExists.rows[0].proveedor_cuit });
+                    socket.emit('deletePagoCliente', { id: id.trim(), cuit: type.toLowerCase() !== "gasoil" ? responseExists.rows[0].cliente_cuit : null, tipo: type.trim() });
                 }
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error al sincronizar los datos en deletePago", error.stack);
         }
 
-        return res.status(200).json({message: `El pago con comprobante ${id} fue eliminado con exito`});
-    } catch (error){
+        return res.status(200).json({ message: `El pago con comprobante ${id} fue eliminado con exito` });
+    } catch (error) {
         if (client) await client.query('ROLLBACK');
         if (client) client.release();
         console.error('Error en deletePago: ', error.message, error.stack);
-        res.status(500).json({message: error.routine.includes('raise')? 'Error: ' + error.message : 'Ocurrio un error al intentar eliminar el pago'});
+        res.status(500).json({ message: error.routine.includes('raise') ? 'Error: ' + error.message : 'Ocurrio un error al intentar eliminar el pago' });
     }
 };

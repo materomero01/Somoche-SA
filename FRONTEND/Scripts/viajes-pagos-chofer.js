@@ -1,7 +1,7 @@
 import { changeSpinnerText, createLoadingSpinner, getPagosCuil, getViajes, showConfirmModal, toggleSpinnerVisible } from "./apiPublic.js";
 import { parsePagos, parseViaje, columnasPagos, columnasViajes, setHistorial } from "./resumenes.js";
 import { renderTables } from "./tabla.js";
-import { viaje, initializeFacturaUpload} from "./subir-factura.js";
+import { viaje, initializeFacturaUpload } from "./subir-factura.js";
 
 let mockViajes = [];
 let mockPagos = [];
@@ -15,7 +15,7 @@ const mainContent = document.getElementById('contenido');
 const accionesViajes = [
     {
         icon: "bi bi-download",
-        tooltip:"Descargar archivos",
+        tooltip: "Descargar archivos",
         classList: ['navigate-btn'],
         id: null,
         handler: (item) => {
@@ -41,14 +41,14 @@ const checkboxHeaderActionUpload = {
             return;
         }
 
-        initializeFacturaUpload(changeDataFactura, null, null, "viajesChofer", selectedRows.map( r =>  r.comprobante));
+        initializeFacturaUpload(changeDataFactura, null, null, "viajesChofer", selectedRows.map(r => r.comprobante));
     }
 }
 
 const optionsViajes = {
     containerId: 'viajesPagos-table',
     paginacionContainerId: '',
-    columnas: [ columnasViajes.filter(col => !["cargado", "descargado"].includes(col.key)) ],
+    columnas: [columnasViajes.filter(col => !["cargado", "descargado"].includes(col.key))],
     itemsPorPagina: () => 10,
     actions: accionesViajes,
     onEdit: null,
@@ -65,7 +65,7 @@ const optionsViajes = {
 const optionsPagos = {
     containerId: 'pagos-table',
     paginacionContainerId: '',
-    columnas: [ columnasPagos ],
+    columnas: [columnasPagos],
     itemsPorPagina: () => 3,
     actions: [],
     onEdit: null,
@@ -96,9 +96,8 @@ function actualizarTotales(viajes = mockViajes, pagos = mockPagos) {
     const totalViajesContainer = document.getElementById("total-viajes");
     if (totalViajesContainer)
         totalViajesContainer.textContent = `Total Viajes: $${totalViajes.toFixed(2)}`;
-    const totalPagarContainer = document.getElementById("total-cobrar");
-    const porcentajeChofer  = document.getElementById("porcentaje-chofer");
-    if (porcentajeChofer && choferData.trabajador === "Chofer"){
+    const porcentajeChofer = document.getElementById("porcentaje-chofer");
+    if (porcentajeChofer && choferData.trabajador === "Chofer") {
         porcentajeChofer.classList.remove("hidden");
         porcentajeChofer.textContent = `Porcentaje Chofer: $${(totalViajes * 0.2).toFixed(2)}`;
     }
@@ -107,11 +106,11 @@ function actualizarTotales(viajes = mockViajes, pagos = mockPagos) {
         totalPagarContainer.textContent = `Total a Cobrar: ${("$" + totalAPagar.toFixed(2)).replace("$-", "-$")}`;
 }
 
-function changeDataFactura(facturaId, selectedRows){
+function changeDataFactura(facturaId, selectedRows) {
     if (!facturaId) {
         console.warn('No se recibió el facturaId en los encabezados');
     } else {
-        mockViajes.forEach(v =>{
+        mockViajes.forEach(v => {
             if (selectedRows.includes(v.id))
                 v.factura_id = facturaId;
         });
@@ -218,7 +217,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
-    if (choferData.trabajador !== "Responsable Inscripto"){
+    if (choferData.trabajador !== "Responsable Inscripto") {
         optionsViajes.columnas[0] = optionsViajes.columnas[0].filter(col => col.key !== "iva");
         document.getElementById("subtotal").classList.add("hidden");
         document.getElementById("iva").classList.add("hidden");
@@ -227,7 +226,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const togglePagosArea = document.getElementById('togglePagosArea');
     togglePagosArea.style.cursor = 'pointer';
     const tablaPagos = document.getElementById('pagos-table');
-    
+
     // Toggle pagos area
     togglePagosArea?.addEventListener('click', () => {
         togglePagosArea.classList.toggle('active');
@@ -245,14 +244,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         })
 
         selectCantidad?.addEventListener("change", () => {
-            if (selectCantidad.value !== "Otro"){
+            if (selectCantidad.value !== "Otro") {
                 inputCantResumenes.classList.add("hidden");
                 handleTabContentDisplay('resumenes');
             } else
                 inputCantResumenes.classList.remove("hidden");
         })
 
-    } catch (error){
+    } catch (error) {
         console.error('Error de red o desconocido al obtener datos de los viajes:', error);
         if (mainContent) mainContent.innerHTML = `<p class="error-message">Error de conexión al cargar los datos.</p>`;
     } finally {

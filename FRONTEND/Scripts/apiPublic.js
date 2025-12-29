@@ -1,4 +1,11 @@
-const apiURL = 'http://localhost:3000/api';
+// Detectar si estamos en un entorno de desarrollo desacoplado (Frontend != 3000)
+// Si el hostname es localhost/127.0.0.1 y el puerto NO es 3000, asumimos que el backend está en el 3000.
+// De lo contrario (producción o desarrollo integrado), usamos la ruta relativa '/api'.
+export const BASE_URL = ['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port !== '3000'
+    ? 'http://localhost:3000/api'
+    : '/api';
+
+const apiURL = BASE_URL;
 
 // Obtener el token desde localStorage
 export function getToken() {
@@ -10,7 +17,7 @@ export function getToken() {
 }
 
 export function setToken(token) {
-    if (token){
+    if (token) {
         localStorage.setItem('jwtToken', token);
         console.log("Generado nuevo token");
     }
@@ -22,22 +29,22 @@ export function logout() {
 }
 
 // --- Lógica del Modal de Confirmación ---
-export async function showConfirmModal(message, type = "", onConfirm = () => {}, onCancel) {
+export async function showConfirmModal(message, type = "", onConfirm = () => { }, onCancel) {
     let modal = document.getElementById('confirmModal');
-    if (!modal){
+    if (!modal) {
         try {
             modal = document.createElement('div');
             modal.id = 'confirmModal';
             modal.className = 'modal';
-            const response = await fetch('/FRONTEND/confirmModal.html');
+            const response = await fetch('confirmModal.html');
             if (!response.ok) {
                 throw new Error(`Error HTTP: ${response.status}`);
             }
             const modalHtml = await response.text();
-            if (modalHtml){
+            if (modalHtml) {
                 modal.innerHTML = modalHtml;
                 document.body.appendChild(modal);
-            } else 
+            } else
                 return console.log("No se pudo cargar el modal de confirmacion");
         } catch (error) {
             console.log(error.message);
@@ -50,7 +57,7 @@ export async function showConfirmModal(message, type = "", onConfirm = () => {},
     const cancelBtn = document.getElementById('cancelDeleteBtn');
     const closeButton = modal.querySelector('.close-button');
 
-    switch (type.toLowerCase()){
+    switch (type.toLowerCase()) {
         case "confirm":
             headerModal.textContent = "Confirmar Acción";
             acceptBtn.classList.remove("hidden");
@@ -115,26 +122,26 @@ export function hideConfirmModal() {
 }
 
 export function createLoadingSpinner(container) {
-    
+
     // Verificar si el spinner ya existe como hermano del contenedor
     let spinner = container.parentNode.querySelector('#loading-spinner');
-    
+
     if (!spinner) {
         // Crear el div del spinner
         spinner = document.createElement('div');
         spinner.id = 'loading-spinner';
-        
+
         // Crear el div interno del spinner
         const spinnerInner = document.createElement('div');
         spinnerInner.className = 'spinner';
-        
+
         // Agregar texto de cargando
         const loadingText = document.createTextNode('Cargando datos...');
-        
+
         // Construir la estructura
         spinner.appendChild(spinnerInner);
         spinner.appendChild(loadingText);
-        
+
         // Insertar el spinner como hermano del contenedor
         container.parentNode.insertBefore(spinner, container);
     }
@@ -142,23 +149,23 @@ export function createLoadingSpinner(container) {
     container.classList.add("hidden");
 }
 
-export function toggleSpinnerVisible(container){
+export function toggleSpinnerVisible(container) {
     container.classList.toggle("hidden");
     let spinner = container.parentNode.querySelector('#loading-spinner');
     spinner.classList.toggle("hidden");
 }
 
-export function changeSpinnerText(container, text = 'Cargando datos...'){
+export function changeSpinnerText(container, text = 'Cargando datos...') {
     let spinner = container.parentNode.querySelector("#loading-spinner");
-    for (let node of spinner.childNodes){
+    for (let node of spinner.childNodes) {
         if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '')
             node.textContent = text;
     }
 }
 
-export function handleAuthorization () {
+export function handleAuthorization() {
     const userRole = localStorage.getItem('userRole');
-    if (!userRole || userRole === 'chofer'){
+    if (!userRole || userRole === 'chofer') {
         showConfirmModal("No tienes autorización para realizar esta acción");
     }
 }
@@ -166,7 +173,7 @@ export function handleAuthorization () {
 // Manejar errores de autenticación
 export function handleAuthError(error) {
     console.error(error.message);
-    showConfirmModal('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.','aviso', () => logout());
+    showConfirmModal('Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.', 'aviso', () => logout());
     return [];
 }
 
@@ -179,8 +186,8 @@ export async function fetchChoferData(cuil) {
                 'Authorization': `Bearer ${token}`
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -190,26 +197,26 @@ export async function fetchChoferData(cuil) {
         let errorMessage = null;
         if (!response.ok) {
             console.error('Error al obtener datos del chofer:', response.status, choferData.message);
-            errorMessage= 'Error desconocido al cargar datos.';
+            errorMessage = 'Error desconocido al cargar datos.';
             if (response.status === 404) {
-                    errorMessage = 'Chofer no encontrado.';
+                errorMessage = 'Chofer no encontrado.';
             } else if (response.status === 401) {
-                    errorMessage = 'Sesión expirada o no autorizada. Por favor, inicia sesión de nuevo.';
-                    // Redirigir al login si la sesión expira o no está autorizada
-                    handleAuthError(new Error(errorMessage));
-                    return; // Salir de la función para evitar más procesamiento
+                errorMessage = 'Sesión expirada o no autorizada. Por favor, inicia sesión de nuevo.';
+                // Redirigir al login si la sesión expira o no está autorizada
+                handleAuthError(new Error(errorMessage));
+                return; // Salir de la función para evitar más procesamiento
             }
             showConfirmModal(errorMessage);
         }
-        
-        return  { choferData, errorMessage};
-    } catch (error){
+
+        return { choferData, errorMessage };
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 // Modificar un chofer
-export async function updateChofer(cuilOriginal, payload){
+export async function updateChofer(cuilOriginal, payload) {
     try {
         const token = getToken();
         const response = await fetch(`${apiURL}/choferes/updateChofer/${encodeURIComponent(cuilOriginal)}`, {
@@ -223,11 +230,11 @@ export async function updateChofer(cuilOriginal, payload){
         setToken(response.headers.get('X-New-Token'));
 
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
-        if (!response.ok){
+        if (!response.ok) {
             showConfirmModal(data.message);
         }
         return response.ok;
@@ -249,7 +256,7 @@ export async function getCheques(pagados, choferCuil, cantidad = null) {
         setToken(response.headers.get('X-New-Token'));
 
         const data = await response.json();
-        if(response.status === 403) {
+        if (response.status === 403) {
             handleAuthError(data);
             return;
         }
@@ -265,7 +272,7 @@ export async function getCheques(pagados, choferCuil, cantidad = null) {
 
 // Obtener viajes
 export async function getViajes(cuil) {
-    try{
+    try {
         const token = getToken();
         const response = await fetch(`${apiURL}/viajes/${encodeURIComponent(cuil)}`, {
             method: 'GET',
@@ -273,8 +280,8 @@ export async function getViajes(cuil) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -282,13 +289,13 @@ export async function getViajes(cuil) {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 export async function getPagosCuil(cuil) {
-    try{
+    try {
         const token = getToken();
         const response = await fetch(`${apiURL}/pagos/${encodeURIComponent(cuil)}`, {
             method: 'GET',
@@ -296,8 +303,8 @@ export async function getPagosCuil(cuil) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -305,13 +312,13 @@ export async function getPagosCuil(cuil) {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 export async function getResumenCuil(cuil, cantidad) {
-    try{
+    try {
         const token = getToken();
         const response = await fetch(`${apiURL}/resumenes/getResumenCuil?cuil=${encodeURIComponent(cuil)}&cantidad=${encodeURIComponent(cantidad)}`, {
             method: 'GET',
@@ -319,8 +326,8 @@ export async function getResumenCuil(cuil, cantidad) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -328,13 +335,13 @@ export async function getResumenCuil(cuil, cantidad) {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 export async function getFactura(cuil, id) {
-    try{
+    try {
         const token = getToken();
         const response = await fetch(`${apiURL}/facturas/descargar-factura?cuil=${encodeURIComponent(cuil)}&id=${encodeURIComponent(id)}`, {
             method: 'GET',
@@ -342,8 +349,8 @@ export async function getFactura(cuil, id) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -351,13 +358,13 @@ export async function getFactura(cuil, id) {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 export async function getCartaPorte(cuil, comprobante) {
-    try{
+    try {
         const token = getToken();
         const response = await fetch(`${apiURL}/facturas/descargar-factura?cuil=${encodeURIComponent(cuil)}&comprobante=${encodeURIComponent(comprobante)}`, {
             method: 'GET',
@@ -365,8 +372,8 @@ export async function getCartaPorte(cuil, comprobante) {
                 'Authorization': `Bearer ${token}`,
             }
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -374,19 +381,19 @@ export async function getCartaPorte(cuil, comprobante) {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }
 
 export async function uploadFactura(viajeId, file, cuil, type = "viajes") {
-    try{
+    try {
         const token = getToken();
         const formData = new FormData();
         formData.append('viajeIds', JSON.stringify(viajeId)); // ID del viaje o viajes
         formData.append('factura', file); // Archivo PDF
         formData.append('cuil', cuil);
-        formData.append('type',type);
+        formData.append('type', type);
         const response = await fetch(`${apiURL}/facturas/upload-factura`, {
             method: 'POST',
             headers: {
@@ -394,8 +401,8 @@ export async function uploadFactura(viajeId, file, cuil, type = "viajes") {
             },
             body: formData
         });
-        
-        if(response.status === 403) {
+
+        if (response.status === 403) {
             const data = await response.json();
             handleAuthError(data);
             return;
@@ -403,7 +410,7 @@ export async function uploadFactura(viajeId, file, cuil, type = "viajes") {
         setToken(response.headers.get('X-New-Token'));
 
         return response;
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 }

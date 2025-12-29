@@ -23,7 +23,7 @@ const principalContent = document.getElementById('principalContent');
 const choferesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido', class: [] },
     { key: 'cuil', label: 'CUIL/CUIT', class: [] },
-    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{value: 'Monotributista', text:'Monotributista'} , {value: 'Responsable Inscripto', text: 'Responsable Inscripto'}, {value: 'Chofer', text: 'Chofer'}] },
+    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{ value: 'Monotributista', text: 'Monotributista' }, { value: 'Responsable Inscripto', text: 'Responsable Inscripto' }, { value: 'Chofer', text: 'Chofer' }] },
     { key: 'patente_chasis', label: 'Chasis', class: [] },
     { key: 'patente_acoplado', label: 'Acoplado', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
@@ -33,15 +33,15 @@ const choferesColumns = [
 const clientesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
-    { key: 'email', label: 'Email', class: []},
-    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$');}}
+    { key: 'email', label: 'Email', class: [] },
+    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$'); } }
 ];
 
 const proveedoresColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
-    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$');}}
+    { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$'); } }
 ];
 
 // --- Acciones para las tablas ---
@@ -52,8 +52,8 @@ const choferesActions = [
         classList: ['edit-btn'],
         id: null,
         handler: (rowData) => {
-            enterEditMode(rowData, 'choferes', () => renderTables(mockChoferes, currentChoferesPage, optionsChoferes), 
-            async (payload) => await saveEditLists(payload, getCurrentData, () => updateChofer(originalEditingData.cuil, payload)));
+            enterEditMode(rowData, 'choferes', () => renderTables(mockChoferes, currentChoferesPage, optionsChoferes),
+                async (payload) => await saveEditLists(payload, getCurrentData, () => updateChofer(originalEditingData.cuil, payload)));
         }
     },
     {
@@ -62,7 +62,7 @@ const choferesActions = [
         id: null,
         classList: ['delete-btn'],
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al chofer ${rowData.nombre}?`, "delete", 
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al chofer ${rowData.nombre}?`, "delete",
                 () => handleDelete(rowData.cuil, 'choferes', (cuil) => deleteChofer(cuil)));
         }
     },
@@ -101,8 +101,8 @@ const clientesActions = [
         classList: ['edit-btn'],
         id: null,
         handler: (rowData) => {
-            enterEditMode(rowData, 'clientes', () => renderTables(mockClientes, currentClientesPage, optionsClientes), 
-            async (payload) => await saveEditLists(payload, getCurrentData, () => updateCliente(originalEditingData.cuit, payload)));
+            enterEditMode(rowData, 'clientes', () => renderTables(mockClientes, currentClientesPage, optionsClientes),
+                async (payload) => await saveEditLists(payload, getCurrentData, () => updateCliente(originalEditingData.cuit, payload)));
         }
     },
     {
@@ -111,7 +111,7 @@ const clientesActions = [
         classList: ['delete-btn'],
         id: null,
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al cliente ${rowData.nombre}?`, "delete", 
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al cliente ${rowData.nombre}?`, "delete",
                 () => handleDelete(rowData.cuit, 'clientes', (cuil) => deleteCliente(cuil)));
         }
     },
@@ -150,8 +150,8 @@ const proveedoresActions = [
         classList: ['edit-btn'],
         id: null,
         handler: (rowData) => {
-            enterEditMode(rowData, 'proveedores', () => renderTables(mockProveedores, currentProveedoresPage, optionsProveedores), 
-            async (payload) => await saveEditLists(payload, getCurrentData, () => updateProveedor(originalEditingData.cuit, payload)));
+            enterEditMode(rowData, 'proveedores', () => renderTables(mockProveedores, currentProveedoresPage, optionsProveedores),
+                async (payload) => await saveEditLists(payload, getCurrentData, () => updateProveedor(originalEditingData.cuit, payload)));
         }
     },
     {
@@ -160,7 +160,7 @@ const proveedoresActions = [
         id: null,
         classList: ['delete-btn'],
         handler: (rowData) => {
-            showConfirmModal(`¿Estás seguro de que quieres eliminar al proveedor ${rowData.nombre}?`, "delete", 
+            showConfirmModal(`¿Estás seguro de que quieres eliminar al proveedor ${rowData.nombre}?`, "delete",
                 () => handleDelete(rowData.cuit, 'proveedores', (cuil) => deleteProveedor(cuil)));
         }
     },
@@ -192,8 +192,8 @@ const optionsProveedores = {
     useScrollable: false
 }
 
-function getCurrentData(){
-    switch (currentEditingTable){
+function getCurrentData() {
+    switch (currentEditingTable) {
         case 'choferes':
             return mockChoferes;
         case 'clientes':
@@ -205,8 +205,8 @@ function getCurrentData(){
     }
 }
 
-export function renderCurrentTable(){
-    switch (currentEditingTable){
+export function renderCurrentTable() {
+    switch (currentEditingTable) {
         case 'choferes':
             return renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
         case 'clientes':
@@ -218,7 +218,7 @@ export function renderCurrentTable(){
     }
 }
 
-async function saveEditLists(payload, currentDataFunc = () => {}, saveEditFunc = () => {}) {
+async function saveEditLists(payload, currentDataFunc = () => { }, saveEditFunc = () => { }) {
     const currentData = currentDataFunc();
     const index = currentData.findIndex(c => c.id === editingRowId);
     const response = await saveEditFunc();
@@ -231,14 +231,14 @@ async function saveEditLists(payload, currentDataFunc = () => {}, saveEditFunc =
 function seePassword(passwordId) {
     const iconoToggle = document.querySelector(".toggle");
     const inputPassword = document.getElementById("password-input");
-    iconoToggle.addEventListener("click", (e) =>{
-    if (inputPassword?.type ==="password"){
-        inputPassword.type = "text";
-        e.target.classList.replace("bi-eye-slash", "bi-eye");
-    } else {
-        inputPassword.type = "password";
-        e.target.classList.replace("bi-eye","bi-eye-slash");
-    }
+    iconoToggle.addEventListener("click", (e) => {
+        if (inputPassword?.type === "password") {
+            inputPassword.type = "text";
+            e.target.classList.replace("bi-eye-slash", "bi-eye");
+        } else {
+            inputPassword.type = "password";
+            e.target.classList.replace("bi-eye", "bi-eye-slash");
+        }
     });
 }
 
@@ -267,7 +267,7 @@ function formatCuil(input) {
 }
 
 // --- Lógica de Pestañas ---
- async function setupChoferesClientesTabSelector() {
+async function setupChoferesClientesTabSelector() {
     const tabSelector = document.getElementById('choferesClientesSelector');
     if (!tabSelector) {
         console.warn("Elemento #choferesClientesSelector no encontrado. La funcionalidad de pestañas no se inicializará.");
@@ -297,7 +297,7 @@ function formatCuil(input) {
 
 async function verViajesModal(choferData, tipo) {
     try {
-        switch (tipo){
+        switch (tipo) {
             case 'chofer':
                 const modalViajesPagos = document.getElementById("viajesPagosModal");
                 if (modalViajesPagos) {
@@ -351,7 +351,7 @@ async function verViajesModal(choferData, tipo) {
                 break;
             default:
         }
-    } catch (error){
+    } catch (error) {
         console.error("Ocurrio un error al cargar los viajes. ", error.message);
         showConfirmModal("Ocurrio un error al cargar los datos");
     }
@@ -376,7 +376,7 @@ async function handleTabContentDisplay(selectedTab) {
             c.balance = parseImporte(c.balance);
         });
     }
-    switch (selectedTab){
+    switch (selectedTab) {
         case 'choferes':
             choferesContent.classList.remove('hidden');
             clientesContent.classList.add('hidden');
@@ -419,7 +419,7 @@ export function setupSearchBar(searchBarId, filterFunc, renderFunc) {
             let filteredData = [];
             filteredData = filterFunc(searchTerm);
             renderFunc(filteredData);
-            }
+        }
 
         searchIcon.addEventListener('click', performSearch);
         searchInput.addEventListener('input', performSearch);
@@ -530,15 +530,15 @@ function setupAddButtons() {
             const payload = {
                 cuit: clienteData.cuit,
                 nombre: clienteData.nombre,
-                email: clienteData.email !== ''? clienteData.email : null
+                email: clienteData.email !== '' ? clienteData.email : null
             };
             const response = await insertCliente(payload);
             if (response.ok) {
                 const data = await response.json();
                 const nuevoCliente = {
                     id: payload.cuit,
-                    balance: data.balance? data.balance : 0,
-                    ... payload
+                    balance: data.balance ? data.balance : 0,
+                    ...payload
                 };
                 mockClientes.push(nuevoCliente);
                 renderTables(mockClientes, currentClientesPage, optionsClientes);
@@ -592,14 +592,14 @@ function setupAddButtons() {
                 const data = await response.json();
                 const nuevoProveedor = {
                     id: payload.cuit,
-                    balance: data.balance? data.balance : 0,
-                    ... payload
+                    balance: data.balance ? data.balance : 0,
+                    ...payload
                 };
                 mockProveedores.push(nuevoProveedor);
                 renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
                 formProveedor.reset();
                 formCardProveedor.classList.add('hidden');
-                
+
                 showConfirmModal(data.message);
             } else {
                 const dataError = await response.json();
@@ -610,10 +610,10 @@ function setupAddButtons() {
 }
 
 // --- Lógica de Eliminación ---
-async function handleDelete(cuil, tableType, deleteFunc = () => {}) {
+async function handleDelete(cuil, tableType, deleteFunc = () => { }) {
     try {
         const response = await deleteFunc(cuil);
-        if (response){
+        if (response) {
             const currentData = getCurrentData();
             console.log(currentData);
             const index = currentData.findIndex(data => data.id === cuil);
@@ -621,7 +621,7 @@ async function handleDelete(cuil, tableType, deleteFunc = () => {}) {
             const totalItemsAfter = currentData.length;
             const itemsPerPage = 10;
             const maxPage = Math.ceil(totalItemsAfter / itemsPerPage) || 1;
-            switch (tableType){
+            switch (tableType) {
                 case 'choferes':
                     if (currentChoferesPage > maxPage) currentChoferesPage = maxPage;
                     renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
@@ -640,7 +640,7 @@ async function handleDelete(cuil, tableType, deleteFunc = () => {}) {
                     break;
             }
         }
-    } catch (error){
+    } catch (error) {
         console.log(error.message);
     }
 
@@ -652,7 +652,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const headerContainer = document.getElementById('header-container');
     const sidebarContainer = document.getElementById('sidebar-container');
     const confirmModal = document.getElementById('confirmModal');
-    
+
     if (confirmModal) {
         confirmModal.style.display = 'none';
     }
@@ -687,32 +687,35 @@ document.addEventListener('DOMContentLoaded', async function () {
     setupTableEventListeners();
     await setupChoferesClientesTabSelector();
     setupSearchBar('choferesSearchBar',
-        (searchTerm) => { currentChoferesPage = 1;
-                        return mockChoferes.filter(chofer =>
-                            chofer.nombre?.toLowerCase().includes(searchTerm) ||
-                            chofer.cuil?.toLowerCase().includes(searchTerm) ||
-                            chofer.patente_chasis?.toLowerCase().includes(searchTerm) ||
-                            chofer.patente_acoplado?.toLowerCase().includes(searchTerm)
-                        );
-                    },
+        (searchTerm) => {
+            currentChoferesPage = 1;
+            return mockChoferes.filter(chofer =>
+                chofer.nombre?.toLowerCase().includes(searchTerm) ||
+                chofer.cuil?.toLowerCase().includes(searchTerm) ||
+                chofer.patente_chasis?.toLowerCase().includes(searchTerm) ||
+                chofer.patente_acoplado?.toLowerCase().includes(searchTerm)
+            );
+        },
         (filteredData) => renderTables(filteredData, 1, optionsChoferes)
     );
     setupSearchBar('clientesSearchBar',
-        (searchTerm) => {currentClientesPage = 1;
-                    return mockClientes.filter(cliente =>
-                        cliente.nombre.toLowerCase().includes(searchTerm) ||
-                        cliente.cuit.toLowerCase().includes(searchTerm)
-                    );
-                },
+        (searchTerm) => {
+            currentClientesPage = 1;
+            return mockClientes.filter(cliente =>
+                cliente.nombre.toLowerCase().includes(searchTerm) ||
+                cliente.cuit.toLowerCase().includes(searchTerm)
+            );
+        },
         (filteredData) => renderTables(filteredData, 1, optionsClientes)
     );
-    setupSearchBar('proveedoresSearchBar', 
-        (searchTerm) => { currentProveedoresPage = 1;
-                    return mockProveedores.filter(proveedor => 
-                        proveedor.nombre.toLowerCase().includes(searchTerm) || 
-                        proveedor.cuit.toLowerCase().includes(searchTerm)
-                    );
-                },
+    setupSearchBar('proveedoresSearchBar',
+        (searchTerm) => {
+            currentProveedoresPage = 1;
+            return mockProveedores.filter(proveedor =>
+                proveedor.nombre.toLowerCase().includes(searchTerm) ||
+                proveedor.cuit.toLowerCase().includes(searchTerm)
+            );
+        },
         (filteredData) => renderTables(filteredData, 1, optionsProveedores)
     );
     setupAddButtons();
@@ -730,11 +733,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateUsuario', async (user) => {
         let chofer = mockChoferes.find(chofer => chofer.cuil === user.cuilOriginal);
         const updatedData = user.updatedData;
-        if (chofer){
+        if (chofer) {
             //console.log(`Chofer con cuil ${user.cuilOriginal} modificado`);
             Object.assign(chofer, updatedData);
             if (currentEditingTableType === "choferes" && editingRowId) {
-                if (editingRowId === user.cuilOriginal){
+                if (editingRowId === user.cuilOriginal) {
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
@@ -752,26 +755,26 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('deleteUsuario', async (user) => {
         const chofer = mockChoferes.find(chofer => chofer.cuil === user.cuil);
         mockChoferes = mockChoferes.filter(chofer => chofer.cuil !== user.cuil);
-        if (currentEditingTableType === "choferes" && editingRowId){
-            if (chofer.id === editingRowId){
-                    resetEditingState();
-                    changeSpinnerText(principalContent, "Actualizando datos...");
-                    toggleSpinnerVisible(principalContent);
-                    await renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
-                    toggleSpinnerVisible(principalContent);
-                    changeSpinnerText(principalContent);
-                    showConfirmModal("Se han actualizado los datos");
-                }
-                return;
+        if (currentEditingTableType === "choferes" && editingRowId) {
+            if (chofer.id === editingRowId) {
+                resetEditingState();
+                changeSpinnerText(principalContent, "Actualizando datos...");
+                toggleSpinnerVisible(principalContent);
+                await renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
+                toggleSpinnerVisible(principalContent);
+                changeSpinnerText(principalContent);
+                showConfirmModal("Se han actualizado los datos");
             }
+            return;
+        }
         renderTables(mockChoferes, currentChoferesPage, optionsChoferes);
     });
 
     socket.on('balanceUpdatedCliente', async (data) => {
-        console.log("Balance cliente "+ data.cuit +" actualizado.");
-        const client = mockClientes.find( client => client.cuit === data.cuit);
-        if (client){
-            if (client.cuit !== getClienteCuit()) 
+        console.log("Balance cliente " + data.cuit + " actualizado.");
+        const client = mockClientes.find(client => client.cuit === data.cuit);
+        if (client) {
+            if (client.cuit !== getClienteCuit())
                 client.balance = data.balance;
             else
                 return;
@@ -787,12 +790,12 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     socket.on('balanceUpdatedProveedor', async (data) => {
-        console.log("Balance proveedor "+ data.cuit +" actualizado.");
-        const proveedor = mockProveedores.find( proveedor => proveedor.cuit === data.cuit);
-        if (proveedor){
-            if (proveedor.cuit !== getProveedorCuit()) 
+        console.log("Balance proveedor " + data.cuit + " actualizado.");
+        const proveedor = mockProveedores.find(proveedor => proveedor.cuit === data.cuit);
+        if (proveedor) {
+            if (proveedor.cuit !== getProveedorCuit())
                 proveedor.balance = data.balance;
-            else 
+            else
                 return;
             if (currentEditingTableType === "proveedores" && editingRowId)
                 if (editingRowId === proveedor.cuit) {
@@ -814,11 +817,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateCliente', async (client) => {
         let cliente = mockClientes.find(cliente => cliente.cuit === client.cuitOriginal);
         const updatedData = client.updatedData;
-        if (cliente){
+        if (cliente) {
             Object.assign(cliente, updatedData);
             //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
             if (currentEditingTableType === "clientes" && editingRowId) {
-                if (editingRowId === client.cuitOriginal){
+                if (editingRowId === client.cuitOriginal) {
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);
@@ -836,8 +839,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('deleteCliente', async (client) => {
         const cliente = mockClientes.find(cliente => cliente.cuit === client.cuit);
         mockClientes = mockClientes.filter(cliente => cliente.cuit !== client.cuit);
-        if (currentEditingTableType === "clientes" && editingRowId){
-            if (cliente.id === editingRowId){
+        if (currentEditingTableType === "clientes" && editingRowId) {
+            if (cliente.id === editingRowId) {
                 resetEditingState();
                 changeSpinnerText(principalContent, "Actualizando datos...");
                 toggleSpinnerVisible(principalContent);
@@ -862,8 +865,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.log(proveedor);
         const proveedorData = mockProveedores.find(p => p.cuit === proveedor.cuit);
         mockProveedores = mockProveedores.filter(p => p.cuit !== proveedor.cuit);
-        if (currentEditingTableType === "proveedores" && editingRowId){
-            if (proveedorData.id === editingRowId){
+        if (currentEditingTableType === "proveedores" && editingRowId) {
+            if (proveedorData.id === editingRowId) {
                 resetEditingState();
                 changeSpinnerText(principalContent, "Actualizando datos...");
                 toggleSpinnerVisible(principalContent);
@@ -880,11 +883,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('updateProveedor', async (proveedor) => {
         let proveedorData = mockProveedores.find(p => p.cuit === proveedor.cuitOriginal);
         const updatedData = proveedor.updatedData;
-        if (proveedorData){
+        if (proveedorData) {
             //console.log(`Cliente con cuit ${client.cuitOriginal} modificado`);
             Object.assign(proveedorData, updatedData);
             if (currentEditingTableType === "proveedores" && editingRowId) {
-                if (editingRowId === proveedor.cuitOriginal){
+                if (editingRowId === proveedor.cuitOriginal) {
                     resetEditingState();
                     changeSpinnerText(principalContent, "Actualizando datos...");
                     toggleSpinnerVisible(principalContent);

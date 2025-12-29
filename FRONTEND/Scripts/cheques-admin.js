@@ -1,4 +1,4 @@
-// /FRONTEND/scripts/cheques-admin.js
+// /scripts/cheques-admin.js
 
 import { setChequesPagos, socket } from './api.js';
 import { renderTabla, renderTables } from './tabla.js';
@@ -26,7 +26,7 @@ let currentFilter = {
 };
 
 const columnasProximos = [
-    { label: 'Días', key: 'fecha_cheque', class: ['text-right', 'bold'], modify: (content) => calcularDiasRestantes(content) > 0? `${calcularDiasRestantes(content)} días` : calcularDiasRestantes(content) === 0? 'Hoy' : formatFecha(content) },
+    { label: 'Días', key: 'fecha_cheque', class: ['text-right', 'bold'], modify: (content) => calcularDiasRestantes(content) > 0 ? `${calcularDiasRestantes(content)} días` : calcularDiasRestantes(content) === 0 ? 'Hoy' : formatFecha(content) },
     { label: 'Fecha Cobro', key: 'fecha_cheque', class: [], modify: (content) => formatFecha(content) },
     { label: 'Cheque', key: 'nro_cheque', class: [] },
     { label: 'Destinatario', key: 'destinatario', class: [] },
@@ -62,7 +62,7 @@ const handleCheckboxChange = (nroCheque, isChecked) => {
 const optionsProximos = {
     containerId: 'tabla-proximos',
     paginacionContainerId: 'paginacion-proximos',
-    columnas: [ columnasProximos ],
+    columnas: [columnasProximos],
     itemsPorPagina: () => 10,
     actions: [],
     onEdit: null,
@@ -79,7 +79,7 @@ const optionsProximos = {
 const optionsPagos = {
     containerId: 'tabla-pagos',
     paginacionContainerId: 'paginacion-pagos',
-    columnas: [ columnasPagos ],
+    columnas: [columnasPagos],
     itemsPorPagina: () => 10,
     actions: [],
     onEdit: null,
@@ -152,7 +152,7 @@ function renderTablaProximos() {
     filteredData = filteredData.map(c => ({
         ...c,
         id: c.nro_cheque,
-        selected: selectedCheques.get(c.nro_cheque)? true : false
+        selected: selectedCheques.get(c.nro_cheque) ? true : false
     }));
 
     renderTables(filteredData, 1, optionsProximos);
@@ -221,7 +221,7 @@ async function mostrarContenidoTabCheques(tab) {
     const pagosDiv = document.getElementById('content-pagos');
     const selectCantidad = document.getElementById("selectCheques");
     const inputCantCheques = document.getElementById('inputSelectCheques');
-    
+
 
     currentFilter = {};
     clearFilterInputs();
@@ -236,7 +236,6 @@ async function mostrarContenidoTabCheques(tab) {
                     cheque.selected = false;
                     cheque.importe = parseImporte(cheque.importe);
                 });
-
             } catch (error) {
                 console.error(error.message);
             }
@@ -246,7 +245,7 @@ async function mostrarContenidoTabCheques(tab) {
         proximosDiv.classList.add('hidden');
         pagosDiv.classList.remove('hidden');
         try {
-            const cantidad = selectCantidad.value !== "Otro"? selectCantidad.value : inputCantCheques.value;
+            const cantidad = selectCantidad.value !== "Otro" ? selectCantidad.value : inputCantCheques.value;
             datosChequesPagos = await getCheques(true, null, cantidad);
             datosChequesPagos.forEach(cheque => {
                 cheque.importe = parseImporte(cheque.importe);
@@ -394,15 +393,15 @@ function handleClickOutsideFilterCard(event) {
     const clearFilterBtnProximos = document.getElementById('clear-filter-btn-proximos');
     const clearFilterBtnPagos = document.getElementById('clear-filter-btn-pagos');
 
-    if (filterCardVisible && 
-        filterCard && !filterCard.contains(event.target) && 
-        filterBtnProximos && event.target !== filterBtnProximos && 
-        !filterBtnProximos.contains(event.target) && 
-        filterBtnPagos && event.target !== filterBtnPagos && 
+    if (filterCardVisible &&
+        filterCard && !filterCard.contains(event.target) &&
+        filterBtnProximos && event.target !== filterBtnProximos &&
+        !filterBtnProximos.contains(event.target) &&
+        filterBtnPagos && event.target !== filterBtnPagos &&
         !filterBtnPagos.contains(event.target) &&
-        clearFilterBtnProximos && event.target !== clearFilterBtnProximos && 
-        !(clearFilterBtnProximos && clearFilterBtnProximos.contains(event.target)) && 
-        clearFilterBtnPagos && event.target !== clearFilterBtnPagos && 
+        clearFilterBtnProximos && event.target !== clearFilterBtnProximos &&
+        !(clearFilterBtnProximos && clearFilterBtnProximos.contains(event.target)) &&
+        clearFilterBtnPagos && event.target !== clearFilterBtnPagos &&
         !(clearFilterBtnPagos && clearFilterBtnPagos.contains(event.target))
     ) {
         filterCard.classList.add('hidden');
@@ -468,7 +467,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     })
 
     selectCantidad?.addEventListener("change", () => {
-        if (selectCantidad.value !== "Otro"){
+        if (selectCantidad.value !== "Otro") {
             inputCantCheques.classList.add("hidden");
             inputCantCheques.value = '';
             mostrarContenidoTabCheques('pagos');
@@ -490,7 +489,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     if (datosChequesPagos.length > 0)
                         datosChequesProximos.filter(
                             cheque => selectedCheques.has(cheque.nro_cheque)
-                        ).forEach( cheque => datosChequesPagos.push(cheque));
+                        ).forEach(cheque => datosChequesPagos.push(cheque));
                     datosChequesProximos = datosChequesProximos.filter(
                         cheque => !selectedCheques.has(cheque.nro_cheque)
                     );
@@ -498,10 +497,10 @@ document.addEventListener('DOMContentLoaded', async function () {
                     showConfirmModal(`Se marcaron como pagos los cheques con número: ${chequeIdsToPay}`);
 
                 }
-            } catch (error){
+            } catch (error) {
                 console.log(error.message);
             }
-            
+
             selectedCheques.clear();
             clearFilterBtnProximos.click();
         });
@@ -540,8 +539,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     socket.on('nuevoPago', async (pagos) => {
         let actualizo = false;
-        pagos.pagosArray.forEach( pago => {
-            if (pago.tipo.toLowerCase() === 'cheque' && !datosChequesProximos.find(c => c.nro_cheque === pago.comprobante) && !pago.cuit){
+        pagos.pagosArray.forEach(pago => {
+            if (pago.tipo.toLowerCase() === 'cheque' && !datosChequesProximos.find(c => c.nro_cheque === pago.comprobante) && !pago.cuit) {
                 console.log(pago);
                 datosChequesProximos.push(pago);
                 actualizo = true;
@@ -555,7 +554,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     socket.on('deletePago', async (pago) => {
         console.log("Cheque eliminado recibido por socket:", pago);
-        if (!pago.cuit && pago.tipo.toLowerCase() === 'cheque'){
+        if (!pago.cuit && pago.tipo.toLowerCase() === 'cheque') {
             datosChequesProximos = datosChequesProximos.filter(c => c.nro_cheque !== pago.id);
             await renderTablaProximos();
             showConfirmModal("Se actualizaron los cheques próximos");
@@ -565,14 +564,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     socket.on('marcarPago', async (pago) => {
         length = datosChequesProximos.length;
         datosChequesProximos = datosChequesProximos.filter(p => {
-            if (pago.nros.includes(p.nro_cheque)){
+            if (pago.nros.includes(p.nro_cheque)) {
                 datosChequesPagos.push(p);
                 return false;
             }
             return true;
         });
-        datosChequesPagos.sort((a, b) => new Date(a.fecha_cheque) - new Date(b.fecha_cheque) );
-        if (length !== datosChequesProximos.length){
+        datosChequesPagos.sort((a, b) => new Date(a.fecha_cheque) - new Date(b.fecha_cheque));
+        if (length !== datosChequesProximos.length) {
             await renderTablaProximos();
             await renderTablaPagos();
             showConfirmModal("Se marcaron cheques como pagos y se actualizaron las tablas");

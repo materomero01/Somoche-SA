@@ -1,4 +1,4 @@
-// /FRONTEND/scripts/mi-cuenta-chofer.js
+// /scripts/mi-cuenta-chofer.js
 
 import { updateChofer, fetchChoferData, logout, showConfirmModal } from './apiPublic.js';
 
@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof loadHeader === 'function') {
         loadHeader();
     } else {
-        console.error("loadHeader no está definido. Asegúrate de cargar /FRONTEND/scripts/header.js.");
+        console.error("loadHeader no está definido. Asegúrate de cargar /scripts/header.js.");
     }
 
     // Carga el sidebar y ESPERAMOS A QUE TERMINE
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("Error al cargar el sidebar:", error);
         }
     } else {
-        console.error("loadSidebar no está definido. Asegúrate de cargar /FRONTEND/scripts/sidebar.js.");
+        console.error("loadSidebar no está definido. Asegúrate de cargar /scripts/sidebar.js.");
     }
 
     // --- INICIO: FUNCIONALIDAD PARA RESALTAR EL ÍTEM ACTIVO EN EL SIDEBAR ---

@@ -1,4 +1,4 @@
-// /FRONTEND/catac.js
+//catac.js
 import { updateTarifas, tarifasCatac, loadTarifas} from './api.js';
 import { showConfirmModal, createLoadingSpinner,toggleSpinnerVisible, changeSpinnerText} from './apiPublic.js';
 
