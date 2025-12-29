@@ -226,6 +226,10 @@ html, body {
         padding: 5px 10px 10px 10px;
     }
 
+    .content.expanded {
+        margin-left: 200px;
+        margin-left: 5px;
+    }
 
     .catac-header {
         flex-wrap: wrap;
@@ -255,5 +259,9 @@ html, body {
 
     #catacTable td {
         width: auto; /* Dejar que las celdas se ajusten automáticamente */
+    }
+    
+    .pagination-controls {
+       margin-bottom: 90px;
     }
 }

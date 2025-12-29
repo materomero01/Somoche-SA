@@ -73,3 +73,9 @@
 .tab-content.hidden {
     display: none; /* Oculta el contenido */
 }
+
+@media (max-width: 767px) {
+    .tab-content {
+        padding: 5px !important;
+    }
+}

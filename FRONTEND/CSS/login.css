@@ -9,7 +9,7 @@ body {
 }
 
 .rectangle-9 {
-    width: 1366px;
+    width: auto;
     padding: 8px;
     background: #EBEBEB;
     border-color: #F7F6F600; /* Transparent border, effectively no border */
@@ -43,6 +43,7 @@ body {
     line-height: 1.28;
     letter-spacing: -0.2px;
     text-align: center;
+    white-space: nowrap;
 }
 
 .subtext {
@@ -146,6 +147,7 @@ a {
     display: flex;
     justify-content: center;
     align-items: center;
+    white-space: nowrap;
 }
 
 @media (max-width: 767px) {
@@ -277,5 +279,9 @@ a {
     .select-format {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    #loading-spinner {
+        padding-top: 0px !important;
     }
 }

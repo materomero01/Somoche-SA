@@ -522,7 +522,7 @@ const setupAddPagoBtn = () => {
                     return;
                 }
                 
-                if (isNaN(payload.pagos.importe) || payload.pagos.importe <= 0) {
+                if (isNaN(payload.pagos.importe)) {
                     showConfirmModal(`El valor ingresado para el importe no es válido`);
                     return;
                 }
@@ -641,7 +641,6 @@ async function cargarTablas() {
                     viajesData = [];}
                 );
             }
-            console.log(dataPagos);
             pagosData = dataPagos.map(p => {
                 return parsePagos(p);
             });
@@ -740,7 +739,7 @@ async function cerrarCuenta() {
 
         let payloadPagos = {};
         pagos.forEach(p => {
-            const idCompuesto = p.id + "-" + p.tipo;
+            const idCompuesto = p.id + "°" + p.tipo;
             payloadPagos = {
                 ...payloadPagos,
                 [idCompuesto]: {

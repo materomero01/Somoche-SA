@@ -508,14 +508,13 @@
     .tabla-dinamica table {
         table-layout: fixed; /* Fixed layout to control column widths */
         width: auto; /* Allow table to expand based on content */
-        min-width: 1000px; /* Set a minimum width to accommodate all columns */
     }
 
     /* Column styling to prevent compression and vertical text */
     .tabla-dinamica th,
     .tabla-dinamica td {
-        min-width: 50px; /* Minimum width for each column */
-        padding: 3px 3px; /* Slightly larger padding for readability */
+        min-width: 10; /* Minimum width for each column */
+        padding: 3px; /* Slightly larger padding for readability */
         font-size: 0.8rem; /* Readable font size */
         white-space: nowrap; /* Prevent text wrapping */
         text-overflow: ellipsis; /* Truncate long text with ellipsis */
@@ -585,7 +584,7 @@
 
     /* Ensure summary boxes and totals are readable */
     .summary-boxes {
-        flex-direction: column;
+        flex-direction: row;
         align-items: stretch;
         gap: 10px;
     }
@@ -593,6 +592,7 @@
     .summary-box {
         font-size: 1rem;
         padding: 12px;
+        white-space: nowrap;
     }
 
     .cheques-selected-summary,
@@ -610,5 +610,19 @@
         padding: 10px;
         width: 100%;
         box-sizing: border-box;
+    }
+
+    #viajesPagosModal #total-pagar {
+        width: 50% !important;
+        overflow-wrap: break-word;
+        word-break: normal;
+        white-space: nowrap;
+    }
+    
+    #cerrarCuenta {
+        width: 35% !important;
+        overflow-wrap: break-word;
+        word-break: normal;
+        white-space: nowrap;
     }
 }

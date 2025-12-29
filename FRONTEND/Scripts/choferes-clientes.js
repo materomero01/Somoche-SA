@@ -242,6 +242,30 @@ function seePassword(passwordId) {
     });
 }
 
+function formatCuil(input) {
+    // Elimina todo lo que no sea un número
+    let value = input.value.replace(/\D/g, '');
+    
+    // Limita a 11 dígitos (el máximo de un CUIL)
+    if (value.length > 11) {
+        value = value.slice(0, 11);
+    }
+
+    // Aplica el formato XX-XXXXXXXX-X
+    let formattedValue = '';
+    if (value.length > 0) {
+        formattedValue = value.substring(0, 2);
+        if (value.length > 2) {
+            formattedValue += '-' + value.substring(2, 10);
+        }
+        if (value.length > 10) {
+            formattedValue += '-' + value.substring(10, 11);
+        }
+    }
+
+    input.value = formattedValue;
+}
+
 // --- Lógica de Pestañas ---
  async function setupChoferesClientesTabSelector() {
     const tabSelector = document.getElementById('choferesClientesSelector');
@@ -414,6 +438,15 @@ function setupAddButtons() {
             formCardChofer.classList.toggle('hidden');
         });
     }
+
+    // Lógica para formateo automático de CUIL
+    const cuilChoferInput = document.getElementById("nuevoChoferCuil");
+    if (cuilChoferInput) {
+        cuilChoferInput.addEventListener("input", (e) => {
+            formatCuil(e.target);
+        });
+    }
+
     if (btnGuardarChofer) {
         btnGuardarChofer.addEventListener('click', async () => {
             const formChofer = document.getElementById('form-chofer');
@@ -473,6 +506,14 @@ function setupAddButtons() {
         });
     }
 
+    // Lógica para formateo automático de CUIT
+    const cuitClienteInput = document.getElementById("nuevoClienteCuit");
+    if (cuitClienteInput) {
+        cuitClienteInput.addEventListener("input", (e) => {
+            formatCuil(e.target);
+        });
+    }
+
     if (btnGuardarCliente) {
         btnGuardarCliente.addEventListener('click', async () => {
             const formCliente = document.getElementById('form-cliente');
@@ -517,6 +558,14 @@ function setupAddButtons() {
     if (btnAddProveedor) {
         btnAddProveedor.addEventListener('click', () => {
             formCardProveedor.classList.toggle('hidden');
+        });
+    }
+
+    // Lógica para formateo automático de CUIT
+    const cuitProveedorInput = document.getElementById("nuevoProveedorCuit");
+    if (cuitProveedorInput) {
+        cuitProveedorInput.addEventListener("input", (e) => {
+            formatCuil(e.target);
         });
     }
 
@@ -611,14 +660,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (typeof loadHeader === 'function') {
         await loadHeader();
     } else {
-        console.error("loadHeader no está definido. Asegúrate de que /FRONTEND/js/header.js se cargue antes.");
+        console.error("loadHeader no está definido. Asegúrate de que /js/header.js se cargue antes.");
     }
 
     if (typeof loadSidebar === 'function') {
         const userRole = localStorage.getItem('userRole');
         await loadSidebar(userRole);
     } else {
-        console.error("loadSidebar no está definido. Asegúrate de que /FRONTEND/js/sidebar.js se cargue antes.");
+        console.error("loadSidebar no está definido. Asegúrate de que /js/sidebar.js se cargue antes.");
     }
 
     const currentPath = window.location.pathname;

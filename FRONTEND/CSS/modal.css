@@ -154,4 +154,25 @@
         margin-top: 20px;
         width: 80%;
     }
+
+    #documentUploadModal .modal-content {
+        width: 80%;
+        
+    }
+
+    #documentUploadModal .section-header {
+        flex-direction: row;
+    }
+
+    #headerModal {
+        display: none;
+    }
+    
+    #viajesClientesModal .person-info {
+        display: none;
+    }
+
+    .add-card{
+        left: inherit;
+    }
 }

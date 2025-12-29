@@ -661,7 +661,7 @@ async function handleGenerateInvoice(data) {
         showConfirmModal('Error: No se encontró token de autenticación. Por favor, inicia sesión nuevamente.');
         return;
     }
-    changeSpinnerText(mainContent, "Generando factura...");
+    changeSpinnerText(mainContent, "Generando Factura...");
     toggleSpinnerVisible(mainContent);
     try {
         const response = await generarFactura(invoiceData);
@@ -748,7 +748,6 @@ async function setUltimosPagos(cantidad){
         ultimosPagosCliente = data.map(p => {
             return parsePagos(p);
         });
-        console.log(optionsPagos.columnas);
         renderTables(ultimosPagosCliente, 1, optionsPagos);
         
     } else {
@@ -800,7 +799,6 @@ async function handleTabContentDisplay(selectedTab){
                         viaje.iva = viaje.importe * 0.21;
                         return viaje;
                     });
-                    console.log(viajesFacturadosData);
                     currentEditingTable = "viajesFacturados";
                     await renderTables(viajesFacturadosData, 1, optionsViajesFacturados, actualizarTotales);
                 } else {

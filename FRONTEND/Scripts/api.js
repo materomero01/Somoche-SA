@@ -453,7 +453,7 @@ export async function insertCliente(payload){
     try {
         const token = getToken();
         handleAuthorization();
-        const regexCuil = /^\d{2}-\d{7,9}-\d{1}$/;
+        const regexCuil = /^\d{2}-\d{8}-\d{1}$/;
         if (!payload.nombre || payload.nombre === '' || !payload.cuit || !payload.cuit === '' || !regexCuil.test(payload.cuit)){
             showConfirmModal("Los datos ingresados para el cliente no son validos");
             return;
@@ -663,7 +663,7 @@ export async function insertProveedor(payload){
     try {
         const token = getToken();
         handleAuthorization();
-        const regexCuil = /^\d{2}-\d{7,9}-\d{1}$/;
+        const regexCuil = /^\d{2}-\d{8}-\d{1}$/;
         if (!payload.nombre || payload.nombre === '' || !payload.cuit || !payload.cuit === '' || !regexCuil.test(payload.cuit)){
             showConfirmModal("Los datos ingresados para el proveedor no son validos");
             return;

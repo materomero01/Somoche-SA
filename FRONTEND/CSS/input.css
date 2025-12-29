@@ -97,4 +97,10 @@ input[type="number"]::-webkit-inner-spin-button {
     justify-content: center;
 }
 
-
+@media (max-width: 768px) {
+    input[type="date"]{
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+    }
+}

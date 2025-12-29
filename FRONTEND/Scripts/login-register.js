@@ -4,12 +4,36 @@ import { showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpi
 const formSesion = document.getElementById("formSesion");
 const targetsInputs = document.getElementsByClassName("target-input");
 const regexInputs = {
-    'cuil-input': /^\d{2}-\d{7,9}-\d{1}$/,
+    'cuil-input': /^\d{2}-\d{8}-\d{1}$/,
     'chasis-input': /^(?:[A-Za-z]{3} \d{3}|[A-Za-z]{2} \d{3} [A-Za-z]{2})$/,
     'acoplado-input': /^(?:[A-Za-z]{3} \d{3}|[A-Za-z]{2} \d{3} [A-Za-z]{2})$/,
     'telefono-input': /^\d{10}$/,
     'email-input': /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 };
+
+function formatCuil(input) {
+    // Elimina todo lo que no sea un número
+    let value = input.value.replace(/\D/g, '');
+    
+    // Limita a 11 dígitos (el máximo de un CUIL)
+    if (value.length > 11) {
+        value = value.slice(0, 11);
+    }
+
+    // Aplica el formato XX-XXXXXXXX-X
+    let formattedValue = '';
+    if (value.length > 0) {
+        formattedValue = value.substring(0, 2);
+        if (value.length > 2) {
+            formattedValue += '-' + value.substring(2, 10);
+        }
+        if (value.length > 10) {
+            formattedValue += '-' + value.substring(10, 11);
+        }
+    }
+
+    input.value = formattedValue;
+}
 
 function seePassword(passwordId) {
     const iconoToggle = document.querySelector(".toggle");
@@ -105,6 +129,14 @@ formSesion?.addEventListener("submit", async (event) => {
 
 document.addEventListener('DOMContentLoaded', async () => {
     seePassword("password-input");
+
+    // Lógica para formateo automático de CUIL
+    const cuilInput = document.getElementById("cuil-input");
+    if (cuilInput) {
+        cuilInput.addEventListener("input", (e) => {
+            formatCuil(e.target);
+        });
+    }
 });
 
 /**

@@ -81,7 +81,7 @@
 
 
     .add-card.chofer{
-        padding: 20px;
+        padding: 20px !important;
         width: 100vw;
         right: 0px;
         max-width: 80vw !important;
