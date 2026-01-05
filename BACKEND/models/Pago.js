@@ -18,13 +18,15 @@ const pagoChequeSchema = {
     tercero: { type: 'string', required: true, error: 'El tercero es obligatorio.' },
     destinatario: { type: 'string', required: true, error: 'El destinatario es obligatorio.' },
     importe: { type: 'number', required: true, min: 0, error: 'El importe debe ser un número mayor o igual a 0.' },
-    cliente_cuit: { type: 'string', required: false, default: null, regex: /^\d{2}-\d{7,9}-\d{1}$/, error: 'El Cuit del cliente no es valido'},
-    chofer_cuil: { type: 'string', required: false, default: null, regex: /^\d{2}-\d{7,9}-\d{1}$/, error: 'El Cuil del chofer no es valido'},
+    cliente_cuit: { type: 'string', required: false, default: null, regex: /^\d{2}-\d{8}-\d{1}$/, error: 'El Cuit del cliente no es valido'},
+    proveedor_cuit: { type: 'string', required: false, default: null, regex: /^\d{2}-\d{8}-\d{1}$/, error: 'El Cuit del proveedor no es valido'},
+    chofer_cuil: { type: 'string', required: false, default: null, regex: /^\d{2}-\d{8}-\d{1}$/, error: 'El Cuil del chofer no es valido'},
     pagado: { type: 'boolean', required: false, default: false, error: 'El pagado debe ser un booleano.' }
 };
 
 const pagoGasoilSchema = {
     ...pagoSchema,
+    proveedor_cuit: { type: 'string', required: true, default: null, regex: /^\d{2}-\d{8}-\d{1}$/, error: 'El Cuit del proveedor no es valido'},
     comprobante: { type: 'string', required: true, error: 'El comprobante de la orden de gasoil no fue ingresado o no es válido'},
     precioGasoil: { type: 'number', required: true, min: 0, error: 'El precioGasoil debe ser un número mayor o igual a 0.' },
     litros: { type: 'number', required: true, min: 0, error: 'Los litros deben ser un número mayor o igual a 0.' }

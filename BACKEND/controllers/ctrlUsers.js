@@ -9,7 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 exports.insertUser = async (req, res) => {
     let client;
-   try {
+    try {
         // Validar datos de entrada
         const { errors, validatedData } = userSchema(req.body);
         const { admin } = req.query;
@@ -19,25 +19,28 @@ exports.insertUser = async (req, res) => {
 
         client = await pool.connect();
         await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        // En registro público puede no haber usuario logueado
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user?.cuil || 'autogestión']);
 
         // Verificar si el CUIL o email ya están registrados
         const userExists = await client.query(
             'SELECT cuil, valid FROM usuario WHERE cuil = $1 OR email = $2',
             [validatedData.cuil, validatedData.email]
         );
-        
+
         // Hash de la contraseña
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(validatedData.password, salt);
         let usuarioRecuperado = false;
         if (userExists.rows.length > 0) {
             console.log(admin);
-            if(!userExists.rows[0].valid && admin === "true"){
+            if (!userExists.rows[0].valid && admin === "true") {
                 const responseRecuperar = await client.query('UPDATE usuario SET valid = true, nombre_apellido = $2, password = $3, telefono = $4, email = $5 WHERE valid = false AND cuil = $1', [validatedData.cuil, validatedData.nombre, hashedPassword, validatedData.telefono, validatedData.email]);
                 const responseRecuperarChofer = await client.query('UPDATE chofer SET valid = true, tipo_trabajador = $2, patente_chasis = $3, patente_acoplado = $4 WHERE valid = false AND cuil = $1', [validatedData.cuil, validatedData.trabajador, validatedData.patente_chasis, validatedData.patente_acoplado]);
                 if (responseRecuperar.rowCount > 0 && responseRecuperarChofer.rowCount > 0)
                     usuarioRecuperado = true;
-                    res.status(202).json({ message: `Se recupero un usuario anteriormente registrado con el cuit ${validatedData.cuil}, y se actualizaron sus datos`});
+                res.status(202).json({ message: `Se recupero un usuario anteriormente registrado con el cuit ${validatedData.cuil}, y se actualizaron sus datos` });
 
             }
             if (!usuarioRecuperado) {
@@ -46,8 +49,8 @@ exports.insertUser = async (req, res) => {
             }
         }
 
-        
-        if (!usuarioRecuperado){
+
+        if (!usuarioRecuperado) {
             // Insertar en la tabla usuario
             await client.query(
                 `INSERT INTO usuario (
@@ -83,22 +86,22 @@ exports.insertUser = async (req, res) => {
         // Avisar a todos los clientes conectados
         const authToken = req.headers.authorization?.split(' ')[1];
         let emitterCuil = null;
-        if (authToken){
+        if (authToken) {
             try {
                 const decoded = jwt.verify(authToken, JWT_SECRET);
                 emitterCuil = decoded.cuil;
                 io.sockets.sockets.forEach((socket) => {
-                if (socket.cuil !== emitterCuil) {
-                    socket.emit('nuevoUsuario',{id: validatedData.cuil,nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
-                }
-            });
+                    if (socket.cuil !== emitterCuil) {
+                        socket.emit('nuevoUsuario', { id: validatedData.cuil, nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email });
+                    }
+                });
             } catch (error) {
                 console.error('Error al verificar token en insertUser:', error);
             }// Emitir evento a todos los clientes excepto al emisor
         } else {
-            io.emit('nuevoUsuario',{nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email});
+            io.emit('nuevoUsuario', { nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email });
         }
-        
+
         if (!usuarioRecuperado) res.status(201).json({ message: 'Usuario registrado con éxito' });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
@@ -133,7 +136,7 @@ exports.loginUser = async (req, res) => {
         }
 
         let choferTrabajador;
-        if (user.role === "chofer"){
+        if (user.role === "chofer") {
             const choferResult = await pool.query(
                 'SELECT tipo_trabajador FROM chofer WHERE cuil = $1',
                 [cuil]
@@ -189,14 +192,14 @@ exports.getEmailByCuit = async (req, res) => {
     try {
         const result = await pool.query('SELECT email, nombre_apellido FROM usuario where cuil = $1',
             [cuil]);
-        
+
         if (result.rows.length === 0) {
             return res.status(401).json({ message: 'El CUIL proporcionado no se encuentra registrado.' });
         }
 
         const email = result.rows[0].email;
         if (email === null) {
-            return res.status(400).json({message: 'El usuario no tiene E-mail'})
+            return res.status(400).json({ message: 'El usuario no tiene E-mail' })
         }
         const resetToken = jwt.sign(
             { cuil, scope: 'password_reset' },

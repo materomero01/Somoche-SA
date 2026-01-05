@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Choferes y Clientes - Somoche S.A.</title>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
-    <link rel="stylesheet" href="/CSS/header.css" />
-    <link rel="stylesheet" href="/CSS/sidebar.css" />
-    <link rel="stylesheet" href="/CSS/add-viajes.css" />
-    <link rel="stylesheet" href="/CSS/choferes-clientes.css" />
-    <link rel="stylesheet" href="/CSS/button.css" />
-    <link rel="stylesheet" href="/CSS/tab-selector.css" />
-    <link rel="stylesheet" href="/CSS/searchbar.css" />
-    <link rel="stylesheet" href="/CSS/input.css" />
-    <link rel="stylesheet" href="/CSS/tabla.css" />
-    <link rel="stylesheet" href="/CSS/modal.css" /> 
-    <link rel="stylesheet" href="/CSS/card.css" /> 
-    <link rel="stylesheet" href="/CSS/loading-spinner.css" />
-     <link rel="stylesheet" href="/CSS/factura-upload.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="CSS/header.css" />
+    <link rel="stylesheet" href="CSS/sidebar.css" />
+    <link rel="stylesheet" href="CSS/add-viajes.css" />
+    <link rel="stylesheet" href="CSS/choferes-clientes.css" />
+    <link rel="stylesheet" href="CSS/button.css" />
+    <link rel="stylesheet" href="CSS/tab-selector.css" />
+    <link rel="stylesheet" href="CSS/searchbar.css" />
+    <link rel="stylesheet" href="CSS/input.css" />
+    <link rel="stylesheet" href="CSS/tabla.css" />
+    <link rel="stylesheet" href="CSS/modal.css" />
+    <link rel="stylesheet" href="CSS/card.css" />
+    <link rel="stylesheet" href="CSS/loading-spinner.css" />
+    <link rel="stylesheet" href="CSS/factura-upload.css" />
 </head>
+
 <body>
 
     <div id="header-container"></div>
@@ -35,6 +37,7 @@
             <div class="tab-selector" id="choferesClientesSelector">
                 <div class="tab-item active" data-tab="choferes">Choferes</div>
                 <div class="tab-item" data-tab="clientes">Clientes</div>
+                <div class="tab-item" data-tab="proveedores">Proveedores</div>
             </div>
 
             <div id="content-choferes" class="tab-content">
@@ -48,19 +51,22 @@
                         <button class="btn btn-success btn-sm" id="btnAddChofer" style="height: 100%;">
                             <i class="bi bi-plus-circle"></i> Añadir Chofer
                         </button>
-                        <div id="addChoferCard" class="add-card chofer hidden" >
+                        <div id="addChoferCard" class="add-card chofer hidden">
                             <form class="form-grid" id="form-chofer">
                                 <div class="form-group">
                                     <label for="nuevoChoferNombre">Nombre y apellido *</label>
-                                    <input type="text" id="nuevoChoferNombre" name="nombre" placeholder="Nombre y apellido" required>
+                                    <input type="text" id="nuevoChoferNombre" name="nombre"
+                                        placeholder="Nombre y apellido" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="nuevoChoferCuil">CUIL / CUIT *</label>
-                                    <input type="text" id="nuevoChoferCuil" name = "cuil" placeholder="20-12345678-1" required>
+                                    <input type="text" id="nuevoChoferCuil" name="cuil" placeholder="20-12345678-1"
+                                        required>
                                 </div>
                                 <div class="form-group">
                                     <label for="password-input" class="cuil">Contraseña *</label>
-                                    <input type="password" id="password-input" name="password" placeholder="••••••••••" required>
+                                    <input type="password" id="password-input" name="password" placeholder="••••••••••"
+                                        required>
                                     <div class="password-icon" style="top: 46%">
                                         <i class="bi bi-eye-slash toggle"></i>
                                     </div>
@@ -68,7 +74,8 @@
                                 <div class="form-group">
                                     <label for="nuevoChoferTrabajador" class="cuil">Trabajador *</label>
                                     <select id="nuevoChoferTrabajador" name="trabajador">
-                                        <option value="" disabled selected hidden>-- Por favor, elige una opción --</option>
+                                        <option value="" disabled selected hidden>-- Por favor, elige una opción --
+                                        </option>
                                         <option value="Monotributista">Monotributista</option>
                                         <option value="Responsable Inscripto">Responsable Inscripto</option>
                                         <option value="Chofer">Chofer</option>
@@ -77,25 +84,30 @@
 
                                 <div class="form-group">
                                     <label for="nuevoChoferChasis" class="cuil">Patente chasis *</label>
-                                    <input type="text" id="nuevoChoferChasis" name="patente_chasis" placeholder="ABC 123" maxlength="9" style="text-transform: uppercase;" required>
+                                    <input type="text" id="nuevoChoferChasis" name="patente_chasis"
+                                        placeholder="ABC 123" maxlength="9" style="text-transform: uppercase;" required>
                                 </div>
 
                                 <div class="form-group">
                                     <label for="nuevoChoferAcoplado" class="cuil">Patente acoplado</label>
-                                    <input type="text" id="nuevoChoferAcoplado" name="patente_acoplado" placeholder="ABC 123"  maxlength="9" style="text-transform: uppercase;">
+                                    <input type="text" id="nuevoChoferAcoplado" name="patente_acoplado"
+                                        placeholder="ABC 123" maxlength="9" style="text-transform: uppercase;">
                                 </div>
 
                                 <div class="form-group">
                                     <label for="nuevoChoferTelefono" class="cuil">Teléfono (sin espacios)</label>
-                                    <input type="number" id="nuevoChoferTelefono" name="telefono" placeholder="2262 123456">
+                                    <input type="number" id="nuevoChoferTelefono" name="telefono"
+                                        placeholder="2262 123456">
                                 </div>
 
                                 <div class="form-group">
                                     <label for="nuevoChoferEmail" class="cuil">Email</label>
-                                    <input type="email" id="nuevoChoferEmail" name="email" placeholder="example@address.com">
+                                    <input type="email" id="nuevoChoferEmail" name="email"
+                                        placeholder="example@address.com">
                                 </div>
                             </form>
-                            <button class="btn btn-success btn-sm" id="btnGuardarNuevoChofer" style="max-width: 40vw; height: 30px; align-self: center; width: 40vw;">
+                            <button class="btn btn-success btn-sm" id="btnGuardarNuevoChofer"
+                                style="max-width: 40vw; height: 30px; align-self: center; width: 40vw;">
                                 Cargar chofer
                             </button>
                         </div>
@@ -117,19 +129,21 @@
                             <i class="bi bi-plus-circle"></i> Añadir cliente
                         </button>
 
-                        <div id="addClienteCard" class="add-card">
-                            <div class="form-group" style="margin-bottom: 10px;">
-                                <label for="nuevoClienteNombre">Nombre y apellido / Razon social *</label>
-                                <input type="text" id="nuevoClienteNombre" placeholder="Nombre" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 10px;">
-                                <label for="nuevoClienteCuit">CUIL / CUIT *</label>
-                                <input type="text" id="nuevoClienteCuit" placeholder="20-12345678-1" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 10px;">
-                                <label for="nuevoClienteCuit">Email</label>
-                                <input type="email" id="nuevoClienteEmail" placeholder="example@address.com">
-                            </div>
+                        <div id="addClienteCard" class="add-card hidden">
+                            <form id="form-cliente">
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoClienteNombre">Razon social *</label>
+                                    <input type="text" id="nuevoClienteNombre" name="nombre" placeholder="Nombre" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoClienteCuit">CUIL / CUIT *</label>
+                                    <input type="text" id="nuevoClienteCuit" name="cuit" placeholder="20-12345678-1" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoClienteCuit">Email</label>
+                                    <input type="email" id="nuevoClienteEmail" name="email" placeholder="example@address.com">
+                                </div>
+                            </form>
                             <button class="btn btn-success btn-sm" id="btnGuardarNuevoCliente">
                                 Cargar cliente
                             </button>
@@ -140,6 +154,42 @@
                 <div id="paginacion-clientes" class="pagination-controls"></div>
             </div>
 
+            <div id="content-proveedores" class="tab-content hidden">
+                <h2>Lista de proveedores</h2>
+                <div class="top-bar">
+                    <div id="proveedoresSearchBar" class="search-bar">
+                        <input type="text" class="search-input" placeholder="Buscar proveedor..." />
+                        <div class="search-icon"><i class="bi bi-search"></i></div>
+                    </div>
+                    <div class="add-wrapper" id="cliente-wrapper">
+                        <button id="btnAddProveedor" class="btn btn-success btn-sm" style="height: 100%;">
+                            <i class="bi bi-plus-circle"></i> Añadir Proveedor
+                        </button>
+
+                        <div id="addProveedorCard" class="add-card hidden">
+                            <form id="form-proveedor">
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoProveedorNombre">Razon social *</label>
+                                    <input type="text" id="nuevoProveedorNombre" name="nombre" placeholder="Nombre" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoProveedorCuit">CUIL / CUIT *</label>
+                                    <input type="text" id="nuevoProveedorCuit" name="cuit" placeholder="20-12345678-1" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoProveedorTelefono">Teléfono</label>
+                                    <input type="number" id="nuevoProveedorTelefono" name="telefono" placeholder="2262123456">
+                                </div>
+                            </form>
+                            <button class="btn btn-success btn-sm" id="btnGuardarNuevoProveedor">
+                                Cargar Proveedor
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="tabla-proveedores" class="tabla-dinamica"></div>
+                <div id="paginacion-proveedores" class="pagination-controls"></div>
+            </div>
         </section>
     </main>
 
@@ -160,15 +210,18 @@
 
     <div id="viajesClientesModal" class="modal" style="z-index: 900;"></div>
 
+    <div id="ordenesProveedoresModal" class="modal" style="z-index: 900;"></div>
 
-    <script src="/Scripts/header.js"></script>
-    <script src="/Scripts/sidebar.js"></script>
+
+    <script src="Scripts/header.js"></script>
+    <script src="Scripts/sidebar.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" ...></script>
-    <script type="module" src="/Scripts/viajes-pagos.js"></script>
-    <script type="module" src="/Scripts/viajes-clientes.js"></script>
-    <script type="module" src="/Scripts/resumenes.js"></script>
-    <script type="module" src="/Scripts/tabla.js"></script>
-    <script type="module" src="/Scripts/choferes-clientes.js"></script>
-    
+    <script type="module" src="Scripts/viajes-pagos.js"></script>
+    <script type="module" src="Scripts/viajes-clientes.js"></script>
+    <script type="module" src="Scripts/resumenes.js"></script>
+    <script type="module" src="Scripts/tabla.js"></script>
+    <script type="module" src="Scripts/choferes-clientes.js"></script>
+
 </body>
+
 </html>

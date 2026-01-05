@@ -8,7 +8,7 @@ const isValidDate = (value) => {
     return !isNaN(date); // Verifica si la fecha es parseable
 };
 
-exports.insertResumen = async(req, res) => {
+exports.insertResumen = async (req, res) => {
     if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
@@ -18,15 +18,19 @@ exports.insertResumen = async(req, res) => {
     try {
         client = await pool.connect();
         await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
         const groupStamp = req.body.groupStamp;
         const pagos = req.body.pagos;
         const viajes = req.body.viajes;
-        
+        const iva = req.body.iva === 'Responsable Inscripto';
+
+
         if (!groupStamp || !viajes)
-            return res.status(405).json({ message: 'Faltan datos ensenciales para cerrar el resumen'});
-        
-        if(!isValidDate(groupStamp))
-            return res.status(405).json({ message: 'El groupStamp no es valido'});
+            return res.status(405).json({ message: 'Faltan datos ensenciales para cerrar el resumen' });
+
+        if (!isValidDate(groupStamp))
+            return res.status(405).json({ message: 'El groupStamp no es valido' });
 
         const userExists = await client.query(
             'SELECT cuil FROM usuario WHERE valid = true AND cuil = $1',
@@ -34,7 +38,7 @@ exports.insertResumen = async(req, res) => {
         );
 
         if (userExists.rows.length === 0) {
-            return res.status(409).json({ 
+            return res.status(409).json({
                 message: `El chofer con CUIL ${choferCuil} no está registrado.`
             });
         }
@@ -53,50 +57,50 @@ exports.insertResumen = async(req, res) => {
             } else {
                 await client.query('ROLLBACK');
                 client.release();
-                return res.status(405).json({ message:`No se pudo modificar el pago ${index}`});
+                return res.status(405).json({ message: `No se pudo modificar el pago ${index}` });
             }
             // Ejecutar la actualización
             const result = await client.query(query, values);
-            if (tipo.toLowerCase() === "otro" && result.rowCount === 0){
+            if (tipo.toLowerCase() === "otro" && result.rowCount === 0) {
                 const resultOtro = await client.query('UPDATE pagos_otro SET group_r = $1 WHERE valid = true AND id = $2 AND group_r IS NULL', values);
-                if (resultOtro.rowCount === 0){
+                if (resultOtro.rowCount === 0) {
                     await client.query('ROLLBACK');
                     client.release();
                     console.log(values);
-                    return res.status(405).json({message: 'No se pudo cerrar el resumen del chofer'});
+                    return res.status(405).json({ message: 'No se pudo cerrar el resumen del chofer' });
                 }
             }
         }
 
         for (const [index, viaje] of Object.entries(viajes)) {
             // Ejecutar la actualización
-            const result = await client.query(` UPDATE viaje SET group_r = $1 WHERE comprobante = $2`, 
+            const result = await client.query(` UPDATE viaje SET group_r = $1 WHERE comprobante = $2`,
                 [groupStamp, index]);
         }
 
         let idPagoAdicional = null;
         const pagoAdicional = req.body.pagoAdicional;
-        if (pagoAdicional){
-            if (!pagoAdicional.tipo || pagoAdicional.tipo.toLowerCase() !== "otro"){
+        if (pagoAdicional) {
+            if (!pagoAdicional.tipo || pagoAdicional.tipo.toLowerCase() !== "otro") {
                 await client.query('ROLLBACK');
                 client.release();
-                return res.status(405).json({ message:`El tipo del pago para el saldo restante no es valido`});
+                return res.status(405).json({ message: `El tipo del pago para el saldo restante no es valido` });
             }
 
             if (!pagoAdicional.importe || isNaN(pagoAdicional.importe)) {
                 await client.query('ROLLBACK');
                 client.release();
-                return res.status(405).json({ message:`El importe del pago para el saldo restante no es valido`});
+                return res.status(405).json({ message: `El importe del pago para el saldo restante no es valido` });
             }
 
-            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo) VALUES ($1, $2, $3)', [groupStamp, choferCuil, -pagoAdicional.importe]);
+            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva) VALUES ($1, $2, $3, $4)', [groupStamp, choferCuil, -pagoAdicional.importe, iva]);
             if (responseResumen.rowCount === 0) {
                 await client.query('ROLLBACK');
                 client.release();
                 console.log(groupStamp);
-		console.log(choferCuil);
+                console.log(choferCuil);
                 console.log(pagoAdicional);
-                return res.status(405).json({ message:`No se pudo cerrar el resumen del chofer`});
+                return res.status(405).json({ message: `No se pudo cerrar el resumen del chofer` });
             }
 
             const response = await client.query("INSERT INTO pagos_otro(detalle, importe, chofer_cuil, fecha_pago) VALUES ($1,$2,$3,$4) RETURNING id",
@@ -104,11 +108,11 @@ exports.insertResumen = async(req, res) => {
             );
             idPagoAdicional = response.rows[0];
         } else {
-            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo) VALUES ($1, $2, $3)', [groupStamp, choferCuil, 0]);
+            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva) VALUES ($1, $2, $3, $4)', [groupStamp, choferCuil, 0, iva]);
             if (responseResumen.rowCount === 0) {
                 await client.query('ROLLBACK');
                 client.release();
-                return res.status(405).json({ message:`No se pudo cerrar el resumen del chofer`});
+                return res.status(405).json({ message: `No se pudo cerrar el resumen del chofer` });
             }
         }
 
@@ -121,20 +125,20 @@ exports.insertResumen = async(req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('cerrarResumen', {cuil: choferCuil});
+                    socket.emit('cerrarResumen', { cuil: choferCuil });
                 }
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error al sincronizar los datos en insertResumen", error.stack);
         }
 
-        res.status(202).json({message: "El resumen fue realizado con exito", idPagoAdicional});
+        res.status(202).json({ message: "El resumen fue realizado con exito", idPagoAdicional });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
         client?.release();
         console.error("ERROR EN insertResumen: ", error.message, error.stack);
         res.status(405).json({ message: "No se pudo realizar el resumen" });
-    }    
+    }
 }
 
 exports.getResumenCuil = async (req, res) => {
@@ -156,6 +160,8 @@ exports.getResumenCuil = async (req, res) => {
     try {
         client = await pool.connect();
         await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
         // Verificar si el chofer existe
         const userExists = await client.query(
@@ -188,13 +194,13 @@ exports.getResumenCuil = async (req, res) => {
         `, [cuil, cantidad]);
 
         const saldosResult = await client.query(`
-            SELECT group_r, saldo
+            SELECT group_r, saldo, iva
             FROM saldo_resumen
             WHERE chofer_cuil = $1
             ORDER BY group_r DESC
             LIMIT $2
             `, [cuil, cantidad])
-        
+
         await client.query('COMMIT');
         client.release();
 
@@ -210,7 +216,8 @@ exports.getResumenCuil = async (req, res) => {
             })),
             saldos: saldosResult.rows.map(row => ({
                 group: row.group_r,
-                saldo: row.saldo
+                saldo: row.saldo,
+                iva: row.iva
             }))
         };
 

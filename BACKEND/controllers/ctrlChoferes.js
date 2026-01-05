@@ -32,9 +32,12 @@ exports.getChoferesAllData = async (req, res) => {
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(`SELECT * FROM choferV`);
         // const response = await pool.query(``);
-        
+
         // console.log(response.rows);
 
+        // await pool.query (``);
+        // const response = await pool.query(``);
+        // console.log(response.rowCount);
         res.status(208).json({ choferes: result.rows });
 
     } catch (error) {
@@ -52,6 +55,7 @@ exports.updateChofer = async (req, res) => {
 
     let client;
     try {
+        console.log(editingData);
         const { errors, validatedData } = userSchema(editingData);
         if (errors.length > 0) {
             return res.status(400).json({ message: `Los datos ingresados para ${errors.join(', ')} no son validos` });
@@ -65,9 +69,11 @@ exports.updateChofer = async (req, res) => {
                 return res.status(401).json({ message: 'El CUIL proporcionado ya se encuentra registrado.' });
             }
         }
-        
+
         client = await pool.connect();
         await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
         // Actualizar en la tabla usuario
         await client.query(
             `UPDATE choferV SET cuil = $1, nombre = $2, telefono = $3, email = $4, trabajador = $5, patente_chasis = $6, patente_acoplado = $7
@@ -83,21 +89,21 @@ exports.updateChofer = async (req, res) => {
                 cuilOriginal
             ]
         );
-        
+
         await client.query('COMMIT');
-        
+
         try {
             const io = getIO();
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('updateUsuario',{cuilOriginal: cuilOriginal, updatedData:{nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email}});
+                    socket.emit('updateUsuario', { cuilOriginal: cuilOriginal, updatedData: { nombre: validatedData.nombre, cuil: validatedData.cuil, trabajador: validatedData.trabajador, patente_chasis: validatedData.patente_chasis, patente_acoplado: validatedData.patente_acoplado, telefono: validatedData.telefono, email: validatedData.email } });
                 }
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
         }
-        
+
         res.status(201).json({ message: 'Usuario modificado con éxito' });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
@@ -117,20 +123,23 @@ exports.deleteChofer = async (req, res) => {
     try {
         client = await pool.connect();
         await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
         let { rowCount } = await client.query(
             'UPDATE usuario SET valid = false WHERE cuil = $1',
             [cuil]
         );
-        
+
         if (rowCount === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
         }
+
         const result = await client.query(
             'UPDATE chofer SET valid = false WHERE cuil = $1',
             [cuil]
         );
-        
+
         if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Chofer no encontrado.' });
         }
@@ -142,10 +151,10 @@ exports.deleteChofer = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    socket.emit('deleteUsuario',{cuil: cuil});
+                    socket.emit('deleteUsuario', { cuil: cuil });
                 }
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error al sincronizar los datos en UpdateChofer", error.stack);
         }
         res.status(200).json({ message: 'Chofer desactivado con éxito' });

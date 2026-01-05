@@ -4,7 +4,7 @@ const validateUser = (data) => {
 
     // Campos requeridos y sus reglas
     const requiredFields = {
-        cuil: { type: 'string', required: true, regex: /^\d{2}-\d{7,9}-\d{1}$/ },
+        cuil: { type: 'string', required: true, regex: /^\d{2}-\d{8}-\d{1}$/ },
         nombre: { type: 'string', required: true },
         password: { type: 'string', required: true },
         trabajador: { type: 'string', required: true, enum: ['Monotributista', 'Responsable Inscripto', 'Chofer'] },

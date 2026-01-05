@@ -20,6 +20,10 @@ pool.connect((err, client, done) => {
   } else {
     console.log('Conectado a la base de datos PostgreSQL en donweb.');
     client.release();
+
+    // Actualizar trigger de auditoría
+    const { createLogsTable } = require('./utils/logger');
+    createLogsTable();
   }
 });
 

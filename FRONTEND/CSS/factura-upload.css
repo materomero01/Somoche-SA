@@ -1,15 +1,16 @@
-
 .drop-area {
     border: 2px dashed #ccc;
     padding: 20px;
     text-align: center;
     margin: 20px 0;
     border-radius: 4px;
-    display: none; /* Oculta por defecto, se muestra al desplegar */
+    display: none;
+    /* Oculta por defecto, se muestra al desplegar */
 }
 
 .drop-area.active {
-    display: block; /* Muestra cuando está activo */
+    display: block;
+    /* Muestra cuando está activo */
 }
 
 .drop-area.drag-over {
@@ -25,7 +26,8 @@
     margin: 10px 0px 10px;
 }
 
-#facturaInput, #cartaPorteInput {
+#facturaInput,
+#cartaPorteInput {
     display: none;
 }
 
@@ -55,11 +57,15 @@
     cursor: pointer;
 }
 
+
 .modal-actions-vertical {
     display: flex;
-    flex-direction: column; 
-    gap: 12px;              
+    flex-direction: column;
+    /* ← Esto hace que vayan uno debajo del otro */
+    gap: 12px;
+    /* separación vertical entre botones */
     align-items: stretch;
+    /* alternativa: que ocupen todo el ancho */
 }
 
 .modal-actions-vertical button {
@@ -68,11 +74,14 @@
     border-radius: 4px;
     font-size: 1.1rem;
     cursor: pointer;
-    width: 100%;               
+    width: 100%;
+    /* opcional: hace que todos los botones tengan el mismo ancho */
     box-sizing: border-box;
+    /* recomendado cuando usas width: 100% */
 }
 
-#uploadDocumentsBtn:disabled, #downloadCartaPorteBtn:disabled {
+#uploadDocumentsBtn:disabled,
+#downloadCartaPorteBtn:disabled {
     background: #6c757d;
     cursor: not-allowed;
 }

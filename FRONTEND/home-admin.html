@@ -7,9 +7,9 @@
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
-    <link rel="stylesheet" href="/CSS/header.css"> 
-    <link rel="stylesheet" href="/CSS/sidebar.css">
-    <link rel="stylesheet" href="/CSS/loading-spinner.css">
+    <link rel="stylesheet" href="CSS/header.css"> 
+    <link rel="stylesheet" href="CSS/sidebar.css">
+    <link rel="stylesheet" href="CSS/loading-spinner.css">
     <style>
         /* Estilos para el contenedor de fondo de pantalla completa */
         body {
@@ -26,6 +26,7 @@
             padding-left: 60px; /* Espacio para el sidebar colapsado */
             transition: padding-left 0.3s ease; /* Transición para cuando el sidebar se expande */
         }
+
 
         /* Sección principal del hero (bienvenida) */
         .home-hero {
@@ -111,26 +112,32 @@
             height: 40px;
             object-fit: contain; /* Asegura que la imagen se ajuste sin distorsionarse */
         }
-        
-        @media (max-width: 767px) {
+        @media (max-width: 600px) {
             .content {
                 padding:0px;    
             }
-            
+
             .home-buttons {
-                flex-wrap: wrap;
-                width: 100%;            
+                /* Habilitar la envoltura para que pasen a la siguiente línea */
+                flex-wrap: wrap; 
+                /* Usar gap si es necesario, aunque ya está definido en 20px arriba */
+                width: 100%; 
             }
 
-            .home-buttons .btn {
-                width: calc(50% - 20px); 
-                height: 70px; 
-                font-size: 0.7em;
-            }
-            
             .home-buttons .btn i,
             .home-buttons .btn img {
-                margin-bottom: 0px !important; /* Espacio entre el ícono y el texto */
+                margin-bottom: 0px; /* Espacio entre el ícono y el texto */
+            }
+
+            /* Definir el ancho de cada botón */
+            .home-buttons .btn {
+                /* Usamos calc() para asegurar un 2x2. 
+                (100% - 20px de espacio entre ellos) / 2 */
+                width: calc(50% - 20px); 
+                /* Reducimos la altura para que sean más compactos en móvil */
+                height: 70px; 
+                /* Ajustamos un poco el tamaño de fuente si es necesario */
+                font-size: 0.7em; 
             }
         }
     </style>
@@ -149,17 +156,17 @@
                     <h1>Bienvenido a Somoche S.A.</h1>
                     <p>Tu app de logística y transporte de carga.</p>
                     <div class="home-buttons">
-                        <button class="btn btn-primary btn-lg" onclick="window.location.href='/add-viajes'">
+                        <button class="btn btn-primary btn-lg" onclick="window.location.href='add-viajes'">
                             <i class="bi bi-truck"></i> Gestionar Viajes
                         </button>
-                        <button class="btn btn-secondary btn-lg" onclick="window.location.href='/choferes-clientes'">
+                        <button class="btn btn-secondary btn-lg" onclick="window.location.href='choferes-clientes'">
                             <i class="bi bi-people-fill"></i> Gestionar Choferes y Clientes
                         </button>
-                        <button class="btn btn-info btn-lg" onclick="window.location.href='/cheques-admin'">
+                        <button class="btn btn-info btn-lg" onclick="window.location.href='cheques-admin'">
                             <i class="bi bi-calendar-event"></i> Gestionar Cheques
                         </button>
-                        <button class="btn btn-dark btn-lg" onclick="window.location.href='/catac'">
-                            <img src="/assets/catac.png" alt="Catac"> Tabla CATAC
+                        <button class="btn btn-dark btn-lg" onclick="window.location.href='catac'">
+                            <img src="assets/catac.png" alt="Catac"> Tabla CATAC
                         </button>
                     </div>
                 </div>
@@ -167,9 +174,9 @@
         </div>
     </main>
 
-    <script src="/Scripts/header.js"></script>
-    <script src="/Scripts/sidebar.js"></script>
-    <script src="/Scripts/home-admin.js"></script>
+    <script src="Scripts/header.js"></script>
+    <script src="Scripts/sidebar.js"></script>
+    <script src="Scripts/home-admin.js"></script>
 
 </body>
 </html>

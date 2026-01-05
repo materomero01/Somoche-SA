@@ -220,14 +220,6 @@
     display: block; /* Ensure proper block context */
 }
 
-.reduce-table-scroll {
-    max-height: 20vh !important;
-}
-
-.expand-table-scroll {
-    max-height: 100% !important;
-}
-
 /* ============================= */
 /* SCROLL HORIZONTAL MEJORADO */
 /* ============================= */
@@ -311,6 +303,16 @@
     flex-direction: column;
     align-items: flex-end;
     width: 100% - 15px;
+}
+
+.total-cheques {
+    font-size: 1rem; 
+    align-self: center; 
+    border: 2px solid #dee2e6; 
+    border-radius: 8px; 
+    padding: 8px 8px 6px 8px;  
+    font-weight: bold;
+    background-color: #f8f9fa;
 }
 
 /* PAGINACIÓN */
@@ -403,6 +405,18 @@
     min-width: 5vw;
 }
 
+.reduce-table-scroll {
+    max-height: 20vh !important;
+}
+
+.expand-table-scroll {
+    max-height: 50vh !important;
+}
+
+.no-modify {
+    max-height: 100% !important;
+}
+
 /* Inputs editables */
 .editable-input {
     width: 100% !important;
@@ -450,7 +464,6 @@
 @media (max-width: 768px) {
     
     .section-header {
-        flex-direction: column;
         align-items: flex-start;
         gap: 10px;
     }
@@ -472,21 +485,23 @@
     .cheques-actions button {
         flex: 1;
     }
+
 }
 
 @media (max-width: 1000px) {
+    /* Ensure table container allows horizontal scrolling */
 
     .content {
         padding-left: 5px;
         padding-right: 5px;
     }
 
-    /* Ensure table container allows horizontal scrolling */
     .tabla-dinamica {
         overflow-x: auto;
         width: 100%;
         -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
         display: block; /* Ensure proper block context */
+        padding-left: 0px;
     }
 
     /* Prevent table from shrinking and ensure all columns are visible */
@@ -498,14 +513,23 @@
     /* Column styling to prevent compression and vertical text */
     .tabla-dinamica th,
     .tabla-dinamica td {
-        min-width: 10px; /* Minimum width for each column */
+        min-width: 10; /* Minimum width for each column */
         padding: 3px; /* Slightly larger padding for readability */
-        font-size: 0.9rem; /* Readable font size */
+        font-size: 0.8rem; /* Readable font size */
         white-space: nowrap; /* Prevent text wrapping */
         text-overflow: ellipsis; /* Truncate long text with ellipsis */
         overflow: hidden; /* Hide overflowed text */
         border: 1px solid #ddd; /* Maintain borders */
     }
+
+    /* .section-header h2 {
+        font-size: 1rem;
+    }
+
+    .total-cheques {
+        display: flex;
+        flex-direction: column;
+    } */
 
     /* Ensure sticky headers work but don’t obscure content */
     .tabla-dinamica th {

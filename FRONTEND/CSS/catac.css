@@ -3,11 +3,15 @@
 html {
     box-sizing: border-box;
 }
-*, *:before, *:after {
+
+*,
+*:before,
+*:after {
     box-sizing: inherit;
 }
 
-html, body {
+html,
+body {
     height: 100%;
     width: 100%;
     margin: 0;
@@ -134,8 +138,10 @@ html, body {
 
 .tabla-dinamica {
     margin-top: 5px;
-    width: 100%; /* Asegura que el contenedor ocupe todo el ancho */
-    flex-grow: 1; /* Ocupa el espacio vertical restante */
+    width: 100%;
+    /* Asegura que el contenedor ocupe todo el ancho */
+    flex-grow: 1;
+    /* Ocupa el espacio vertical restante */
 }
 
 #catacTable {
@@ -144,8 +150,9 @@ html, body {
     background-color: #fff;
     border-radius: 8px;
     overflow: auto;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    table-layout: fixed; /* Forzar que las celdas se distribuyan uniformemente */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    table-layout: fixed;
+    /* Forzar que las celdas se distribuyan uniformemente */
 }
 
 #catacTable td {
@@ -154,7 +161,8 @@ html, body {
     text-align: center;
     font-size: 14px;
     color: #333;
-    width: 20%; /* Distribuir uniformemente entre 5 columnas */
+    width: 20%;
+    /* Distribuir uniformemente entre 5 columnas */
 }
 
 .table-id-cell {
@@ -191,7 +199,7 @@ html, body {
     transition: background-color 0.2s ease, color 0.2s ease;
     min-width: 35px;
     text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .pagination-button:hover:not([disabled]):not(.active) {
@@ -201,7 +209,7 @@ html, body {
 .pagination-button.active {
     background-color: #333;
     color: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .pagination-button[disabled] {
@@ -227,6 +235,7 @@ html, body {
     }
 
     .content.expanded {
+        margin-left: 200px;
         margin-left: 5px;
     }
 
@@ -252,14 +261,21 @@ html, body {
 
     #catacTable {
         box-sizing: border-box;
-        display: block; /* Ensure proper block context */
-        table-layout: auto; /* Permitir que las celdas se ajusten al contenido en pantallas pequeñas */
+        display: block;
+        /* Ensure proper block context */
+        table-layout: auto;
+        /* Permitir que las celdas se ajusten al contenido en pantallas pequeñas */
     }
 
     #catacTable td {
-        width: auto; /* Dejar que las celdas se ajusten automáticamente */
+        width: auto;
+        /* Dejar que las celdas se ajusten automáticamente */
     }
 
+    .pagination-controls {
+        margin-bottom: 90px;
+    }
+    
     .pagination-controls {
        margin-bottom: 90px;
     }

@@ -1,12 +1,180 @@
-export function renderTabla({ 
-    containerId, 
-    paginacionContainerId, 
-    columnas, 
-    datos, 
-    itemsPorPagina = 5, 
+// --- Estado de edición (exportado para ser usado en viajes-pagos.js) ---
+export let editingRowId = null;
+export let currentEditingTableType = null;
+export let originalEditingData = {};
+export let stagedEditingData = {};
+
+let funcRenderTables = () => { };
+let saveEditFunc = () => { };
+
+// Función para parsear el importe (remueve '$' y comas)
+function parseImporte(importe) {
+    if (typeof importe === 'string') {
+        return parseFloat(importe.replace(/[$,]/g, '')) || 0;
+    }
+    return parseFloat(importe) || 0;
+}
+
+// --- Lógica de Edición ---
+export function enterEditMode(rowData, tableType, funcRender, saveEdit) {
+    funcRenderTables = funcRender;
+    saveEditFunc = saveEdit;
+    if (editingRowId !== null && editingRowId !== rowData.id) {
+        if (hasChanges(originalEditingData, stagedEditingData)) {
+            showConfirmModal(
+                "Hay cambios sin guardar en la fila actual. ¿Deseas guardarlos antes de editar otra?",
+                "confirm",
+                async () => {
+                    await handleSaveEdit();
+                    setTimeout(() => enterEditMode(rowData, tableType, funcRender), 100);
+                },
+                () => {
+                    resetEditingState();
+                    enterEditMode(rowData, tableType, funcRender);
+                }
+            );
+            return;
+        } else {
+            resetEditingState();
+        }
+    }
+
+    if (editingRowId === rowData.id) {
+        if (hasChanges(originalEditingData, stagedEditingData)) {
+            showConfirmModal(
+                "Hay cambios sin guardar. ¿Deseas guardarlos o descartarlos?",
+                "confirm",
+                handleSaveEdit(),
+                handleCancelEdit()
+            );
+        } else {
+            exitEditMode();
+        }
+        return;
+    }
+
+    originalEditingData = JSON.parse(JSON.stringify(rowData));
+    stagedEditingData = JSON.parse(JSON.stringify(rowData));
+    editingRowId = rowData.id;
+    currentEditingTableType = tableType;
+
+    funcRenderTables();
+}
+
+export function handleEdit(id, field, value, tableType, getTarifasCatac = () => { }) {
+    if (id === editingRowId && tableType === currentEditingTableType) {
+        stagedEditingData[field] = value;
+        // Lógica específica para actualizar tarifa cuando se cambia km en la tabla de viajes
+        if (getTarifasCatac && field === 'km') {
+            let tarifasCatac = getTarifasCatac();
+            const currentKm = parseInt(value.trim(), 10);
+            const tarifaCatacCalculada = (!isNaN(currentKm) && currentKm > 0 && currentKm <= tarifasCatac.length && tarifasCatac[currentKm - 1]?.valor !== undefined)
+                ? parseImporte(tarifasCatac[currentKm - 1].valor)
+                : parseImporte(tarifasCatac[tarifasCatac.length - 1]?.valor) || 0;
+            stagedEditingData['tarifa'] = tarifaCatacCalculada;
+            //console.log(`Tarifa actualizada a ${tarifaCatacCalculada} para km ${value}`);
+
+            // Actualizar el input de tarifa en el DOM
+            const tarifaInput = document.getElementById('tarifaEdit');
+            if (tarifaInput) {
+                tarifaInput.value = tarifaCatacCalculada;
+            }
+        }
+    }
+}
+
+export function hasChanges(originalData, stagedData) {
+    Object.keys(stagedData).forEach(key => {
+        stagedData[key] = stagedData[key] === '' ? null : stagedData[key];
+    });
+    return JSON.stringify(originalData) !== JSON.stringify(stagedData);
+}
+
+export async function handleSaveEdit() {
+    if (!hasChanges(originalEditingData, stagedEditingData)) {
+        exitEditMode();
+        return;
+    }
+    let payload = {};
+
+    try {
+        Object.keys(stagedEditingData).forEach(key => {
+            payload[key] = stagedEditingData[key] === '' ? null : stagedEditingData[key];
+        });
+        await saveEditFunc(payload);
+    } catch (error) {
+        console.error('Error al guardar cambios:', error);
+    }
+
+    exitEditMode();
+}
+
+export function handleCancelEdit() {
+    //console.log('Cancelando edición');
+    exitEditMode();
+}
+
+export function exitEditMode() {
+    resetEditingState();
+    funcRenderTables();
+    funcRenderTables = () => { };
+}
+
+export function resetEditingState() {
+    editingRowId = null;
+    originalEditingData = {};
+    stagedEditingData = {};
+}
+
+// --- Event Listeners para los eventos personalizados de tabla.js ---
+export function setupTableEventListeners() {
+    document.addEventListener('saveEdit', (event) => {
+        const { itemId } = event.detail;
+        if (itemId === editingRowId) {
+            handleSaveEdit();
+        }
+    });
+
+    document.addEventListener('cancelEdit', (event) => {
+        const { itemId } = event.detail;
+        if (itemId === editingRowId) {
+            handleCancelEdit();
+        }
+    });
+}
+
+export function renderTables(data, currentPage = 1, options, actualizarTotales = (data) => { }) {
+    renderTabla({
+        containerId: options.containerId,
+        paginacionContainerId: options.paginacionContainerId,
+        datos: data,
+        columnas: !editingRowId || options.columnas.length <= 1 ? options.columnas[0] : options.columnas[1],
+        itemsPorPagina: options.itemsPorPagina(),
+        actions: options.actions,
+        editingRowId: editingRowId,
+        onEdit: options.onEdit,
+        tableType: options.tableType,
+        currentPage: currentPage,
+        onPageChange: options.onPageChange,
+        checkboxColumn: options.checkboxColumn,
+        checkboxColumnPosition: options.checkboxColumnPosition,
+        checkboxHeaderAction: options.checkboxHeaderAction,
+        onCheckboxChange: options.onCheckboxChange,
+        uploadFactura: options.uploadFactura,
+        useScrollable: options.useScrollable
+    });
+    actualizarTotales(data);
+}
+
+export function renderTabla({
+    containerId,
+    paginacionContainerId,
+    columnas,
+    datos,
+    itemsPorPagina = 5,
     currentPage = 1,
-    actions = [], 
-    editingRowId = null, 
+    actions = [],
+    editingRowId = null,
     onEdit = null,
     tableType = 'default',
     onPageChange = null,
@@ -44,10 +212,10 @@ export function renderTabla({
     }
 
     // Crear contenedor para la tabla
-    const newTableWrapper = document.createElement("div");
+    let newTableWrapper = document.createElement("div");
     newTableWrapper.className = `tabla-dinamica ${useScrollable ? 'tabla-scrollable' : ''} ${tableType === 'clientes' ? 'tabla-clientes' : ''}`;
-    if (useScrollable){
-        if (itemsPorPagina && !isNaN(itemsPorPagina) && itemsPorPagina > 3){
+    if (useScrollable && !container.classList.contains('no-modify')) {
+        if (itemsPorPagina && !isNaN(itemsPorPagina) && itemsPorPagina > 3) {
             newTableWrapper.classList.add('expand-table-scroll');
             newTableWrapper.classList.remove('reduce-table-scroll');
         } else {
@@ -63,13 +231,12 @@ export function renderTabla({
 
     // --- Renderizar Encabezados de la Tabla ---
     const headerRow = document.createElement("tr");
-    
+
     if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'start') {
         const th = document.createElement("th");
         th.classList.add("checkbox-cell");
         headerRow.appendChild(th);
     }
-
     columnas.forEach(col => {
         const th = document.createElement("th");
         th.textContent = col.label;
@@ -86,12 +253,12 @@ export function renderTabla({
 
     if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
         const th = document.createElement("th");
-        if (checkboxHeaderAction){
+        if (checkboxHeaderAction) {
             const actionContainer = document.createElement("div");
             actionContainer.classList.add("action-icons");
             const button = document.createElement("button");
             button.classList.add("btn-action");
-            checkboxHeaderAction.classList.forEach( className => {
+            checkboxHeaderAction.classList.forEach(className => {
                 button.classList.add(className);
             })
             button.innerHTML = `<i class="${checkboxHeaderAction.icon}"></i>`;
@@ -107,7 +274,7 @@ export function renderTabla({
         }
         headerRow.appendChild(th);
     }
-    
+
     thead.appendChild(headerRow);
     tabla.appendChild(thead);
     tabla.appendChild(tbody);
@@ -135,7 +302,7 @@ export function renderTabla({
             const tr = document.createElement("tr");
             tr.setAttribute('data-id', item.id);
             tr.id = `row-${item.id}`; // Unique ID for each row
-            
+
             const isEditing = editingRowId === item.id;
             if (isEditing) {
                 tr.classList.add('editing-row');
@@ -161,20 +328,23 @@ export function renderTabla({
 
             columnas.forEach(col => {
                 const td = document.createElement("td");
-        
+
                 if (isEditing) {
                     const input = createEditableInput(col, item[col.key], item.id);
                     td.appendChild(input);
                 } else {
-                    td.textContent = item[col.key] !== undefined ? item[col.key] : '';
-                    td.title = item[col.key] || '';
+                    let content = item[col.key] !== undefined ? item[col.key] : '';
+                    if (col.modify) content = col.modify(content, editingRowId);
+
+                    td.textContent = content;
+                    td.title = content;
                 }
-                
-                try{
-                    col.class.forEach( className => {
+
+                try {
+                    col.class.forEach(className => {
                         td.classList.add(className);
                     })
-                } catch (error){
+                } catch (error) {
                     console.log(error.message);
                 }
                 tr.appendChild(td);
@@ -183,7 +353,7 @@ export function renderTabla({
             if (actions.length > 0) {
                 const tdAcciones = document.createElement("td");
                 tdAcciones.classList.add("acciones-cell");
-                
+
                 if (isEditing) {
                     const saveBtn = document.createElement("button");
                     saveBtn.className = "btn-action save-btn";
@@ -193,7 +363,7 @@ export function renderTabla({
                         e.stopPropagation();
                         saveEditingRow(item.id);
                     });
-                    
+
                     const cancelBtn = document.createElement("button");
                     cancelBtn.className = "btn-action cancel-btn";
                     cancelBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
@@ -211,7 +381,7 @@ export function renderTabla({
                         const button = document.createElement("button");
                         button.className = "btn-action";
 
-                        action.classList.forEach( className => {
+                        action.classList.forEach(className => {
                             button.classList.add(className);
                         })
 
@@ -225,17 +395,17 @@ export function renderTabla({
                         });
                         actionContainer.appendChild(button);
                     });
-                    
+
                     tdAcciones.appendChild(actionContainer);
                 }
-                
+
                 tr.appendChild(tdAcciones);
             }
 
             if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
                 const td = document.createElement("td");
                 td.classList.add("checkbox-cell");
-                if (uploadFactura && item.hasOwnProperty("factura_id") && item.factura_id ) {
+                if (uploadFactura && item.hasOwnProperty("factura_id") && item.factura_id) {
                     const checkFactura = document.createElement("div");
                     checkFactura.innerHTML = '<i class="bi bi-check-lg"></i>';
                     checkFactura.title = "Factura cargada";
@@ -263,7 +433,7 @@ export function renderTabla({
 
     function createEditableInput(column, value, itemId) {
         let input;
-        
+
         if (column.type === 'select' && column.options) {
             input = document.createElement('select');
             input.className = 'editable-input editable-select';
@@ -282,26 +452,26 @@ export function renderTabla({
             input.className = 'editable-input';
             input.value = value || '';
             input.placeholder = getPlaceholder(column.key);
-            if (column.key === 'tarifa'){
+            if (column.key === 'tarifa') {
                 input.id = 'tarifaEdit';
             }
         }
-        
+
         input.setAttribute('data-field', column.key);
         input.setAttribute('data-item-id', itemId);
-        
+
         input.addEventListener('input', (e) => {
             if (onEdit) {
                 onEdit(itemId, column.key, e.target.value);
             }
         });
-        
+
         input.addEventListener('change', (e) => {
             if (onEdit) {
                 onEdit(itemId, column.key, e.target.value);
             }
         });
-        
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -311,7 +481,7 @@ export function renderTabla({
                 cancelEditingRow(itemId);
             }
         });
-        
+
         return input;
     }
 
@@ -436,13 +606,16 @@ export function renderTabla({
 
     // Inicializa el cuerpo y la paginación con la página actual
     let paginaEditando = 0;
-    if (editingRowId){
+    if (editingRowId) {
         let viajeEditando = datos.findIndex(viaje => viaje.id === editingRowId);
-        while (viajeEditando >= 0){
+        while (viajeEditando >= 0) {
             paginaEditando = paginaEditando + 1;
             viajeEditando = viajeEditando - itemsPorPagina;
         }
-        if (paginaEditando !== currentPage) currentPage = paginaEditando;
+        if (paginaEditando !== currentPage) {
+            currentPage = paginaEditando;
+            onPageChange(currentPage);
+        }
     }
 
     renderBody(currentPage);

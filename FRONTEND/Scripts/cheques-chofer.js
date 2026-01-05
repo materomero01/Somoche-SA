@@ -1,7 +1,7 @@
 // /scripts/cheques.js
 
 import { createLoadingSpinner, getCheques, showConfirmModal, toggleSpinnerVisible } from './apiPublic.js';
-import { renderTabla } from './tabla.js'; // Asegúrate que la ruta sea correcta
+import { renderTabla, renderTables } from './tabla.js'; // Asegúrate que la ruta sea correcta
 
 // Simulamos datos de cheques próximos y pagos
 // Es importante que los objetos de datos tengan las 'keys' que usaremos en las columnas
@@ -11,6 +11,59 @@ let datosChequesPagos = [];
 
 const contentPrincipal = document.getElementById("contentPrincipal");
 const userCuil = localStorage.getItem("userCuil");
+
+const columnasProximos = [
+    { label: 'Días', key: 'fecha_cheque', class: ['text-right', 'bold'], modify: (content) => calcularDiasRestantes(content) > 0 ? `${calcularDiasRestantes(content)} días` : calcularDiasRestantes(content) === 0 ? 'Hoy' : formatFecha(content) },
+    { label: 'Fecha Cobro', key: 'fecha_cheque', class: [], modify: (content) => formatFecha(content) },
+    { label: 'Cheque', key: 'nro_cheque', class: [] },
+    { label: 'Destinatario', key: 'destinatario', class: [] },
+    { label: 'Banco', key: 'tercero', class: [] },
+    { label: 'Fecha de Emisión', key: 'fecha_pago', class: [], modify: (content) => formatFecha(content) },
+    { label: 'Importe', key: 'importe', class: ['text-right'], modify: (content) => `$${parseImporte(content).toFixed(2)}` }
+];
+
+const columnasPagos = [
+    { label: 'Fecha Cobro', key: 'fecha_cheque', class: [], modify: (content) => formatFecha(content) },
+    { label: 'Cheque', key: 'nro_cheque', class: [] },
+    { label: 'Destinatario', key: 'destinatario', class: [] },
+    { label: 'Banco', key: 'tercero', class: [] },
+    { label: 'Fecha de Emisión', key: 'fecha_pago', class: [], modify: (content) => formatFecha(content) },
+    { label: 'Importe', key: 'importe', class: ['text-right'], modify: (content) => `$${parseImporte(content).toFixed(2)}` }
+];
+
+const optionsProximos = {
+    containerId: 'tabla-proximos',
+    paginacionContainerId: 'paginacion-proximos',
+    columnas: [columnasProximos],
+    itemsPorPagina: () => 10,
+    actions: [],
+    onEdit: null,
+    tableType: 'proximos',
+    onPageChange: null,
+    checkboxColumn: false,
+    checkboxColumnPosition: null,
+    checkboxHeaderAction: null,
+    onCheckboxChange: null,
+    uploadFactura: null,
+    useScrollable: false
+}
+
+const optionsPagos = {
+    containerId: 'tabla-pagos',
+    paginacionContainerId: 'paginacion-pagos',
+    columnas: [columnasPagos],
+    itemsPorPagina: () => 10,
+    actions: [],
+    onEdit: null,
+    tableType: 'pagos',
+    onPageChange: null,
+    checkboxColumn: false,
+    checkboxColumnPosition: null,
+    checkboxHeaderAction: null,
+    onCheckboxChange: null,
+    uploadFactura: null,
+    useScrollable: false
+}
 
 function generarFechaFutura() {
     const hoy = new Date();
@@ -50,63 +103,11 @@ function formatFecha(fecha) {
     return new Date(fecha).toISOString().split('T')[0];
 }
 
-function renderTablaProximos() {
-
-    renderTabla({
-        containerId: 'tabla-proximos',
-        paginacionContainerId: 'paginacion-proximos',
-        columnas: [
-            { label: 'Días', key: 'diasRestantes', class: ['text-right', 'bold'] },
-            { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
-            { label: 'Cheque', key: 'nro_cheque', class: [] },
-            { label: 'Destinatario', key: 'destinatario', class: [] },
-            { label: 'Banco', key: 'tercero', class: [] },
-            { label: 'Fecha de Emisión', key: 'fecha_pago', class: [] },
-            { label: 'Importe', key: 'importe', class: ['text-right'] }
-        ],
-        datos: datosChequesProximos.map(c => ({
-            id: c.nro_cheque,
-            diasRestantes: calcularDiasRestantes(c.fecha_cheque) > 0 ? `${calcularDiasRestantes(c.fecha_cheque)} días` : calcularDiasRestantes(c.fecha_cheque) === 0? 'Hoy' : formatFecha(c.fecha_cheque),
-            fecha_cheque: formatFecha(c.fecha_cheque),
-            nro_cheque: c.nro_cheque,
-            destinatario: c.destinatario,
-            tercero: c.tercero,
-            fecha_pago: formatFecha(c.fecha_pago),
-            importe: `$${parseImporte(c.importe).toFixed(2)}`
-        })),
-        itemsPorPagina: 10
-    });
-
+function actualizarTotal() {
     const total = calcularTotalImportes(datosChequesProximos);
     const totalDiv = document.getElementById('total-a-cobrar');
     if (totalDiv) totalDiv.textContent = `Total a cobrar: $${total}`;
 }
-
-function renderTablaPagos() {
-    renderTabla({
-        containerId: 'tabla-pagos',
-        paginacionContainerId: 'paginacion-pagos',
-        columnas: [
-            { label: 'Fecha Cobro', key: 'fecha_cheque', class: [] },
-            { label: 'Cheque', key: 'nro_cheque', class: [] },
-            { label: 'Destinatario', key: 'destinatario', class: [] },
-            { label: 'Banco', key: 'tercero', class: [] },
-            { label: 'Fecha de Emisión', key: 'fecha_pago', class: [] },
-            { label: 'Importe', key: 'importe', class: ['text-right'] }
-        ],
-        datos: datosChequesPagos.map(c => ({
-            id: c.nro_cheque,
-            fecha_cheque: formatFecha(c.fecha_cheque),
-            nro_cheque: c.nro_cheque,
-            destinatario: c.destinatario,
-            tercero: c.tercero,
-            fecha_pago: formatFecha(c.fecha_pago),
-            importe: `$${parseImporte(c.importe).toFixed(2)}`
-        })),
-        itemsPorPagina: 10
-    });
-}
-
 
 async function setupChequesTabSelector() {
     const tabSelector = document.getElementById('chequesSelector');
@@ -146,7 +147,7 @@ async function mostrarContenidoTabCheques(tab) {
         } catch (error) {
             console.error("Error al cargar los cheques proximos. ", error.message);
         }
-        renderTablaProximos();
+        renderTables(datosChequesProximos, 1, optionsProximos, actualizarTotal);
     } else if (tab === 'pagos') {
         pagosDiv.classList.remove('hidden');
         proximosDiv.classList.add('hidden');
@@ -155,7 +156,7 @@ async function mostrarContenidoTabCheques(tab) {
         } catch (error) {
             console.error("Error al cargar los cheques pagos. ", error.message);
         }
-        renderTablaPagos();
+        renderTables(datosChequesPagos, 1, optionsPagos);
     }
 }
 
@@ -185,13 +186,11 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // Renderizar la tabla inicial (la que esté activa por defecto)
     const initialTab = document.getElementById('chequesSelector')?.querySelector('.tab-item.active')?.dataset.tab;
-    if (initialTab === 'proximos') {
-        renderTablaProximos();
-    } else if (initialTab === 'pagos') {
-        renderTablaPagos();
+    if (initialTab === 'pagos') {
+        renderTables(datosChequesPagos, 1, optionsPagos);
     } else {
         // Fallback si no hay tab activa por defecto, o para la primera carga
-        renderTablaProximos();
+        renderTables(datosChequesProximos, 1, optionsProximos, actualizarTotal);
     }
     toggleSpinnerVisible(contentPrincipal);
 });

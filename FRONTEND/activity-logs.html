@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Actividad - Somoche S.A.</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <link rel="stylesheet" href="CSS/header.css">
+    <link rel="stylesheet" href="CSS/sidebar.css">
+    <link rel="stylesheet" href="CSS/loading-spinner.css">
+    <link rel="stylesheet" href="CSS/button.css">
+    <link rel="stylesheet" href="CSS/modal.css">
+
+    <style>
+        .content {
+            padding-top: 80px;
+            padding-left: 80px;
+            padding-right: 20px;
+            transition: padding-left 0.3s ease;
+        }
+
+        .logs-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            color: #333;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .details-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #loading-spinner {
+            padding: 250px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header-container"></div>
+    <div id="sidebar-container"></div>
+
+    <main class="content">
+        <h1>Registro de Actividad</h1>
+
+        <div class="logs-container">
+            <table id="logsTable">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Acción</th>
+                        <th>Detalles</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Logs will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="modal-container"></div>
+    <div id="log-detail-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal close-modal-styled">&times;</span>
+            <h2>Detalle de Actividad</h2>
+            <div id="log-json-content"
+                style="background: #f4f4f4; padding: 15px; border-radius: 5px; overflow: auto; max-height: 500px; font-family: 'Segoe UI', sans-serif;">
+            </div>
+        </div>
+    </div>
+
+    <script src="Scripts/header.js"></script>
+    <script src="Scripts/sidebar.js"></script>
+    <script type="module" src="Scripts/activity-logs.js"></script>
+</body>
+
+</html>

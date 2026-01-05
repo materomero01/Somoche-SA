@@ -1,24 +1,26 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catac - Somoche S.A</title>
-    
+
     <!-- Incluye CSS de Bootstrap Icons (¡MUY IMPORTANTE PARA LOS ICONOS!) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    
+
     <!-- Tu CSS del Header -->
-    <link rel="stylesheet" href="/CSS/header.css"> 
-    
+    <link rel="stylesheet" href="CSS/header.css">
+
     <!-- Tu CSS del Sidebar -->
-    <link rel="stylesheet" href="/CSS/sidebar.css">
-    <link rel="stylesheet" href="/CSS/button.css">
-    <link rel="stylesheet" href="/CSS/catac.css">
-    <link rel="stylesheet" href="/CSS/modal.css">
-    <link rel="stylesheet" href="/CSS/loading-spinner.css">
+    <link rel="stylesheet" href="CSS/sidebar.css">
+    <link rel="stylesheet" href="CSS/button.css">
+    <link rel="stylesheet" href="CSS/catac.css">
+    <link rel="stylesheet" href="CSS/modal.css">
+    <link rel="stylesheet" href="CSS/loading-spinner.css">
 
 </head>
+
 <body>
     <!-- Contenedor donde se inyectará el header dinámicamente -->
     <div id="header-container"></div>
@@ -35,12 +37,13 @@
         <section id="catac-section" class="catac-section hidden">
             <div class="catac-header">
                 <div class="catac-left-col">
-                    <img src="/assets/catac.png" alt="Logo CATAC" class="catac-image" />
+                    <img src="assets/catac.png" alt="Logo CATAC" class="catac-image" />
                 </div>
-                
+
                 <div class="catac-texts-col">
                     <h2 class="catac-title">TARIFA DE REFERENCIA NACIONAL</h2>
-                    <p class="catac-subtitle">PARA EL TRANSPORTE DE CEREALES, OLEAGINOSAS<br>SUBPRODUCTOS Y FERTILIZANTES</p>
+                    <p class="catac-subtitle">PARA EL TRANSPORTE DE CEREALES, OLEAGINOSAS<br>SUBPRODUCTOS Y
+                        FERTILIZANTES</p>
                 </div>
 
                 <div class="catac-controls-col">
@@ -59,11 +62,12 @@
 
     <!-- Scripts JavaScript -->
     <!-- Carga los scripts de los componentes primero (solo funciones) -->
-    <script src="/Scripts/header.js"></script>
-    <script src="/Scripts/sidebar.js"></script>
+    <script src="Scripts/header.js"></script>
+    <script src="Scripts/sidebar.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" ...></script>
-    
+
     <!-- Carga el script de la aplicación que orquesta todo, al final -->
-    <script type="module" src="/Scripts/catac.js"></script>
+    <script type="module" src="Scripts/catac.js"></script>
 </body>
+
 </html>

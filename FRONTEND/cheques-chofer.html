@@ -1,52 +1,56 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cheques - Somoche S.A</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="/CSS/header.css" />
-  <link rel="stylesheet" href="/CSS/sidebar.css" />
-  <link rel="stylesheet" href="/CSS/tab-selector.css" />
-  <link rel="stylesheet" href="/CSS/input.css" />
-  <link rel="stylesheet" href="/CSS/button.css" />
-  <link rel="stylesheet" href="/CSS/tabla.css" />
-  <link rel="stylesheet" href="/CSS/modal.css">
-  <link rel="stylesheet" href="/CSS/loading-spinner.css">
+  <link rel="stylesheet" href="CSS/header.css" />
+  <link rel="stylesheet" href="CSS/sidebar.css" />
+  <link rel="stylesheet" href="CSS/tab-selector.css" />
+  <link rel="stylesheet" href="CSS/input.css" />
+  <link rel="stylesheet" href="CSS/button.css" />
+  <link rel="stylesheet" href="CSS/tabla.css" />
+  <link rel="stylesheet" href="CSS/modal.css">
+  <link rel="stylesheet" href="CSS/loading-spinner.css">
 </head>
+
 <body>
   <div id="header-container"></div>
   <div id="sidebar-container"></div>
 
   <main class="content">
     <div id="loading-spinner">
-        <div class="spinner"></div>
-        Cargando datos...
+      <div class="spinner"></div>
+      Cargando datos...
     </div>
     <div id="contentPrincipal" class="hidden">
       <div class="tab-selector" id="chequesSelector">
-          <div class="tab-item active" data-tab="proximos">Próximos</div>
-          <div class="tab-item" data-tab="pagos">Pagos</div>
-        </div>
+        <div class="tab-item active" data-tab="proximos">Próximos</div>
+        <div class="tab-item" data-tab="pagos">Pagos</div>
+      </div>
       <section class="cheques-section">
         <div id="content-proximos">
           <h2>Cheques próximos</h2>
           <div id="tabla-proximos" class="tabla-dinamica"></div>
           <div id="total-a-cobrar" class="total-a-cobrar">Total a cobrar: $0.00</div>
-          <div id="paginacion-proximos" class="pagination-controls"></div> 
+          <div id="paginacion-proximos" class="pagination-controls"></div>
         </div>
 
         <div id="content-pagos" class="hidden">
           <h2>Cheques pagos</h2>
           <div id="tabla-pagos" class="tabla-dinamica"></div>
-          <div id="paginacion-pagos" class="pagination-controls"></div> </div>
+          <div id="paginacion-pagos" class="pagination-controls"></div>
+        </div>
       </section>
     </div>
   </main>
 
-  <script src="/Scripts/header.js"></script>
-  <script src="/Scripts/sidebar.js"></script>
-  <script type="module" src="/Scripts/cheques-chofer.js"></script>
+  <script src="Scripts/header.js"></script>
+  <script src="Scripts/sidebar.js"></script>
+  <script type="module" src="Scripts/cheques-chofer.js"></script>
 </body>
+
 </html>

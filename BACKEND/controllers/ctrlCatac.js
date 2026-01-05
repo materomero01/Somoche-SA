@@ -35,11 +35,32 @@ exports.updateTarifas = async (req, res) => {
     try {
         client = await pool.connect();
         await client.query('BEGIN');
+        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
+
+        // Desactivar el trigger de auditoría para evitar 1500 logs individuales
+        await client.query('ALTER TABLE catac DISABLE TRIGGER audit_trigger_catac');
 
         const updateResult = await client.query(
             'UPDATE catac SET valor = valor * (1.0 + $1)',
             [porcentaje]
         );
+
+        // Insertar un solo log manual con el porcentaje aplicado
+        const porcentajeTexto = (porcentaje * 100).toFixed(2);
+        await client.query(
+            `INSERT INTO audit_logs (table_name, entity_id, operation, user_cuil, user_name, before_data, after_data)
+             VALUES ('catac', 0, 'UPDATE', $1, $2, $3, $4)`,
+            [
+                req.user.cuil,
+                req.user.nombre_apellido || req.user.cuil,
+                JSON.stringify({ porcentaje: porcentajeTexto, filas_afectadas: updateResult.rowCount }),
+                JSON.stringify({ porcentaje: porcentajeTexto, filas_afectadas: updateResult.rowCount })
+            ]
+        );
+
+        // Reactivar el trigger
+        await client.query('ALTER TABLE catac ENABLE TRIGGER audit_trigger_catac');
 
         const updatedTarifas = await fetchAllTarifas(client);
 
@@ -53,7 +74,7 @@ exports.updateTarifas = async (req, res) => {
                     socket.emit('updateCatac');
                 }
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error al sincronizar los datos en updateTarifas", error.stack);
         }
 
