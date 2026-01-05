@@ -10,8 +10,6 @@ let choferData = {
     trabajador: localStorage.getItem("userTrabajador") || null
 };
 
-let pagosOpen = true;
-
 const mainContent = document.getElementById('contenido');
 
 const accionesViajes = [
@@ -102,7 +100,7 @@ function renderTables() {
             cuil: v.cuil,
             carta_porte: v.carta_porte
         })),
-        itemsPorPagina: pagosOpen? null : 8,
+        itemsPorPagina: 8,
         actions: accionesViajes,
         tableType: "viajes",
         checkboxColumn: true,
@@ -261,8 +259,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     togglePagosArea?.addEventListener('click', () => {
         togglePagosArea.classList.toggle('active');
         tablaPagos.classList.toggle('hidden');
-        pagosOpen = !pagosOpen;
-        renderTables();
     });
 
     try {

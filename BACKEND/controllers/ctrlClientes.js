@@ -1,7 +1,7 @@
 const pool = require('../db');
 const { getIO } = require('../socket');
 
-const regexCuit = /^\d{2}-\d{8}-\d{1}$/;
+const regexCuit = /^\d{2}-\d{7,9}-\d{1}$/;
 const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validatecuit(cuit){

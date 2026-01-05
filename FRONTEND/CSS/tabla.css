@@ -225,7 +225,7 @@
 }
 
 .expand-table-scroll {
-    max-height: 47vh !important;
+    max-height: 100% !important;
 }
 
 /* ============================= */
@@ -487,10 +487,6 @@
         width: 100%;
         -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
         display: block; /* Ensure proper block context */
-    }
-
-    .tabla-scrollable {
-        max-height: 50vh !important;
     }
 
     /* Prevent table from shrinking and ensure all columns are visible */

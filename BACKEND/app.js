@@ -66,6 +66,11 @@ const authenticateToken = (req, res, next) => {
             console.error('Error al verificar token:', err);
             return res.status(403).json({ message: 'Token inválido o expirado.' });
         }
+        // Evitar caché cuando se envía X-New-Token
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+
         // Verificar si el token está a punto de expirar (menos de 5 minutos)
         const currentTime = Math.floor(Date.now() / 1000); // Tiempo actual en segundos
         const timeLeft = user.exp - currentTime; // Tiempo restante hasta la expiración
@@ -77,10 +82,6 @@ const authenticateToken = (req, res, next) => {
             delete newPayload.exp; // Elimina 'exp' (expiration) para que se genere uno nuevo
             const newToken = jwt.sign(newPayload, JWT_SECRET, { expiresIn: '1h' }); // Ajusta expiresIn según tu caso
             res.setHeader('X-New-Token', newToken); // Enviar el nuevo token en la cabecera
-            // Evitar caché cuando se envía X-New-Token
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
         }
 
         req.user = user; // Guarda el payload del token en req.user

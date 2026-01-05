@@ -177,6 +177,7 @@ exports.getAllPagos = async (req, res) => {
 
     try {
         const result = await pool.query('SELECT * FROM pagos_unified WHERE chofer_cuil = $1 AND fecha_pago <= CURRENT_DATE ORDER BY fecha_pago ASC', [cuil]);
+        console.log(result.rows);
         return res.status(202).json(result.rows);
     } catch (error) {
         console.error('Error en getAllPagos:', error);

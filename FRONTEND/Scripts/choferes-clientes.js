@@ -236,7 +236,7 @@ async function handleTabContentDisplay(selectedTab) {
         mockClientes = await fetchClientes();
         mockClientes.forEach(c => {
             c.balance = parseImporte(c.balance);
-        })
+        });
     }
     if (selectedTab === 'choferes') {
         choferesContent.classList.remove('hidden');
@@ -245,6 +245,10 @@ async function handleTabContentDisplay(selectedTab) {
         renderChoferesTable(mockChoferes, currentChoferesPage);
         currentEditingTableType = 'choferes';
     } else if (selectedTab === 'clientes') {
+        mockClientes = await fetchClientes();
+        mockClientes.forEach(c => {
+            c.balance = parseImporte(c.balance);
+        });
         choferesContent.classList.add('hidden');
         clientesContent.classList.remove('hidden');
         renderClientesTable(mockClientes, currentClientesPage);

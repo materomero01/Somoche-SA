@@ -95,17 +95,17 @@ const setupAddViajeBtn = () => {
         const clienteInput = document.getElementById('cliente');
         const fechaInput = document.getElementById('fecha');
         const payload = {
-            cuil: choferInput?.dataset.selectedChoferCuil,
+            chofer_cuil: choferInput?.dataset.selectedChoferCuil,
             nombre: choferInput?.dataset.selectedChoferNombre,
-            cuit_cliente: clienteInput?.dataset.selectedClienteCuit
+            cliente_cuit: clienteInput?.dataset.selectedClienteCuit
         };
 
-        if (!payload.cuil) {
+        if (!payload.chofer_cuil) {
             showConfirmModal('Por favor, selecciona un chofer de la lista de sugerencias.');
             return;
         }
 
-        if (!payload.cuit_cliente) {
+        if (!payload.cliente_cuit) {
             showConfirmModal('Por favor, selecciona un cliente de la lista de sugerencias.');
             return;
         }

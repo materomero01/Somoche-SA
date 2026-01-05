@@ -14,8 +14,6 @@ let viajesData = [];
 
 let pagosData = [];
 
-let pagosOpen = true;
-
 let mainContent;
 
 // Regex for input validation
@@ -177,7 +175,7 @@ export function renderizarTablas() {
             }
             return retornar;
         }),
-        itemsPorPagina: pagosOpen? 3 : 8,
+        itemsPorPagina: 8,
         actions: accionesViajes,
         tableType: "viajes",
         checkboxColumn: true,
@@ -867,18 +865,12 @@ export async function inicializarModal(data) {
     const clienteAddPago = document.getElementById('chofer-pagos-wrapper');
     const tablaPagos = document.getElementById('pagos-table');
     const togglePagosArea = document.getElementById('togglePagosArea');
-    pagosOpen = true;
     
     // Toggle pagos area
     togglePagosArea?.addEventListener('click', () => {
         togglePagosArea.classList.toggle('active');
         tablaPagos.classList.toggle('hidden');
         clienteAddPago.classList.toggle('hidden');
-        pagosOpen = !pagosOpen;
-        if (pagosOpen)
-            renderizarTablas();
-        else
-            renderizarTablas();
     });
 
     socket.on('updateUsuario', async (user) => {
