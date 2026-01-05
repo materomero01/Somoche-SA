@@ -102,6 +102,7 @@ function actualizarTotales(viajes = mockViajes, pagos = mockPagos) {
         porcentajeChofer.textContent = `Porcentaje Chofer: $${(totalViajes * 0.2).toFixed(2)}`;
     }
 
+    const totalPagarContainer = document.getElementById('total-cobrar');
     if (totalPagarContainer)
         totalPagarContainer.textContent = `Total a Cobrar: ${("$" + totalAPagar.toFixed(2)).replace("$-", "-$")}`;
 }

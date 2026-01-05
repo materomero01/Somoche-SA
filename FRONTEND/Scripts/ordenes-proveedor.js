@@ -505,6 +505,7 @@ export async function inicializarModalProveedor(data) {
                 ordenesProveedor = [];
                 ultimosPagosProveedor = [];
                 ordenesProveedorHistorial = [];
+                currentEditingTableType = "ordenes";
 
                 socket.off('nuevoPago');
                 socket.off('nuevoFactura');

@@ -25,7 +25,6 @@ var logsRouter = require('./routes/logs'); // Nuevo router
 
 // Inicializar tabla de logs
 const { createLogsTable } = require('./utils/logger');
-createLogsTable();
 
 var app = express();
 
@@ -70,7 +69,7 @@ const upload = multer({
 
 // Habilitar CORS para permitir peticiones desde frontend
 app.use(cors({
-    origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:3000'],
+    // origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:3000'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     exposedHeaders: ['X-Factura-Id', 'Content-Disposition', 'X-New-Token']
@@ -90,6 +89,10 @@ const authenticateToken = (req, res, next) => {
             console.error('Error al verificar token:', err);
             return res.status(403).json({ message: 'Token inválido o expirado.' });
         }
+        // Evitar caché cuando se envía X-New-Token
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         // Verificar si el token está a punto de expirar (menos de 5 minutos)
         const currentTime = Math.floor(Date.now() / 1000); // Tiempo actual en segundos
         const timeLeft = user.exp - currentTime; // Tiempo restante hasta la expiración
@@ -101,10 +104,6 @@ const authenticateToken = (req, res, next) => {
             delete newPayload.exp; // Elimina 'exp' (expiration) para que se genere uno nuevo
             const newToken = jwt.sign(newPayload, JWT_SECRET, { expiresIn: '1h' }); // Ajusta expiresIn según tu caso
             res.setHeader('X-New-Token', newToken); // Enviar el nuevo token en la cabecera
-            // Evitar caché cuando se envía X-New-Token
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
         }
 
         req.user = user; // Guarda el payload del token en req.user

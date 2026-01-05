@@ -302,7 +302,7 @@ async function verViajesModal(choferData, tipo) {
                 const modalViajesPagos = document.getElementById("viajesPagosModal");
                 if (modalViajesPagos) {
                     try {
-                        const response = await fetch('/FRONTEND/viajes-pagos.html');
+                        const response = await fetch('viajes-pagos.html');
                         if (!response.ok) {
                             throw new Error(`Error HTTP: ${response.status}`);
                         }
@@ -319,7 +319,7 @@ async function verViajesModal(choferData, tipo) {
                 const modalViajesClientes = document.getElementById("viajesClientesModal");
                 if (modalViajesClientes) {
                     try {
-                        const response = await fetch('/FRONTEND/viajes-clientes.html');
+                        const response = await fetch('viajes-clientes.html');
                         if (!response.ok) {
                             throw new Error(`Error HTTP: ${response.status}`);
                         }
@@ -336,7 +336,7 @@ async function verViajesModal(choferData, tipo) {
                 const modalOrdenesProveedor = document.getElementById("ordenesProveedoresModal");
                 if (modalOrdenesProveedor) {
                     try {
-                        const response = await fetch('/FRONTEND/ordenes-proveedor.html');
+                        const response = await fetch('ordenes-proveedor.html');
                         if (!response.ok) {
                             throw new Error(`Error HTTP: ${response.status}`);
                         }
