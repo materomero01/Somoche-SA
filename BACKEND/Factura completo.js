@@ -34,7 +34,7 @@ function formatDate(dateString) {
 }
 
 async function generarTA(servicioId) {
-  const cuitRepresentada = '20433059221';
+  const cuitRepresentada = '30714965006';
   const responseFileSuffix = `-loginTicketResponse_${servicioId}.xml`;
   const scriptName = servicioId === 'wsfe' ? 'scriptFactura.ps1' : 'scriptPadron.ps1';
   const files = fs.readdirSync(certDir).filter(f => f.endsWith(responseFileSuffix)).sort().reverse();
@@ -136,7 +136,7 @@ async function getLastCbteNro(token, sign, cuit, ptoVta, cbteTipo) {
   <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:ar="http://ar.gov.afip.dif.FEV1/">
     <soap:Header>
       <ar:FEHeaderInfo>
-        <ambiente>HomologacionExterno - efa</ambiente>
+        <ambiente>Produccion</ambiente>
         <fecha>${new Date().toISOString().replace('Z', '-03:00')}</fecha>
         <id>6.1.0.0</id>
       </ar:FEHeaderInfo>
@@ -155,7 +155,7 @@ async function getLastCbteNro(token, sign, cuit, ptoVta, cbteTipo) {
   </soap:Envelope>`;
 
   try {
-    const response = await fetch('https://wswhomo.afip.gov.ar/wsfev1/service.asmx', {
+    const response = await fetch('https://wsfe.afip.gov.ar/wsfev1/service.asmx', {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
@@ -179,7 +179,7 @@ async function getLastCbteNro(token, sign, cuit, ptoVta, cbteTipo) {
   }
 }
 
-function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servicios, tributos = [] }) {
+function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servicios, tributos = [], fechaEmision, periodoDesde, periodoHasta, fechaVtoPago }) {
   // Consolidar alícuotas de IVA
   const ivaMap = servicios.reduce((acc, servicio) => {
     const ivaId = servicio.ivaId;
@@ -224,7 +224,7 @@ function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servi
   <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:ar="http://ar.gov.afip.dif.FEV1/">
     <soap:Header>
       <ar:FEHeaderInfo>
-        <ambiente>HomologacionExterno - efa</ambiente>
+        <ambiente>Produccion</ambiente>
         <fecha>${new Date().toISOString().replace('Z', '-03:00')}</fecha>
         <id>6.1.0.0</id>
       </ar:FEHeaderInfo>
@@ -244,21 +244,21 @@ function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servi
           </ar:FeCabReq>
           <ar:FeDetReq>
             <ar:FECAEDetRequest>
-              <ar:Concepto>1</ar:Concepto>
+              <ar:Concepto>2</ar:Concepto>
               <ar:DocTipo>80</ar:DocTipo>
               <ar:DocNro>${docNro.replace(/-| /g, '')}</ar:DocNro>
               <ar:CbteDesde>${cbteNro}</ar:CbteDesde>
               <ar:CbteHasta>${cbteNro}</ar:CbteHasta>
-              <ar:CbteFch>${new Date().toISOString().split('T')[0].replaceAll('-', '')}</ar:CbteFch>
+              <ar:CbteFch>${fechaEmision}</ar:CbteFch>
               <ar:ImpTotal>${impTotal.toFixed(2)}</ar:ImpTotal>
               <ar:ImpTotConc>0</ar:ImpTotConc>
               <ar:ImpNeto>${impNeto.toFixed(2)}</ar:ImpNeto>
               <ar:ImpOpEx>0</ar:ImpOpEx>
               <ar:ImpTrib>${impTrib.toFixed(2)}</ar:ImpTrib>
               <ar:ImpIVA>${impIVA.toFixed(2)}</ar:ImpIVA>
-              <ar:FchServDesde></ar:FchServDesde>
-              <ar:FchServHasta></ar:FchServHasta>
-              <ar:FchVtoPago></ar:FchVtoPago>
+              <ar:FchServDesde>${periodoDesde}</ar:FchServDesde>
+              <ar:FchServHasta>${periodoHasta}</ar:FchServHasta>
+              <ar:FchVtoPago>${fechaVtoPago}</ar:FchVtoPago>
               <ar:MonId>PES</ar:MonId>
               <ar:MonCotiz>1</ar:MonCotiz>
               <ar:CondicionIVAReceptorId>1</ar:CondicionIVAReceptorId>
@@ -272,7 +272,7 @@ function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servi
   </soap:Envelope>`;
 }
 
-async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
+async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [], fechaEmision, periodoDesde, periodoHasta, fechaVtoPago }) {
   let text = null;
   try {
     // Obtener token, sign y cuit desde generarTA para wsfe
@@ -283,7 +283,7 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
     const cbteNro = await getLastCbteNro(token, sign, cuit, ptoVta, 1);
 
     // Generar XML
-    const xml = generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servicios, tributos });
+    const xml = generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servicios, tributos, fechaEmision, periodoDesde, periodoHasta, fechaVtoPago });
     console.log(xml);
 
     // Enviar solicitud SOAP
@@ -327,7 +327,7 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [] }) {
 }
 
 async function consultarCUIT(cuit) {
-  const serviceUrl = 'https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5';
+  const serviceUrl = 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA5';
   try {
     const authPadron = await generarTA('ws_sr_constancia_inscripcion');
     const soapRequest = `<?xml version="1.0" encoding="UTF-8"?>
@@ -394,13 +394,15 @@ async function generarEnlaceQR(datos, impTotal) {
   const qrData = {
     ver: 1,
     fecha: fechaFormatted,
-    cuit: 20433059221,
+    cuit: 30714965006,
     ptoVta: parseInt(datos.ptoVta, 10),
     tipoCmp: 1,
     nroCmp: parseInt(datos.cbteNro, 10),
     importe: parseFloat(impTotal),
     moneda: 'PES',
     ctz: 1,
+    tipoDocRec: 80,
+    nroDocRec: parseInt(datos.cuitCliente),
     tipoCodAut: 'E',
     codAut: parseInt(datos.cae, 10)
 
@@ -420,6 +422,7 @@ async function generarEnlaceQR(datos, impTotal) {
   console.log(`  Importe: ${qrData.importe}`);
   console.log(`  Moneda: ${qrData.moneda}`);
   console.log(`  Cotización: ${qrData.ctz}`);
+  console.log(`  Número Documento Receptor: ${qrData.nroDocRec}`);
   console.log(`  Tipo de Código de Autorización: ${qrData.tipoCodAut}`);
   console.log(`  CAE: ${qrData.codAut}`);
   console.log('QR JSON:', qrJson);
@@ -448,7 +451,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   }));
 
   // Emitir factura para obtener cae, caeFchVto, cbteNro
-  const facturaResult = await emitirFacturaA({ ptoVta, docNro, servicios: serviciosWsfe, tributos });
+  const facturaResult = await emitirFacturaA({ ptoVta, docNro, servicios: serviciosWsfe, tributos, fechaEmision, periodoDesde, periodoHasta, fechaVtoPago });
   if (facturaResult.error || !facturaResult.cae) {
     throw new Error(`Error al emitir factura: ${facturaResult.error || 'No se obtuvo CAE'}`);
   }
@@ -529,23 +532,23 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
 
   // Somoche S.A. Box
   doc.rect(PADDING_X, headerBoxStartY, headerBoxWidth, headerBoxMinHeight).stroke();
-  doc.font('Helvetica-Bold').fontSize(20).text('SOMOCHE S.A.', PADDING_X, headerBoxStartY + 5, { align: 'center', width: headerBoxWidth });
+  doc.font('Helvetica-Bold').fontSize(15).text('SOMOCHE S.A.', PADDING_X, headerBoxStartY + 5, { align: 'center', width: headerBoxWidth });
   doc.font('Helvetica').fontSize(10);
   let somocheTextY = headerBoxStartY + 45;
   doc.font('Helvetica-Bold').text(`Razón Social: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`SOMOCHE S.A.`, { width: headerBoxWidth - 10 });
   somocheTextY += 12;
   doc.font('Helvetica-Bold').text(`Domicilio Comercial: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`541 2050 - Quequen, Buenos Aires`, { width: headerBoxWidth - 10 });
   somocheTextY += 12;
-  doc.font('Helvetica-Bold').text(`Condición frente al IVA: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica').text(`IVA Responsable Inscripto`, { width: headerBoxWidth - 10 });
+  doc.font('Helvetica-Bold').text(`Condición frente al IVA: `, PADDING_X + 5, somocheTextY, { continued: true, width: headerBoxWidth - 10, align: 'left' }).font('Helvetica-Bold').text(`IVA Responsable Inscripto`, { width: headerBoxWidth - 10 });
 
   // FACTURA Box
   doc.rect(PADDING_X + headerBoxWidth, headerBoxStartY, headerBoxWidth, headerBoxMinHeight).stroke();
-  doc.font('Helvetica-Bold').fontSize(24).text('FACTURA', PADDING_X + headerBoxWidth, headerBoxStartY + 5, { align: 'center', width: headerBoxWidth });
+  doc.font('Helvetica-Bold').fontSize(20).text('FACTURA', PADDING_X + headerBoxWidth, headerBoxStartY + 5, { align: 'center', width: headerBoxWidth });
   doc.font('Helvetica').fontSize(10);
   let facturaTextY = headerBoxStartY + 45;
-  doc.font('Helvetica-Bold').text(`Punto de Venta: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`${datosFactura.ptoVta.toString().padStart(5, '0')}    Comp. Nro: ${datosFactura.cbteNro.toString().padStart(8, '0')}`);
+  doc.font('Helvetica-Bold').text(`Punto de Venta: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica-Bold').text(`${datosFactura.ptoVta.toString().padStart(5, '0')}    Comp. Nro: ${datosFactura.cbteNro.toString().padStart(8, '0')}`);
   facturaTextY += 12;
-  doc.font('Helvetica-Bold').text(`Fecha de Emisión: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(formatDate(datosFactura.fechaEmision));
+  doc.font('Helvetica-Bold').text(`Fecha de Emisión: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica-Bold').text(formatDate(datosFactura.fechaEmision));
   facturaTextY += 12;
   doc.font('Helvetica-Bold').text(`CUIT: `, PADDING_X + headerBoxWidth + 5, facturaTextY, { continued: true, align: 'left' }).font('Helvetica').text(`30714965006`);
   facturaTextY += 12;
@@ -571,9 +574,9 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   currentY += 1;
   const periodosHeight = 20;
   doc.rect(PADDING_X, currentY, PAGE_WIDTH - (2 * PADDING_X), periodosHeight).stroke();
-  doc.font('Helvetica-Bold').fontSize(11).text(`Período Facturado Desde: `, PADDING_X + 5, currentY + 5, { continued: true }).font('Helvetica').text(`01${datosFactura.periodoDesde.slice(2)}  `, { continued: true });
-  doc.font('Helvetica-Bold').text(`Hasta: `, { continued: true }).font('Helvetica').text(`${datosFactura.periodoHasta}  `, { continued: true });
-  doc.font('Helvetica-Bold').text(`Fecha de Vto. para el pago: `, { continued: true }).font('Helvetica').text(`${datosFactura.fechaVtoPago}`);
+  doc.font('Helvetica-Bold').fontSize(11).text(`Período Facturado Desde: `, PADDING_X + 5, currentY + 5, { continued: true }).font('Helvetica').text(`${formatDate(datosFactura.periodoDesde)}  `, { continued: true });
+  doc.font('Helvetica-Bold').text(`Hasta: `, { continued: true }).font('Helvetica').text(`${formatDate(datosFactura.periodoHasta)}  `, { continued: true });
+  doc.font('Helvetica-Bold').text(`Fecha de Vto. para el pago: `, { continued: true }).font('Helvetica').text(formatDate(datosFactura.fechaVtoPago));
   currentY += periodosHeight + 1;
 
   // Datos del Cliente
@@ -618,7 +621,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
 
   // Tabla de servicios con salto automático de página
   const tableHeaders = ['Código', 'Producto / Servicio', 'Cantidad', 'U. Medida', 'Precio Unit.', '% Bonif', 'Subtotal', 'Alícuota IVA', 'Subtotal c/IVA'];
-  const tableColumnWidths = [40, 100, 50, 50, 55, 40, 60, 60, 80];
+  const tableColumnWidths = [40, 160, 40, 45, 55, 35, 55, 40, 70];
   const tableStartX = PADDING_X;
   const tableWidth = PAGE_WIDTH - (2 * PADDING_X);
   const headerRowHeight = 24;
@@ -627,10 +630,10 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   function drawTableHeader(y) {
     doc.lineWidth(1);
     doc.rect(tableStartX, y, tableWidth, headerRowHeight).fill('#ccc').stroke();
-    doc.fillColor('black').font('Helvetica-Bold').fontSize(9);
+    doc.fillColor('black').font('Helvetica-Bold').fontSize(8);
     let currentColumnX = tableStartX;
     tableHeaders.forEach((header, i) => {
-      doc.text(header, currentColumnX + 2, y + 5, { width: tableColumnWidths[i] - 4, align: 'center' });
+      doc.text(header, currentColumnX + 2, y + 5, { width: tableColumnWidths[i] - 4, align: `${i === 1? 'left' : 'center' }`});
       currentColumnX += tableColumnWidths[i];
     });
     doc.stroke();

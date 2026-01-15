@@ -223,6 +223,7 @@ const setupViajesSearchBar = () => {
             const inputVariacion = document.getElementById("variacion");
             const inputDescargado = document.getElementById("descargado");
             const inputCampo = document.getElementById("campo");
+            const inputProducto = document.getElementById("producto");
 
             const chofer = allChoferes.find(chofer => chofer.cuil === data.cuil);
             if (chofer) {
@@ -256,8 +257,9 @@ const setupViajesSearchBar = () => {
             inputVariacion.value = data.variacion;
             inputDescargado.value = data.descargado;
             inputCampo.value = data.campo;
+            inputProducto.value = data.producto;
 
-            [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach(input => {
+            [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo, inputProducto].forEach(input => {
                 input.setAttribute('readonly', true);
             });
 
@@ -267,7 +269,7 @@ const setupViajesSearchBar = () => {
             editViajeBtn.onclick = () => {
                 editViajeBtn.classList.add("hidden");
                 acceptViajeBtn.classList.remove("hidden");
-                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach(input => {
+                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo, inputProducto].forEach(input => {
                     input.removeAttribute('readonly');
                     input.setAttribute('editing', true);
                 });
@@ -286,7 +288,8 @@ const setupViajesSearchBar = () => {
                         comprobante: inputComprobante.value.trim(),
                         descargado: parseFloat(inputDescargado.value) || parseFloat(inputToneladas.value),
                         variacion: parseFloat(inputVariacion.value) > 1 ? parseFloat(inputVariacion.value) / 100 : parseFloat(inputVariacion.value),
-                        campo: inputCampo.value.trim()
+                        campo: inputCampo.value.trim(),
+                        producto: inputProducto.value.trim()
                     }
                 }
                 console.log(payload);
@@ -309,7 +312,7 @@ const setupViajesSearchBar = () => {
                 acceptViajeBtn.classList.add("hidden");
                 buttonsAddViaje.classList.remove("hidden");
                 buttonsEditViaje.classList.add("hidden");
-                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo].forEach(input => {
+                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo, inputProducto].forEach(input => {
                     input.removeAttribute('readonly');
                     input.removeAttribute('editing');
                     input.value = '';

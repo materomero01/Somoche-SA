@@ -9,7 +9,7 @@ router.get('/getPagosOtros', ctrlPagos.getPagosOtros);
 router.get('/pagosCliente', ctrlPagos.getPagosCliente);
 router.get('/pagosProveedor', ctrlPagos.getPagosProveedor);
 router.get('/ordenesProveedor', ctrlPagos.getOrdenesProveedor);
-router.get('/:cuil', ctrlPagos.getAllPagos);
+router.get('/', ctrlPagos.getAllPagos);
 
 
 /* POSTs pagos */

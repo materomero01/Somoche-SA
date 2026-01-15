@@ -149,7 +149,7 @@ const setTodayDate = () => {
         day: '2-digit'
     }).split('/').reverse().join('-');
 
-    ['nuevoFecha', 'fechaPago'].forEach(id => {
+    ['nuevoFecha', 'fechaPago', 'fechaPagos'].forEach(id => {
         const input = document.getElementById(id);
         if (input) input.value = today;
     });
@@ -537,7 +537,7 @@ const setupAddPagoBtn = () => {
             if (response.ok){
                 const data = await response.json();
                 showConfirmModal(data.message);
-                if (new Date(payload.pagos.fecha_pago) < new Date())
+                if (new Date(payload.pagos.fecha_pago) <= new Date(`${document.getElementById('fechaPagos').value}T00:00:00-03:00`))
                     pagosData.push(parsePagos({id: data.pagoId.id, ...payload.pagos}));
                 //reset de los fields aca
                 renderTables(pagosData, 1, optionsPagos, actualizarTotales);
@@ -860,13 +860,35 @@ export async function inicializarModal(data) {
     const clienteAddPago = document.getElementById('chofer-pagos-wrapper');
     const tablaPagos = document.getElementById('pagos-table');
     const togglePagosArea = document.getElementById('togglePagosArea');
+    const pagosFecha = document.getElementById('fechaPagos');
+    const fechaPagosArea = document.getElementById('fechaPagosArea');
     
     // Toggle pagos area
     togglePagosArea?.addEventListener('click', () => {
         togglePagosArea.classList.toggle('active');
         tablaPagos.classList.toggle('hidden');
         clienteAddPago.classList.toggle('hidden');
+        fechaPagosArea.classList.toggle('hidden');
     });
+
+    pagosFecha?.addEventListener('change', async () => {
+        const fechaPagos = new Date(`${pagosFecha.value}T00:00:00-03:00`).toISOString();
+        try {
+            const responsePagos = await getPagosCuil(choferData.cuil, fechaPagos);
+            const dataPagos = await responsePagos.json();
+            if (responsePagos.ok) {
+                pagosData = dataPagos.map(p => {
+                    return parsePagos(p);
+                });
+                renderTables(pagosData, 1, optionsPagos, actualizarTotales);
+            } else {
+                showConfirmModal(dataPagos.message);
+            }
+        } catch (error){
+            console.log(error.message);
+            showConfirmModal("Ocurrio un error al intentar obtener los pagos hasta la fecha ingresada");
+        }
+    })
 
     async function manejarUpdateUsuario(user){
         if (user.updatedData.cuil === choferData.cuil && user.updatedData.cuil !== user.cuilOriginal){
@@ -932,7 +954,7 @@ export async function inicializarModal(data) {
         let actualizo = false;
         if (pagos.cuil && pagos.cuil === choferData.cuil){
             pagos.pagosArray.forEach( pago => {
-                    if (new Date(pago.fecha_pago) < new Date()){
+                    if (new Date(pago.fecha_pago) <= new Date(`${pagosFecha.value}T00:00:00-03:00`)){
                         let pagoParseado = parsePagos(pago);
                         pagosData.push(pagoParseado);
                         actualizo = true;

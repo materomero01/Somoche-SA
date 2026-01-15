@@ -294,10 +294,10 @@ export async function getViajes(cuil) {
     }
 }
 
-export async function getPagosCuil(cuil) {
+export async function getPagosCuil(cuil, fechaPagos = null) {
     try {
         const token = getToken();
-        const response = await fetch(`${apiURL}/pagos/${encodeURIComponent(cuil)}`, {
+        const response = await fetch(`${apiURL}/pagos?cuil=${encodeURIComponent(cuil)}&fechaPagos=${encodeURIComponent(fechaPagos)}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,

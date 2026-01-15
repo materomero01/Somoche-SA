@@ -196,14 +196,14 @@ exports.insertPagos = async (req, res) => {
 };
 
 exports.getAllPagos = async (req, res) => {
-    const cuil = req.params.cuil;
+    const {cuil, fechaPagos} = req.query;
     if (req.user.role === 'chofer' && req.user.cuil != cuil) {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
-
+    const params = [cuil];
+    if (fechaPagos && fechaPagos !== "null") params.push(fechaPagos);
     try {
-        const result = await pool.query('SELECT * FROM pagos_unified WHERE chofer_cuil = $1 AND fecha_pago <= CURRENT_DATE ORDER BY fecha_pago ASC', [cuil]);
-        console.log(result.rows);
+        const result = await pool.query(`SELECT * FROM pagos_unified WHERE chofer_cuil = $1 AND fecha_pago <= ${fechaPagos && fechaPagos !== "null"? '$2' : 'CURRENT_DATE'} ORDER BY fecha_pago ASC`, params);
         return res.status(202).json(result.rows);
     } catch (error) {
         console.error('Error en getAllPagos:', error);

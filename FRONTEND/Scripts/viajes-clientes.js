@@ -641,16 +641,21 @@ async function handleGenerateInvoice(data) {
         };
     }));
 
+    const fechaHoy = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Argentina/Buenos_Aires"}));
+    const primerDiaMes = new Date(fechaHoy.getFullYear(), fechaHoy.getMonth(), 1);
+    const fechaVencimiento = new Date(fechaHoy);
+    fechaVencimiento.setDate(fechaHoy.getDate() + 30);
+
     const invoiceData = {
-        ptoVta: 12,
+        ptoVta: 2,
         docNro: selectedClientCUIT,
         comprobante: selectedRows.map(r => ({ id: r.id })),
         servicios,
         tributos: [],
-        fechaEmision: formatDate(new Date()), // AAAAMMDD
-        periodoDesde: formatDate(new Date(), '/'), // DD/MM/YYYY
-        periodoHasta: formatDate(new Date(), '/'), // DD/MM/YYYY
-        fechaVtoPago: formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), '/'), // 30 days
+        fechaEmision: formatDate(fechaHoy), // AAAAMMDD
+        periodoDesde: formatDate(primerDiaMes), // DD/MM/YYYY
+        periodoHasta: formatDate(fechaHoy), // DD/MM/YYYY
+        fechaVtoPago: formatDate(fechaVencimiento), // 30 days
         condicionVenta: 'Cuenta Corriente'
     };
 

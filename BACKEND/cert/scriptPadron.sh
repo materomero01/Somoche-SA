@@ -22,7 +22,7 @@ CLAVE_PRIVADA="${2:-MiClavePrivada.key}"
 SERVICIO_ID="${3:-ws_sr_constancia_inscripcion}"
 OUT_XML="LoginTicketRequest_${SERVICIO_ID}.xml"
 OUT_CMS="LoginTicketRequest_${SERVICIO_ID}.xml.cms"
-WSAA_URL="https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
+WSAA_URL="https://wsaa.afip.gov.ar/ws/services/LoginCms"
 
 # PASO 1: ARMAR EL XML DEL TICKET DE ACCESO
 # Usar hora de Argentina (UTC-3)
