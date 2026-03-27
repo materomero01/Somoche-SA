@@ -205,9 +205,6 @@ const setupViajesSearchBar = () => {
 
             const editViajeBtn = document.getElementById("editViajeBtn");
 
-            if (data.group_r)
-                editViajeBtn.classList.add("hidden");
-
             buttonsAddViaje.classList.add("hidden");
             buttonsEditViaje.classList.remove("hidden");
 

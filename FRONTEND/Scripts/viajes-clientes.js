@@ -243,7 +243,7 @@ const accionesPagos = [
                 }
                 ultimosPagosCliente = ultimosPagosCliente.filter(p => p.id !== item.id);
                 showConfirmModal(data.message);
-                clienteData.balance = parseImporte(clienteData.balance) + parseFloat(parseImporte(item.importe));
+                clienteData.balance = parseFloat((parseImporte(clienteData.balance) + parseFloat(parseImporte(item.importe))).toFixed(2));
                 renderTables(ultimosPagosCliente, 1, optionsPagos);
                 actualizarTotales(viajesFacturadosData);
                 renderCurrentTable();
@@ -331,7 +331,7 @@ function changeDataFactura(facturaId, selectedRows) {
     } else {
         switch (currentEditingTable) {
             case "viajes":
-                clienteData.balance = parseImporte(clienteData.balance) + parseFloat(selectedRows.reduce((sum, viaje) => sum + (parseImporte(viaje.importe) + parseImporte(viaje.iva) || 0), 0).toFixed(2));
+                clienteData.balance = parseFloat((parseImporte(clienteData.balance) + parseFloat(selectedRows.reduce((sum, viaje) => sum + (parseImporte(viaje.importe) + parseImporte(viaje.iva) || 0), 0))).toFixed(2));
                 viajesAFacturarData = viajesAFacturarData.filter(v => !selectedRows.some(row => row.id === v.id));
                 renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
                 renderCurrentTable();
@@ -544,7 +544,7 @@ const setupAddPagoBtn = () => {
             if (response.ok) {
                 const data = await response.json();
                 showConfirmModal(data.message);
-                clienteData.balance = parseImporte(clienteData.balance) - parseFloat(parseImporte(payload.pagos.importe));
+                clienteData.balance = parseFloat((parseImporte(clienteData.balance) - parseFloat(parseImporte(payload.pagos.importe))).toFixed(2));
                 ultimosPagosCliente.push(parsePagos({ id: data.pagoId.id, ...payload.pagos }));
                 renderTables(ultimosPagosCliente, 1, optionsPagos);
                 actualizarTotales(viajesFacturadosData);
@@ -975,7 +975,7 @@ export async function inicializarModaCliente(data) {
             console.log("nuevo pago: " + pago.cuit);
             pago.pagosArray.forEach(p => {
                 ultimosPagosCliente.push(parsePagos(p));
-                clienteData.balance = parseImporte(clienteData.balance) - parseFloat(parseImporte(p.importe));
+                parseFloat((parseImporte(clienteData.balance) - parseFloat(parseImporte(p.importe))).toFixed(2));
             });
             await renderTables(ultimosPagosCliente, 1, optionsPagos);
             showConfirmModal("Se actualizaron los pagos del cliente");
@@ -991,7 +991,7 @@ export async function inicializarModaCliente(data) {
             ultimosPagosCliente = ultimosPagosCliente.filter(p => {
                 const cond = p.id === pago.id && p.tipo === pago.tipo;
                 if (cond)
-                    clienteData.balance = parseImporte(clienteData.balance) + parseFloat(parseImporte(p.importe));
+                    clienteData.balance = parseFloat((parseImporte(clienteData.balance) + parseFloat(parseImporte(p.importe))).toFixed(2));
                 return !cond;
             });
             if (lenght !== ultimosPagosCliente.length) {

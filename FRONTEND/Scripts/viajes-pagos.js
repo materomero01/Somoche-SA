@@ -537,7 +537,7 @@ const setupAddPagoBtn = () => {
             if (response.ok){
                 const data = await response.json();
                 showConfirmModal(data.message);
-                if (new Date(payload.pagos.fecha_pago) <= new Date(`${document.getElementById('fechaPagos').value}T00:00:00-03:00`))
+                if (new Date(payload.pagos.fecha_pago) <= new Date(`${document.getElementById('fechaPagos').value}T00:00:00-03:00`) || new Date())
                     pagosData.push(parsePagos({id: data.pagoId.id, ...payload.pagos}));
                 //reset de los fields aca
                 renderTables(pagosData, 1, optionsPagos, actualizarTotales);
@@ -872,7 +872,7 @@ export async function inicializarModal(data) {
     });
 
     pagosFecha?.addEventListener('change', async () => {
-        const fechaPagos = new Date(`${pagosFecha.value}T00:00:00-03:00`).toISOString();
+        const fechaPagos = new Date(`${pagosFecha.value}T00:00:00-03:00`).toISOString() || new Date();
         try {
             const responsePagos = await getPagosCuil(choferData.cuil, fechaPagos);
             const dataPagos = await responsePagos.json();
@@ -954,7 +954,7 @@ export async function inicializarModal(data) {
         let actualizo = false;
         if (pagos.cuil && pagos.cuil === choferData.cuil){
             pagos.pagosArray.forEach( pago => {
-                    if (new Date(pago.fecha_pago) <= new Date(`${pagosFecha.value}T00:00:00-03:00`)){
+                    if (new Date(pago.fecha_pago) <= (new Date(`${pagosFecha.value}T00:00:00-03:00`) || new Date())){
                         let pagoParseado = parsePagos(pago);
                         pagosData.push(pagoParseado);
                         actualizo = true;

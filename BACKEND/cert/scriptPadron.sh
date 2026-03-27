@@ -19,7 +19,7 @@ set -e  # Detener en caso de error
 # Parametros con valores por defecto
 CERTIFICADO="${1:-certificado.crt}"
 CLAVE_PRIVADA="${2:-MiClavePrivada.key}"
-SERVICIO_ID="${3:-ws_sr_constancia_inscripcion}"
+SERVICIO_ID="${3:-ws_sr_padron_a13}"
 OUT_XML="LoginTicketRequest_${SERVICIO_ID}.xml"
 OUT_CMS="LoginTicketRequest_${SERVICIO_ID}.xml.cms"
 WSAA_URL="https://wsaa.afip.gov.ar/ws/services/LoginCms"

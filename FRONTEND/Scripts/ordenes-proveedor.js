@@ -159,7 +159,7 @@ const ordenesActions = [
             const result = await deletePago(item.id, 'Gasoil');
             if (result.ok) {
                 ordenesProveedor = ordenesProveedor.filter(o => o.id !== item.id);
-                proveedorData.balance = parseImporte(proveedorData.balance) - parseImporte(item.importe);
+                proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) - parseImporte(item.importe)).toFixed(2));
                 renderTables(ordenesProveedor, 1, optionsOrdenes, actualizarTotales);
                 renderCurrentTable();
                 showConfirmModal("Orden de gasoil eliminada con éxito");
@@ -222,7 +222,7 @@ const pagosActions = [
                 }
                 ultimosPagosProveedor = ultimosPagosProveedor.filter(p => p.tipo !== item.tipo || p.id !== item.id);
                 showConfirmModal(data.message);
-                proveedorData.balance = parseImporte(proveedorData.balance) + parseImporte(item.importe);
+                proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) + parseImporte(item.importe)).toFixed(2));
                 renderTables(ultimosPagosProveedor, 1, optionsPagos);
                 renderCurrentTable();
                 actualizarTotales(ordenesProveedor);
@@ -405,7 +405,7 @@ const setupAddPagoBtn = () => {
             if (response.ok){
                 const data = await response.json();
                 showConfirmModal(data.message);
-                proveedorData.balance = parseImporte(proveedorData.balance) - parseImporte(payload.pagos.importe);
+                proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) - parseImporte(payload.pagos.importe)).toFixed(2));
                 ultimosPagosProveedor.push(parsePagos({id: data.pagoId.id, ...payload.pagos}));
                 renderTables(ultimosPagosProveedor, 1, optionsPagos);
                 actualizarTotales(getCurrentData());
@@ -535,7 +535,7 @@ export async function inicializarModalProveedor(data) {
         proveedorAddPago.classList.toggle('hidden');
         if (searchInput) searchInput.value = '';
         pagosOpen = !pagosOpen;
-        
+        renderTables(getCurrentData(), 1, getCurrentOptions());
     });
 
     socket.on('nuevoPago', async (pago) => {
@@ -547,10 +547,10 @@ export async function inicializarModalProveedor(data) {
                     p.fecha_pago = formatFecha(p.fecha_pago);
                     p.precio = p.importe / p.litros;
                     ordenesProveedor.push(p);
-                    proveedorData.balance = parseImporte(proveedorData.balance) + parseImporte(p.importe);
+                    proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) + parseImporte(p.importe)).toFixed(2));
                 } else {
                     ultimosPagosProveedor.push(parsePagos(p));
-                    proveedorData.balance = parseImporte(proveedorData.balance) - parseImporte(p.importe);
+                    proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) - parseImporte(p.importe)).toFixed(2));
                 }
             });
             await renderTables(ultimosPagosProveedor, 1, optionsPagos);
@@ -567,7 +567,7 @@ export async function inicializarModalProveedor(data) {
                 lenght = ordenesProveedor.length;
                 ordenesProveedor = ordenesProveedor.filter(o => {
                     let cond = o.id === pago.id;
-                    if (cond) proveedorData.balance = parseImporte(proveedorData.balance) + parseFloat(parseImporte(o.importe).toFixed(2));
+                    if (cond) proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) - parseFloat(parseImporte(o.importe))).toFixed(2));
                     return !cond;
                 });
             } else {
@@ -575,7 +575,7 @@ export async function inicializarModalProveedor(data) {
                 ultimosPagosProveedor = ultimosPagosProveedor.filter(o => {
                     let cond = o.id === pago.id && o.tipo === pago.tipo;
                     if (cond)
-                        proveedorData.balance = parseImporte(proveedorData.balance) + parseFloat(parseImporte(o.importe).toFixed(2));
+                        proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) + parseFloat(parseImporte(o.importe))).toFixed(2));
                     return !cond;
                 });
                 if (lenght !== ultimosPagosProveedor.length)

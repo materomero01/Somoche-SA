@@ -36,7 +36,7 @@ function formatDate(dateString) {
 async function generarTA(servicioId) {
   const cuitRepresentada = '30714965006';
   const responseFileSuffix = `-loginTicketResponse_${servicioId}.xml`;
-  const scriptName = servicioId === 'wsfe' ? 'scriptFactura.ps1' : 'scriptPadron.ps1';
+  const scriptName = servicioId === 'wsfe' ? 'scriptFactura.sh' : 'scriptPadron.sh';
   const files = fs.readdirSync(certDir).filter(f => f.endsWith(responseFileSuffix)).sort().reverse();
   const latestResponse = files[0];
 
@@ -155,7 +155,7 @@ async function getLastCbteNro(token, sign, cuit, ptoVta, cbteTipo) {
   </soap:Envelope>`;
 
   try {
-    const response = await fetch('https://wsfe.afip.gov.ar/wsfev1/service.asmx', {
+    const response = await fetch('https://servicios1.afip.gov.ar/wsfev1/service.asmx', {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
@@ -287,7 +287,7 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [], fechaE
     console.log(xml);
 
     // Enviar solicitud SOAP
-    const response = await fetch('https://wswhomo.afip.gov.ar/wsfev1/service.asmx', {
+    const response = await fetch('https://servicios1.afip.gov.ar/wsfev1/service.asmx', {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
@@ -327,42 +327,47 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [], fechaE
 }
 
 async function consultarCUIT(cuit) {
-  const serviceUrl = 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA5';
+  const serviceUrl = 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA13';
   try {
-    const authPadron = await generarTA('ws_sr_constancia_inscripcion');
+    // ✅ serviceId correcto para A13
+    const authPadron = await generarTA('ws_sr_padron_a13');
+    
     const soapRequest = `<?xml version="1.0" encoding="UTF-8"?>
 <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
   <soap-env:Body>
-    <ns0:getPersona_v2 xmlns:ns0="http://a5.soap.ws.server.puc.sr/">
+    <ns0:getPersona xmlns:ns0="http://a13.soap.ws.server.puc.sr/">
       <token>${authPadron.token}</token>
       <sign>${authPadron.sign}</sign>
       <cuitRepresentada>${authPadron.cuitRepresentada}</cuitRepresentada>
       <idPersona>${cuit}</idPersona>
-    </ns0:getPersona_v2>
+    </ns0:getPersona>
   </soap-env:Body>
 </soap-env:Envelope>`;
 
-    console.log('XML enviado a ws_sr_padron_a5:', soapRequest);
     const response = await axios.post(serviceUrl, soapRequest, {
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': 'http://a5.soap.ws.server.puc.sr/getPersona_v2'
+        'SOAPAction': 'http://a13.soap.ws.server.puc.sr/getPersona'
       }
     });
 
     const parsedResult = await parseString(response.data, { explicitArray: false });
-    console.log('Respuesta SOAP de ws_sr_padron_a5:', JSON.stringify(parsedResult, null, 2));
+    console.log('Respuesta A13:', JSON.stringify(parsedResult, null, 2));
 
-    const persona = parsedResult['soap:Envelope']['soap:Body']['ns2:getPersona_v2Response']['personaReturn']['datosGenerales'];
-    if (!persona || parsedResult['soap:Envelope']['soap:Body']['ns2:getPersona_v2Response']['personaReturn']['errorConstancia']) {
-      const error = parsedResult['soap:Envelope']['soap:Body']['ns2:getPersona_v2Response']['personaReturn']['errorConstancia']?.error || 'CUIT no encontrado o inactivo';
-      throw new Error(error);
-    }
+    const body = parsedResult['soap:Envelope']['soap:Body'];
+    const personaReturn = body['ns2:getPersonaResponse']?.personaReturn;
+    
+    if (!personaReturn) throw new Error('Respuesta vacía del padrón');
 
-    const datosRegimenGeneral = parsedResult['soap:Envelope']['soap:Body']['ns2:getPersona_v2Response']['personaReturn']['datosRegimenGeneral'];
+    const persona = personaReturn.datosGenerales;
+    if (!persona) throw new Error('CUIT no encontrado o inactivo');
+
+    const datosRegimenGeneral = personaReturn.datosRegimenGeneral;
     let condicionIVA = 'No Informado';
     if (datosRegimenGeneral?.impuesto) {
-      const impuesto = Array.isArray(datosRegimenGeneral.impuesto) ? datosRegimenGeneral.impuesto : [datosRegimenGeneral.impuesto];
+      const impuesto = Array.isArray(datosRegimenGeneral.impuesto)
+        ? datosRegimenGeneral.impuesto
+        : [datosRegimenGeneral.impuesto];
       const ivaImpuesto = impuesto.find(i => i.idImpuesto === '30');
       condicionIVA = ivaImpuesto ? {
         'AC': 'IVA Responsable Inscripto',
@@ -380,6 +385,7 @@ async function consultarCUIT(cuit) {
       domicilioCliente: `${persona.domicilioFiscal?.direccion || ''} - ${persona.domicilioFiscal?.localidad || ''}, ${persona.domicilioFiscal?.descripcionProvincia || ''} (${persona.domicilioFiscal?.codPostal || ''})`.trim(),
       condicionIVACliente: condicionIVA
     };
+
   } catch (error) {
     throw new Error(`Error al consultar CUIT: ${error.message}`);
   }
@@ -449,13 +455,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
     baseImp: parseFloat(s.subtotal),
     ivaId: s.ivaId
   }));
-
-  // Emitir factura para obtener cae, caeFchVto, cbteNro
-  const facturaResult = await emitirFacturaA({ ptoVta, docNro, servicios: serviciosWsfe, tributos, fechaEmision, periodoDesde, periodoHasta, fechaVtoPago });
-  if (facturaResult.error || !facturaResult.cae) {
-    throw new Error(`Error al emitir factura: ${facturaResult.error || 'No se obtuvo CAE'}`);
-  }
-
+  
   // Consultar datos del cliente
   let clienteDatos;
   try {
@@ -463,6 +463,12 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   } catch (error) {
     console.error(error.message);
     throw new Error('No se pudieron obtener los datos del cliente desde AFIP');
+  }
+
+  // Emitir factura para obtener cae, caeFchVto, cbteNro
+  const facturaResult = await emitirFacturaA({ ptoVta, docNro, servicios: serviciosWsfe, tributos, fechaEmision, periodoDesde, periodoHasta, fechaVtoPago });
+  if (facturaResult.error || !facturaResult.cae) {
+    throw new Error(`Error al emitir factura: ${facturaResult.error || 'No se obtuvo CAE'}`);
   }
 
   // Calcular importes para el PDF

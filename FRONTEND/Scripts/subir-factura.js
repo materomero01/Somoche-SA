@@ -90,6 +90,13 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     const deleteFacturaBtn = document.getElementById('deleteFacturaBtn');
     const downloadCartaPorteBtn = document.getElementById('downloadCartaPorteBtn');
     const deleteCartaPorteBtn = document.getElementById('deleteCartaPorteBtn');
+    const valueViajes = document.getElementById('valueViajes');
+
+    if (valueViajes && tableType === "viajeCliente"){
+        console.log(selectedRows);
+        valueViajes.textContent = `Total con IVA de los ${selectedRows.length} viajes seleccionados: $${parseFloat(selectedRows.reduce((sum, viaje) => { return sum + viaje.importe + viaje.iva }, 0)).toFixed(2)}`;
+        valueViajes.classList.remove("hidden");
+    }
 
     // Check if documents already exist for the viaje
     await updateViajeStatus();
