@@ -38,6 +38,17 @@
                     <input type="text" class="search-input" id= "searchInput" placeholder="Buscar viaje ..." />
                     <div class="search-icon"><i class="bi bi-search"></i></div>
                 </div>
+                <div id="clientesFacturasSearchBar" class="search-bar hidden">
+                    <input type="text" class="search-input" id= "searchInputFacturas" placeholder="Buscar facturas ..." />
+                    <div class="search-icon"><i class="bi bi-search"></i></div>
+                </div>
+                <button class="btn btn-primary btn-circle hidden" id="facturas" title="Vista de los viajes por facturas">
+                    <i class="bi bi-file-earmark-text"></i>
+                </button>
+                <button class="btn btn-sm btn-primary hidden" id="back-facturasBtn">
+                        <i class="bi bi-arrow-left"></i>
+                        Atras
+                </button>
             </div>
             <div id="clientesViajes-table" class="tabla-dinamica no-modify" style="margin-top: 15px;"></div>
         </div>
@@ -61,6 +72,11 @@
                 <div style="display: flex; gap: 10px;">
                     <i class="bi bi-chevron-down toggle-dropbox active" id="togglePagosArea" style="margin: auto"></i>
                     <h3>Ultimos Pagos</h3>
+                    <div class="filter-buttons-container hidden">
+                        <button id="clear-filter-btn-pagos" class="btn btn-danger btn-sm ms-2 hidden"><i
+                            class="bi bi-x-lg"></i></button>
+                        <button id="filter-btn-pagos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
+                    </div>
                     <div id="headerPagos" style="display: flex; gap:10px">
                         <select id="selectPagos" class="select-format" style="margin: auto;">
                             <option value="10"> 10 </option>
@@ -106,7 +122,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="nroCheque">Nro. de Cheque *</label>
-                                    <input type="number" id="nroCheque" placeholder="Número de Cheque">
+                                    <input type="text" id="nroCheque" placeholder="Número de Cheque">
                                 </div>
                                 <div class="form-group">
                                     <label for="terceroCheque">Banco *</label>
@@ -134,6 +150,10 @@
                         <div id="otroFields" class="payment-type-fields hidden">
                             <div class="form-grid">
                                 <div class="form-group">
+                                    <label for="tipoOtro">Tipo</label>
+                                    <input type="text" id="tipoOtro" placeholder="Tipo" value="Otro">
+                                </div>
+                                <div class="form-group">
                                     <label for="comprobanteOtro">Comprobante</label>
                                     <input type="text" id="comprobanteOtro" placeholder="Comprobante del pago">
                                 </div>
@@ -159,5 +179,40 @@
                 Total a Cobrar: $ 0.00
             </div>
         </div>
+    </div>
+    <div id="filter-card" class="filter-card center hidden">
+        <h2>Filtrar Pagos</h2>
+        <span id= "closeBtnViaje" class="close-button">&times;</span>
+        <div class="filter-grid-container">
+            <div class="filter-input-group">
+            <label for="filter-cheque-numero">Número de cheque</label>
+            <input type="text" id="filter-cheque-numero" placeholder="Ej: #12345">
+            </div>
+            <div class="filter-input-group">
+            <label for="filter-destinatario">Destinatario</label>
+            <input type="text" id="filter-destinatario" placeholder="Ej: Cliente A">
+            </div>
+            <div class="filter-input-group">
+            <label for="filter-tercero">Banco</label>
+            <input type="text" id="filter-tercero" placeholder="Ej: Banco Galicia">
+            </div>
+            <div class="filter-input-group">
+            <label for="filter-fecha-desde">Fecha desde</label>
+            <input type="date" id="filter-fecha-desde">
+            </div>
+            <div class="filter-input-group">
+            <label for="filter-fecha-hasta">Fecha hasta</label>
+            <input type="date" id="filter-fecha-hasta">
+            </div>
+            <div class="filter-input-group">
+            <label for="filter-monto-minimo">Monto mínimo</label>
+            <input type="number" id="filter-monto-minimo" placeholder="0.00">
+            </div>
+            <div class="filter-input-group">
+            <label for="filter-monto-maximo">Monto máximo</label>
+            <input type="number" id="filter-monto-maximo" placeholder="999999.99">
+            </div>
+        </div>
+        <button id="apply-filter-btn" class="btn btn-success apply-button">Aplicar</button>
     </div>
 </div>

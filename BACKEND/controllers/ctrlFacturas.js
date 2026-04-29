@@ -6,6 +6,55 @@ const pool = require('../db');
 const { PDFDocument, rgb } = require('pdf-lib');
 const { getIO } = require('../socket');
 
+const { extraerMetadatos } = require('../facturas/facturaQRExtractor');
+
+exports.getFacturasData = async (req, res) => {
+    if (req.user.role === 'chofer') {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
+
+    const facturasToGet = req.body;
+
+    if (!facturasToGet || facturasToGet.length === 0)
+        return res.status(400).json({message: "Los viajes no poseen facturas adjuntas a buscar"});
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query("BEGIN");
+
+        query = `SELECT id AS factura_id, nro_factura, fecha_vto_pago, importe_total FROM factura_arca WHERE valid = true AND id = ANY($1)`;
+        const response = await client.query(query, [facturasToGet]);
+
+        if (response.rowCount === 0){
+            await client.query("ROLLBACK");
+            return res.status(400).json({message: "No se encontraron datos de las facturas solicitadas"});
+        }
+
+        await client.query("COMMIT");
+
+        const facturasIndexadas = response.rows.reduce((acc, factura) => {
+            // Extraemos el id y el resto de las propiedades
+            const { factura_id, ...datos } = factura;
+            
+            // Asignamos al acumulador usando el id como clave
+            acc[factura_id] = datos;
+            
+            return acc;
+        }, {});
+
+        return res.status(200).send({facturasData: facturasIndexadas});
+
+    } catch (error) {
+        if (client)
+            await client.query('ROLLBACK');
+        console.error('Error en getFacturasData:', error.message, error.stack);
+        return res.status(500).json({ error: `Error al obtener los datos de las factura: ${error.message}` });
+    } finally {
+        if (client) client.release();
+    }
+}
+
 exports.generarFacturaCtrl = async (req, res) => {
     if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
@@ -89,9 +138,11 @@ exports.generarFacturaCtrl = async (req, res) => {
         // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
         await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
-        const response = await client.query(`INSERT INTO factura_arca(cliente_cuit, factura_pdf) VALUES ($1, $2) RETURNING id`,
-            [cuit, pdfBuffer]
-        )
+        const valoresPdf = await extraerMetadatos(pdfBuffer);
+        
+        const response = await client.query(`INSERT INTO factura_arca(cliente_cuit, factura_pdf, fecha_vto_pago, nro_factura, importe_total, cae) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            [cuit, pdfBuffer, valoresPdf.fechaVtoPago, valoresPdf.nroFactura, valoresPdf.importeTotal, valoresPdf.cae]
+        );
 
         // Obtener el factura_id insertado
         const facturaId = response.rows[0].id;
@@ -202,23 +253,25 @@ exports.uploadFactura = async (req, res) => {
             return res.status(400).json({ error: 'El buffer del archivo está vacío o inválido' });
         }
 
-
         // Iniciar transacción
         client = await pool.connect();
         await client.query('BEGIN');
         let query;
         let queryInsert;
         let queryUpdate;
+        let params = [];
         switch (type) {
             case 'viajeCliente':
                 query = 'SELECT cliente_cuit AS chofer_cuil FROM viaje_cliente WHERE viaje_comprobante = $1';
                 queryInsert = 'INSERT INTO factura_arca(cliente_cuit, factura_pdf) VALUES ($1, $2) RETURNING id';
                 queryUpdate = 'UPDATE viaje_cliente SET factura_id = $1 WHERE valid = true AND viaje_comprobante = $2'
                 break;
-            case 'ordenProveedor':
-                query = 'SELECT proveedor_cuit AS chofer_cuil FROM pagos_gasoil WHERE comprobante = $1';
+            case 'ordenProveedorGasoil':
+            case 'ordenProveedorOtro':
+                let table_modify = type === 'ordenProveedorGasoil'? 'pagos_gasoil' : 'pagos_otro';
+                query = `SELECT proveedor_cuit AS chofer_cuil FROM ${table_modify} WHERE comprobante = $1`;
                 queryInsert = 'INSERT INTO factura(proveedor_cuit, factura_pdf) VALUES ($1, $2) RETURNING id';
-                queryUpdate = 'UPDATE pagos_gasoil SET factura_id = $1 WHERE valid = true AND comprobante = $2';
+                queryUpdate = `UPDATE ${table_modify} SET factura_id = $1 WHERE valid = true AND comprobante = $2`;
                 break;
             default:
                 query = 'SELECT chofer_cuil FROM viaje WHERE comprobante = $1';
@@ -235,10 +288,25 @@ exports.uploadFactura = async (req, res) => {
 
         const cuil = responseCuil.rows[0].chofer_cuil;
         // Insertar factura en la base de datos
+        params.push(cuil)
+        params.push(pdfBuffer);
 
+        let estado = null;
+        if (type === "viajeCliente"){
+            const valoresPdf = await extraerMetadatos(pdfBuffer);
+            console.log(valoresPdf);
+            if (valoresPdf){
+                queryInsert = `INSERT INTO factura_arca(cliente_cuit, factura_pdf, fecha_vto_pago, nro_factura, importe_total, cae) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
+                params.push(valoresPdf.fechaVtoPago);
+                params.push(valoresPdf.nroFactura); 
+                params.push(valoresPdf.importeTotal);
+                params.push(valoresPdf.cae);
+                estado = new Date() > valoresPdf.fechaVtoPago? "Pendiente" : "Facturada";
+            }
+        }
         const response = await client.query(
             queryInsert,
-            [cuil, pdfBuffer]
+            params
         );
 
         if (response.rows.length === 0) {
@@ -293,7 +361,7 @@ exports.uploadFactura = async (req, res) => {
         }
 
         // Enviar respuesta
-        return res.status(200).json({ message, facturaId });
+        return res.status(200).json({ message, facturaId, ...(type === "viajeCliente" && {estado: estado}) });
     } catch (error) {
         if (client)
             await client.query('ROLLBACK');
@@ -411,6 +479,73 @@ exports.uploadCartaPorte = async (req, res) => {
     }
 }
 
+exports.pagarFacturas = async (req, res) => {
+    if (req.user.role === 'chofer') {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
+
+    const {facturasToMark, cuit} = req.body;
+
+    if (!facturasToMark || facturasToMark.length < 1){
+        return res.status(400).json({ message: 'Ocurrio un error al obtener las facturas para marcar como pagadas'});
+    }
+
+    let client;
+    try{
+        // Iniciar transacción
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        // 2. Buscamos todos los nro_factura asociados y luego 
+        // actualizamos todas las facturas que compartan esos números.
+        // Usamos una Subconsulta para marcar "por número de factura" como pediste.
+        const updateFacturasQuery = `
+            UPDATE factura_arca
+            SET 
+                pagada = true
+            WHERE nro_factura IN (
+                SELECT nro_factura 
+                FROM factura_arca 
+                WHERE id = ANY($1)
+            )
+            RETURNING id AS factura_id;
+        `;
+        
+        const resFacturas = await client.query(updateFacturasQuery, [facturasToMark]);
+        if (resFacturas.rowCount === 0){
+            await client.query('ROLLBACK');
+            return res.status(400).json({message: "No se logro marcar las facturas como pagadas"});
+        }
+        const idsActualizados = resFacturas.rows;
+
+        await client.query('COMMIT');
+
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('payFactura', { cuit: cuit, facturasPagadas: idsActualizados });
+                }
+            });
+        } catch (error) {
+            console.error("Error al sincronizar los datos en deleteFactura", error.stack);
+        }
+
+        res.status(200).json({
+            message: "Facturas marcadas como pagadas con éxito",
+            idFacturas: idsActualizados
+        });
+
+    } catch (error){
+        await client.query('ROLLBACK');
+        console.error('Error en pagarFacturas', error.message, error.stack);
+        return res.status(500).json({ error: `Error al marcar las facturas como pagadas` });
+    } finally {
+        if (client) client.release();
+    }
+}
+
 exports.descargarFactura = async (req, res) => {
     const { cuil, id, comprobante } = req.query;
     if (req.user.role === 'chofer' && req.user.cuil !== cuil) {
@@ -465,7 +600,7 @@ exports.deleteFactura = async (req, res) => {
     let client;
     try {
         let query;
-        let queryCuil;
+        let queryCuil = 'SELECT chofer_cuil AS cuil, cliente_cuit AS cuit FROM viaje WHERE valid = true AND comprobante = $1';
         let params = [];
         if (id && id !== "null" & id !== "undefined") {
             switch (type) {
@@ -473,13 +608,14 @@ exports.deleteFactura = async (req, res) => {
                     query = 'UPDATE viaje_cliente SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND viaje_comprobante = $2';
                     queryCuil = 'SELECT cliente_cuit AS cuit FROM viaje_cliente WHERE valid = true AND viaje_comprobante = $1';
                     break;
-                case 'ordenProveedor':
-                    query = 'UPDATE pagos_gasoil SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2';
-                    queryCuil = 'SELECT proveedor_cuit AS cuil FROM pagos_gasoil WHERE valid = true AND comprobante = $1';
+                case 'ordenProveedorGasoil':
+                case 'ordenProveedorOtro':
+                    let table_modify = type === 'ordenProveedorGasoil'? 'pagos_gasoil' : 'pagos_otro';
+                    query = `UPDATE ${table_modify} SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2`;
+                    queryCuil = `SELECT proveedor_cuit AS cuil FROM ${table_modify} WHERE valid = true AND comprobante = $1`;
                     break;
                 default:
                     query = 'UPDATE viaje SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2';
-                    queryCuil = 'SELECT chofer_cuil AS cuil, cliente_cuit AS cuit FROM viaje WHERE valid = true AND comprobante = $1'
             }
             params.push(id);
         } else if (comprobante && comprobante !== "null" && comprobante !== "undefined") {

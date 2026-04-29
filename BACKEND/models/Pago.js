@@ -8,13 +8,14 @@ const isValidDate = (value) => {
 const pagoSchema = {
     tipo: { type: 'string', required: true, enum: ['cheque', 'gasoil', 'otro'], error: 'El tipo debe ser uno de: cheque, gasoil, otro.' },
     fecha_pago: { type: 'date', required: true, validate: isValidDate, error: 'La fechaPago debe ser una fecha válida en formato YYYY-MM-DD.' },
-    group: { type: 'date', required: false, validate: isValidDate, error: 'El grupo debe ser una fecha válida en formato YYYY-MM-DD.' }
+    group: { type: 'date', required: false, validate: isValidDate, error: 'El grupo debe ser una fecha válida en formato YYYY-MM-DD.' },
+    destino: { type: 'string', required: false, enum: ['general', 'chofer'], error: 'El pago debe ser para la cuenta general, o para el chofer.' }
 };
 
 const pagoChequeSchema = {
     ...pagoSchema,
     fecha_cheque: { type: 'date', required: true, validate: isValidDate, error: 'La fechaCheque debe ser una fecha válida en formato YYYY-MM-DD.' },
-    nroCheque: { type: 'number', required: true, min: 0, integer: true, error: 'El nroCheque debe ser un número entero mayor o igual a 0.' },
+    nroCheque: { type: 'text', required: true, min: 0, integer: true, error: 'El nroCheque debe ser un número entero mayor o igual a 0.' },
     tercero: { type: 'string', required: true, error: 'El tercero es obligatorio.' },
     destinatario: { type: 'string', required: true, error: 'El destinatario es obligatorio.' },
     importe: { type: 'number', required: true, min: 0, error: 'El importe debe ser un número mayor o igual a 0.' },
@@ -34,6 +35,8 @@ const pagoGasoilSchema = {
 
 const pagoOtroSchema = {
     ...pagoSchema,
+    proveedor_cuit: { type: 'string', required: false, default: null, regex: /^\d{2}-\d{8}-\d{1}$/, error: 'El Cuit del proveedor no es valido'},
+    tipo: { type: 'string', required: false, default: null, error: 'El tipo ingresado no es valido'},
     comprobante: { type: 'string', required: true, error: 'El comprobante del pago no fue ingresado o no es válido'},
     detalle: { type: 'string', required: true, error: 'El detalle es obligatorio.' },
     importe: { type: 'number', required: true, min: 0, error: 'El importe debe ser un número mayor o igual a 0.' }
@@ -72,12 +75,8 @@ const validateSinglePago = (data, partial = false) => {
         case 'gasoil':
             requiredFields = pagoGasoilSchema;
             break;
-        case 'otro':
-            requiredFields = pagoOtroSchema;
-            break;
         default:
-            errors.push('El tipo del pago debe ser uno de: cheque, gasoil, otro.');
-            return { errors, validatedData };
+            requiredFields = pagoOtroSchema;
     }
 
     // Validar cada campo
@@ -90,24 +89,28 @@ const validateSinglePago = (data, partial = false) => {
             continue;
         }
 
-        // Para validación parcial (update), ignorar campos no proporcionados
-        if ((partial || !rules.required) && (value === undefined || value === null)) {
+        if (partial && value === undefined) {
             continue;
         }
 
+        if (value === null || (typeof value === 'string' && value.trim() === '')) {
+            if (!rules.required || partial) {
+                validatedData[key] = null;
+                continue; // Saltamos el resto de las validaciones (regex, etc) para este campo
+            }
+        }
+
         // Validar tipo y manejar valores
-        if (value !== undefined) {
+        if (value !== undefined && value !== null) {
             if (rules.type === 'string' && typeof value !== 'string') {
                 errors.push(`El campo ${key} debe ser una cadena.`);
             } else if (rules.type === 'number') {
                 const parsedValue = typeof value === 'string' ? parseFloat(value) : value;
                 if (isNaN(parsedValue)) {
-                    console.log(data.tipo);
                     errors.push(rules.error);
                 } else if (rules.min !== undefined && data.tipo.toLowerCase() !== 'otro' && parsedValue < rules.min  ) {
                     errors.push(rules.error);
                 } else if (rules.integer && !Number.isInteger(parsedValue)) {
-                    console.log(data.tipo + " 1");
                     errors.push(rules.error);
                 } else {
                     validatedData[key] = parsedValue;

@@ -84,7 +84,7 @@ function actualizarTotales(viajes = mockViajes, pagos = mockPagos) {
     const iva = choferData.trabajador === "Responsable Inscripto" ? viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0) : 0;
     const totalViajes = subtotal + iva;
     const totalPagos = pagos?.reduce((sum, pago) => sum + (pago.importe || 0), 0);
-    let totalAPagar = totalViajes - totalPagos;
+    let totalAPagar = choferData.trabajador !== "Chofer"? totalViajes - totalPagos : (totalViajes * 0.2) - totalPagos;
     if (Math.abs(totalAPagar) < 0.01) totalAPagar = 0;
 
     const subtotalContainer = document.getElementById("subtotal");
@@ -175,7 +175,8 @@ async function handleTabContentDisplay(selectedTab) {
             try {
                 const response = await getPagosCuil(choferData.cuil);
                 if (response.ok) {
-                    const data = await response.json();
+                    let data = await response.json();
+                    if (choferData.trabajador === "Chofer") data = data.filter(p => p.destino === "chofer");
                     mockPagos = data.map(c => parsePagos(c));
                 } else {
                     showConfirmModal("Error al cargar los viajes y pagos");

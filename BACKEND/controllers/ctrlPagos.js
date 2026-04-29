@@ -25,6 +25,7 @@ exports.insertPagos = async (req, res) => {
             return res.status(400).json({ message: 'Errores de validación', errors });
         }
         let nombre;
+        let tipo_orden;
         if (chofer_cuil) {
             const userExists = await client.query(
                 'SELECT cuil, nombre_apellido AS nombre FROM usuario WHERE valid = true AND cuil = $1',
@@ -52,9 +53,10 @@ exports.insertPagos = async (req, res) => {
 
         if (proveedor_cuit) {
             const ProveedorExists = await client.query(
-                'SELECT cuit, razon_social FROM proveedor WHERE valid = true AND cuit = $1',
+                'SELECT cuit, razon_social, tipo_orden FROM proveedor WHERE valid = true AND cuit = $1',
                 [proveedor_cuit]
             );
+            
             if (!nombre && ProveedorExists.rowCount > 0) nombre = ProveedorExists.rows[0].razon_social;
             if (ProveedorExists.rows.length === 0) {
                 return res.status(409).json({
@@ -86,8 +88,8 @@ exports.insertPagos = async (req, res) => {
 
                 const result = await client.query(
                     `INSERT INTO pagos_cheque (
-                        chofer_cuil, fecha_pago, fecha_cheque, nro, tercero, destinatario, importe, pagado, cliente_cuit, proveedor_cuit
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING nro AS id`,
+                        chofer_cuil, fecha_pago, fecha_cheque, nro, tercero, destinatario, importe, destino, pagado, cliente_cuit, proveedor_cuit
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING nro AS id`,
                     [
                         chofer_cuil ? chofer_cuil : pago.chofer_cuil,
                         pago.fecha_pago,
@@ -96,12 +98,13 @@ exports.insertPagos = async (req, res) => {
                         pago.tercero,
                         pago.destinatario,
                         pago.importe,
+                        pago.destino? pago.destino : 'general',
                         false,
                         cliente_cuit ? cliente_cuit : pago.cliente_cuit,
                         proveedor_cuit ? proveedor_cuit : pago.proveedor_cuit
                     ]
                 );
-                pagosArray.push({ id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, importe: pago.importe, cliente_cuit: cliente_cuit, proveedor_cuit: proveedor_cuit, nombre: nombre })
+                pagosArray.push({ id: pago.nroCheque, tipo: pago.tipo, nro_cheque: pago.nroCheque, fecha_pago: pago.fecha_pago, fecha_cheque: pago.fecha_cheque, tercero: pago.tercero, destinatario: pago.destinatario, destino: pago.destino? pago.destino : 'general', importe: pago.importe, cliente_cuit: cliente_cuit, proveedor_cuit: proveedor_cuit, nombre: nombre })
                 if (!cliente_cuit)
                     cliente_cuit = pago.cliente_cuit;
                 if (!proveedor_cuit)
@@ -120,22 +123,23 @@ exports.insertPagos = async (req, res) => {
                 };
                 const result = await client.query(
                     `INSERT INTO pagos_gasoil (
-                        comprobante, chofer_cuil, fecha_pago, precio, litros, proveedor_cuit
-                    ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING comprobante AS id`,
+                        comprobante, chofer_cuil, fecha_pago, precio, litros, destino, proveedor_cuit
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING comprobante AS id`,
                     [
                         pago.comprobante,
                         chofer_cuil,
                         pago.fecha_pago,
                         pago.precioGasoil,
                         pago.litros,
+                        pago.destino? pago.destino : 'general',
                         pago.proveedor_cuit
                     ]
                 );
-                pagosArray.push({ id: pago.comprobante, comprobante: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, importe: pago.precioGasoil * pago.litros, litros: pago.litros, proveedor_cuit: pago.proveedor_cuit, nombre: nombre });
+                pagosArray.push({ id: pago.comprobante, comprobante: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, importe: pago.precioGasoil * pago.litros, litros: pago.litros, destino: pago.destino? pago.destino : 'general', proveedor_cuit: pago.proveedor_cuit, nombre: nombre });
                 pagoId = result.rows[0];
                 if (!proveedor_cuit)
                     proveedor_cuit = pago.proveedor_cuit;
-            } else if (pago.tipo.toLowerCase() === 'otro') {
+            } else {
                 let responseExists = await client.query("SELECT valid FROM pagos_otro WHERE comprobante = $1",
                     [pago.comprobante]
                 );
@@ -149,20 +153,24 @@ exports.insertPagos = async (req, res) => {
 
                 const result = await client.query(
                     `INSERT INTO pagos_otro (
-                        comprobante, chofer_cuil, cliente_cuit, proveedor_cuit, fecha_pago, detalle, importe
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING comprobante AS id`,
+                        comprobante, chofer_cuil, cliente_cuit, proveedor_cuit, fecha_pago, detalle, importe, destino, tipo
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING comprobante AS id`,
                     [
                         pago.comprobante,
                         chofer_cuil,
                         cliente_cuit,
-                        proveedor_cuit,
+                        proveedor_cuit || pago.proveedor_cuit,
                         pago.fecha_pago,
                         pago.detalle,
-                        pago.importe
+                        pago.importe,
+                        pago.destino? pago.destino : 'general',
+                        pago.tipo
                     ]
                 );
-                pagosArray.push({ id: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, detalle: pago.detalle, importe: pago.importe });
+                pagosArray.push({ id: pago.comprobante, tipo: pago.tipo, fecha_pago: pago.fecha_pago, detalle: pago.detalle, importe: pago.importe, destino: pago.destino? pago.destino : 'general', proveedor_cuit: pago.proveedor_cuit });
                 pagoId = result.rows[0];
+                if (!proveedor_cuit)
+                    proveedor_cuit = pago.proveedor_cuit;
             }
         }
 
@@ -178,7 +186,6 @@ exports.insertPagos = async (req, res) => {
             // Avisar a todos los clientes conectados
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
-                    console.log(proveedor_cuit);
                     socket.emit('nuevoPago', { pagosArray: pagosArray, cuil: chofer_cuil, cuit: cliente_cuit, proveedor_cuit: proveedor_cuit });
                 }
             });
@@ -189,7 +196,58 @@ exports.insertPagos = async (req, res) => {
     } catch (error) {
         if (client) await client.query('ROLLBACK');
         console.error('Error en insertPagos:', error);
-        res.status(500).json({ message: 'Error interno del servidor al registrar pago(s).' });
+        res.status(500).json({ message: error.routine.includes('raise') ? 'Error: ' + error.message : 'Error interno del servidor al registrar pago(s).' });
+    } finally {
+        client?.release();
+    }
+};
+
+exports.getPagoComprobante = async (req, res) => {
+    if (req.user.role === 'chofer') {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
+
+    const {id, type} = req.query;
+
+    let client;
+    try {
+        let query = '';
+        client = await pool.connect();
+        switch (type){
+            case 'Cheque':
+                query = `
+                    SELECT nro AS id, chofer_cuil, fecha_pago, fecha_cheque, tercero, destinatario, importe, cliente_cuit, proveedor_cuit, pagado
+                    FROM pagos_cheque
+                    WHERE valid = true AND nro = $1
+                `;
+                break;
+            case 'Gasoil':
+                query = `
+                    SELECT comprobante AS id, chofer_cuil, fecha_pago, precio, litros, proveedor_cuit, pagado
+                    FROM pagos_gasoil
+                    WHERE valid = true AND comprobante = $1
+                `;
+                break;
+            case 'Otro':
+                query = `
+                    SELECT  COALESCE(comprobante, id::text) AS id, tipo, chofer_cuil, fecha_pago, detalle, importe, proveedor_cuit, cliente_cuit, pagado
+                    FROM pagos_otro
+                    WHERE valid = true AND (comprobante = $1 OR id = $1)
+                `;
+                break;
+            default:
+                return res.status(400).json({ message: 'No se pudo reconocer el tipo de pago que intenta buscar'});
+        }
+
+        const result = await client.query(query, [id]);
+
+        if (result.rowCount > 0)
+            res.status(200).json(result.rows[0]);
+        else
+            res.status(400).json({message: `No se encontro el pago de tipo ${type} con comprobante ${id}`})
+    } catch (error) {
+        console.error('Error en getPago:', error);
+        res.status(500).json({ message: 'Error interno del servidor al obtener el pago por comprobante.' });
     } finally {
         client?.release();
     }
@@ -213,17 +271,14 @@ exports.getAllPagos = async (req, res) => {
 
 exports.getPagosCheque = async (req, res) => {
     const choferCuil = req.query.choferCuil !== 'null' ? req.query.choferCuil : null;
+    const tipo = req.query.tipo; // Nuevo: 'propio', 'tercero' o null para todos
     let pagado;
     const cantidad = parseInt(req.query.cantidad) || null;
+
     switch (req.query.pagado) {
-        case "false":
-            pagado = false;
-            break;
-        case "true":
-            pagado = true;
-            break;
-        default:
-            pagado = null;
+        case "false": pagado = false; break;
+        case "true": pagado = true; break;
+        default: pagado = null;
     }
 
     if (!choferCuil || choferCuil != req.user.cuil) {
@@ -231,9 +286,10 @@ exports.getPagosCheque = async (req, res) => {
             return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
         }
     }
-    try {
 
+    try {
         let query;
+        // Mantenemos el primer bloque IF de choferCuil intacto como pediste
         if (choferCuil) {
             query = `   
             SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
@@ -243,50 +299,62 @@ exports.getPagosCheque = async (req, res) => {
             WHERE c.valid = true AND c.fecha_pago <= CURRENT_DATE `;
         } else {
             query = `   
-            SELECT nro AS nro_cheque, chofer_cuil, fecha_pago, 
-                   fecha_cheque, tercero, destinatario, COALESCE(nombre_apellido, razon_social) AS nombre, importe
+            SELECT nro AS nro_cheque, nro AS id, chofer_cuil, fecha_pago, 
+                   fecha_cheque, tercero, destinatario, COALESCE(nombre_apellido, p.razon_social) AS nombre, cl.razon_social AS nombre_cliente, importe
             FROM pagos_cheque c
             LEFT JOIN (SELECT nombre_apellido, cuil FROM usuario WHERE valid = true) u ON c.chofer_cuil = u.cuil
             LEFT JOIN (SELECT razon_social, cuit FROM proveedor WHERE valid = true) p ON c.proveedor_cuit = p.cuit 
+            LEFT JOIN (SELECT razon_social, cuit FROM cliente WHERE valid = true) cl ON c.cliente_cuit = cl.cuit
             WHERE c.valid = true `;
         }
 
         const params = [];
         let conditions = [];
 
+        // 1. Filtro de Chofer (Lógica existente)
         if (choferCuil) {
             conditions.push(`chofer_cuil = $${params.length + 1}`);
             params.push(choferCuil);
         }
+
+        // 2. Filtro de Pagado (Lógica existente)
         if (pagado !== null) {
             conditions.push(`pagado = $${params.length + 1}`);
             params.push(pagado === true);
         }
+
+        // 3. NUEVA LÓGICA: Filtro de Tipo (Propio vs Tercero)
+        if (tipo === 'propio') {
+            conditions.push(`cliente_cuit IS NULL`);
+        } else if (tipo === 'tercero') {
+            conditions.push(`cliente_cuit IS NOT NULL`);
+        }
+
+        // Construcción de la WHERE clause
         if (conditions.length > 0) {
-            query += ` AND ${conditions.join(' AND ')} AND cliente_cuit IS NULL
-            `;
+            // Ya no concatenamos "AND cliente_cuit IS NULL" al final de forma fija
+            query += ` AND ${conditions.join(' AND ')} `;
         }
-        console.log(pagado);
+
+        // Ordenamiento (Lógica existente)
         if (pagado) {
-            query += ` ORDER BY fecha_cheque DESC, nro_cheque DESC
-            `;
+            query += ` ORDER BY fecha_cheque DESC, nro_cheque DESC `;
         } else {
-            query += ` ORDER BY fecha_cheque ASC, nro_cheque ASC
-            `;
+            query += ` ORDER BY fecha_cheque ASC, nro_cheque ASC `;
         }
 
-
-
+        // Límite (Lógica existente)
         if (pagado && cantidad) {
-            query += `LIMIT $${params.length + 1}`;
+            query += ` LIMIT $${params.length + 1}`;
             params.push(cantidad);
         }
+
         const result = await pool.query(query, params);
-        const cheques = result.rows;
-        return res.status(200).json(cheques);
+        return res.status(200).json(result.rows);
+
     } catch (error) {
         console.error('Error en getPagosCheque:', error);
-        res.status(500).json({ message: 'Error interno del servidor al obtener los pagos de cheque.' });
+        res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
 
@@ -419,22 +487,61 @@ exports.getOrdenesProveedor = async (req, res) => {
     try {
         client = await pool.connect();
 
-        let query = `
-            SELECT comprobante AS id, TO_CHAR(fecha_pago, 'YYYY-MM-DD') AS fecha_pago, u.nombre, comprobante, litros , precio , litros * precio AS importe, pagado, factura_id
-            FROM pagos_gasoil g
-            INNER JOIN (SELECT cuil, nombre_apellido AS nombre FROM usuario WHERE valid = true) u ON g.chofer_cuil = u.cuil
-            WHERE g.valid = true AND proveedor_cuit = $1 AND pagado = $2
-            ORDER BY fecha_pago DESC, comprobante DESC
-        `;
-        const params = [cuit, pagados];
-        if (cantidad && cantidad !== "undefined" && cantidad !== "null") {
-            query += ` 
-            LIMIT $3`;
-            params.push(cantidad);
-        }
+        const responseExists = await client.query('SELECT tipo_orden FROM proveedor WHERE cuit = $1',[cuit]);
 
-        const result = await client.query(query, params);
-        res.status(200).json({ ordenes: result.rows });
+        if (responseExists.rowCount !== 1){
+            return res.status(400).json({message: `No se encontro el Proveedor con cuit ${cuit}`})
+        } else {
+            let tipo_orden = responseExists.rows[0].tipo_orden;
+            let query = '';
+            if (tipo_orden === 'gasoil'){
+                query = `
+                    SELECT 
+                        comprobante AS id, 
+                        TO_CHAR(fecha_pago, 'YYYY-MM-DD') AS fecha_pago, 
+                        u.nombre, 
+                        comprobante, 
+                        litros, 
+                        precio, 
+                        litros * precio AS importe, 
+                        pagado, 
+                        factura_id,
+                        'gasoil' AS tipo
+                    FROM pagos_gasoil g
+                    INNER JOIN (SELECT cuil, nombre_apellido AS nombre FROM usuario WHERE valid = true) u 
+                        ON g.chofer_cuil = u.cuil
+                    WHERE g.valid = true AND proveedor_cuit = $1 AND pagado = $2
+                `;
+            } else {
+                query = `
+                    SELECT 
+                        comprobante AS id, 
+                        TO_CHAR(fecha_pago, 'YYYY-MM-DD') AS fecha_pago, 
+                        u.nombre,
+                        comprobante,
+                        detalle,
+                        importe, 
+                        pagado, 
+                        factura_id,
+                        tipo
+                    FROM pagos_otro o
+                    INNER JOIN (SELECT cuil, nombre_apellido AS nombre FROM usuario WHERE valid = true) u 
+                        ON o.chofer_cuil = u.cuil
+                    WHERE o.valid = true AND proveedor_cuit = $1 AND pagado = $2
+
+                    ORDER BY fecha_pago DESC, comprobante DESC
+                `;
+            }
+            const params = [cuit, pagados];
+            if (cantidad && cantidad !== "undefined" && cantidad !== "null") {
+                query += ` 
+                LIMIT $3`;
+                params.push(cantidad);
+            }
+
+            const result = await client.query(query, params);
+            res.status(200).json({ ordenes: result.rows });
+        }
     } catch (error) {
         console.error('Error en getOrdenesProveedor:', error);
         res.status(500).json({ message: 'Error interno del servidor al obtener las ordenes de gasoil.' });
@@ -469,10 +576,10 @@ exports.pagarOrdenesProveedor = async (req, res) => {
     }
 
     let client;
-    const ordenes = req.body;
+    const {ordenes, tipo_orden} = req.body;
 
     if (ordenes && ordenes.length === 0)
-        return res.status(406).json({ message: "No se obtuvieron las ordenes de gasoil para marcar como pagadas" });
+        return res.status(406).json({ message: "No se obtuvieron las ordenes para marcar como pagadas" });
 
     try {
         client = await pool.connect();
@@ -483,6 +590,7 @@ exports.pagarOrdenesProveedor = async (req, res) => {
         const ordenesPagadas = [];
         const updatedRows = [];
         let cuit;
+        let table_updated = tipo_orden === 'gasoil'? 'pagos_gasoil' : 'pagos_otro';
         for (const orden of ordenes) {
             const { comprobante, proveedor_cuit } = orden;
             cuit = proveedor_cuit;
@@ -493,7 +601,7 @@ exports.pagarOrdenesProveedor = async (req, res) => {
 
             // Update pagado field
             const result = await client.query(
-                'UPDATE pagos_gasoil SET pagado = true WHERE comprobante = $1 AND proveedor_cuit = $2 AND pagado = false AND valid = true',
+                `UPDATE ${table_updated} SET pagado = true WHERE comprobante = $1 AND proveedor_cuit = $2 AND pagado = false AND valid = true`,
                 [comprobante, proveedor_cuit]
             );
 
@@ -538,13 +646,13 @@ exports.pagarOrdenesProveedor = async (req, res) => {
         }
 
         res.status(202).json({
-            message: `${successCount} de ${ordenes.length} ordenes de gasoil marcadas como pagadas exitosamente`,
+            message: `${successCount} de ${ordenes.length} ordenes marcadas como pagadas exitosamente`,
             details: updatedRows
         });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error en markAsPagado:', error.message);
-        res.status(500).json({ message: `Error al marcar las ordenes de gasoil como pagadas: ${error.message}` });
+        res.status(500).json({ message: `Error al marcar las ordenes como pagadas: ${error.message}` });
     } finally {
         client.release();
     }
@@ -596,9 +704,9 @@ exports.updatePagos = async (req, res) => {
                 continue;
             }
 
-            const { tipo, choferCuil, ...fields } = data;
-            if (!tipo || !choferCuil) {
-                errors.push({ id, message: 'Faltan campos requeridos: tipo o choferCuil.' });
+            const { tipo, ...fields } = data;
+            if (!tipo) {
+                errors.push({ id, message: 'Faltan campos requeridos: tipo.' });
                 continue;
             }
 
@@ -609,40 +717,36 @@ exports.updatePagos = async (req, res) => {
                 continue;
             }
 
-            // Verificar si el chofer existe
-            const userExists = await client.query(
-                'SELECT cuil FROM usuario WHERE cuil = $1',
-                [choferCuil]
-            );
-            if (userExists.rows.length === 0) {
-                errors.push({ id, message: `El chofer con CUIL ${choferCuil} no está registrado.` });
-                continue;
-            }
-
             // Construir consulta de actualización dinámica
             let query, values, table, idColumn;
             if (tipo.toLowerCase() === 'cheque') {
                 table = 'pagos_cheque';
                 idColumn = 'nro';
                 const allowedFields = {
-                    chofer_cuil_c: choferCuil,
+                    chofer_cuil: validatedData[0].chofer_cuil,
+                    proveedor_cuit: validatedData[0].proveedor_cuit,
                     fecha_pago: validatedData[0].fecha_pago,
-                    fecha_c: validatedData[0].fecha_cheque,
+                    fecha_cheque: validatedData[0].fecha_cheque,
                     nro: validatedData[0].nroCheque,
                     tercero: validatedData[0].tercero,
                     destinatario: validatedData[0].destinatario,
+                    destino: validatedData[0].destino,
                     importe: validatedData[0].importe,
                     pagado: validatedData[0].pagado,
                     group: validatedData[0].group
                 };
+
                 const setClauses = [];
                 const queryValues = [];
                 let paramCount = 1;
 
-                Object.entries(fields).forEach(([key, value]) => {
-                    if (key in allowedFields && value !== undefined) {
-                        setClauses.push(`"${key}" = $${paramCount}`);
-                        queryValues.push(allowedFields[key]);
+                // 2. Iterar sobre el MAPEO, no sobre el body
+                Object.entries(allowedFields).forEach(([columnName, columnValue]) => {
+                    // Solo agregamos a la consulta si el valor no es undefined
+                    // Esto permite actualizaciones parciales
+                    if (columnValue !== undefined) {
+                        setClauses.push(`"${columnName}" = $${paramCount}`);
+                        queryValues.push(columnValue);
                         paramCount++;
                     }
                 });
@@ -653,16 +757,39 @@ exports.updatePagos = async (req, res) => {
                 }
 
                 queryValues.push(id);
-                query = `UPDATE ${table} SET ${setClauses.join(', ')} WHERE ${idColumn} = $${paramCount} RETURNING *`;
+                query = `WITH data_previa AS (
+                            SELECT nro AS id, chofer_cuil, proveedor_cuit 
+                            FROM ${table} 
+                            WHERE ${idColumn} = $${paramCount}
+                        ) 
+                        UPDATE ${table} AS t
+                        SET ${setClauses.join(', ')} 
+                        FROM data_previa 
+                        WHERE t.${idColumn} = data_previa.id 
+                        RETURNING 
+                            data_previa.chofer_cuil AS old_chofer_cuil, 
+                            t.chofer_cuil AS chofer_cuil,
+                            data_previa.proveedor_cuit AS old_proveedor_cuit, 
+                            t.proveedor_cuit AS proveedor_cuit, 
+                            t.cliente_cuit, 
+                            t.fecha_pago, 
+                            t.fecha_cheque, 
+                            t.nro AS nro_cheque, 
+                            t.tercero, 
+                            t.destinatario, 
+                            t.destino, 
+                            t.importe;`;
+                            
                 values = queryValues;
             } else if (tipo.toLowerCase() === 'gasoil') {
                 table = 'pagos_gasoil';
                 idColumn = 'comprobante';
                 const allowedFields = {
-                    chofer_cuil_g: choferCuil,
+                    chofer_cuil: validatedData[0].chofer_cuil,
                     fecha_pago: validatedData[0].fecha_pago,
                     precio: validatedData[0].precioGasoil,
                     litros: validatedData[0].litros,
+                    destino: validatedData[0].destino,
                     group: validatedData[0].group
                 };
                 const setClauses = [];
@@ -689,10 +816,11 @@ exports.updatePagos = async (req, res) => {
                 table = 'pagos_otro';
                 idColumn = 'comprobante';
                 const allowedFields = {
-                    chofer_cuil_o: choferCuil,
+                    chofer_cuil: validatedData[0].chofer_cuil,
                     fecha_pago: validatedData[0].fecha_pago,
                     detalle: validatedData[0].detalle,
                     importe: validatedData[0].importe,
+                    destino: validatedData[0].destino,
                     group: validatedData[0].group
                 };
                 const setClauses = [];
@@ -726,7 +854,7 @@ exports.updatePagos = async (req, res) => {
                 continue;
             }
 
-            updatedPagos.push({ id, tipo, message: `Pago de tipo ${tipo} actualizado con éxito.` });
+            updatedPagos.push({ id, tipo, ...result.rows[0], message: `Pago de tipo ${tipo} actualizado con éxito.` });
         }
 
         if (errors.length > 0) {
@@ -736,13 +864,24 @@ exports.updatePagos = async (req, res) => {
         }
 
         await client.query('COMMIT');
+        try {
+            const io = getIO();
+            // Avisar a todos los clientes conectados
+            io.sockets.sockets.forEach((socket) => {
+                if (socket.cuil !== req.user.cuil) {
+                    socket.emit('updatePagos', { updatedPagos: updatedPagos });
+                }
+            });
+        } catch (error) {
+            console.error("Error al sincronizar los datos en updatePagos", error.stack);
+        }
 
         res.status(200).json({ message: 'Pagos actualizados con éxito.', updatedPagos });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
         client?.release();
         console.error('Error en updatePago:', error);
-        res.status(500).json({ message: 'Error interno del servidor al actualizar los pagos.' });
+        res.status(500).json({message: error.routine.includes('raise') ? 'Error: ' + error.message : 'Ocurrio un error al intentar actualizar el pago' });
     }
 };
 
@@ -773,18 +912,15 @@ exports.deletePago = async (req, res) => {
                 querySelect = 'SELECT comprobante, chofer_cuil, proveedor_cuit FROM pagos_gasoil WHERE valid = true AND comprobante = $1';
                 queryDelete = 'UPDATE pagos_gasoil SET valid = false WHERE comprobante = $1';
                 break;
-            case 'otro':
+            default:
                 querySelect = 'SELECT comprobante, chofer_cuil, cliente_cuit, proveedor_cuit FROM pagos_otro WHERE valid = true AND comprobante = $1';
                 queryDelete = 'UPDATE pagos_otro SET valid = false WHERE comprobante = $1';
-                break;
-            default:
-                return res.status(404).json({ message: "No se pudo reconocer el pago a eliminar" });
         }
 
         const responseExists = await client.query(querySelect, [id]);
 
         if (!(responseExists.rows.length > 0)) {
-            if (type.toLowerCase() === 'otro') {
+            if (type.toLowerCase() !== 'cheque' && type.toLowerCase() !== 'gasoil') {
                 const responseOtro = await client.query('SELECT id FROM pagos_otro WHERE valid = true AND id = $1', [id]);
                 if (responseOtro.rows.length > 0) {
                     return res.status(405).json({ message: "Los pagos por saldo de anteriores resumenes no pueden eliminarse" });

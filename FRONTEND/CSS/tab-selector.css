@@ -74,6 +74,27 @@
     display: none; /* Oculta el contenido */
 }
 
+/* Versión pequeña del selector */
+.tab-selector.tab-selector--sm {
+    border-radius: 4px; /* Bordes más sutiles para un tamaño menor */
+}
+
+.tab-selector--sm .tab-item {
+    padding: 5px 12px;  /* Reducción de espacio interno */
+    font-size: 0.85rem; /* Texto un poco más pequeño */
+}
+
+/* Ajuste de radios para los hijos en la versión pequeña */
+.tab-selector--sm .tab-item:first-child {
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.tab-selector--sm .tab-item:last-child {
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
 @media (max-width: 767px) {
     .tab-content {
         padding: 5px !important;

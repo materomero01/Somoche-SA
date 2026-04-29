@@ -11,6 +11,9 @@ export let currentResumenesPage = 1;
 
 let saldosResumenes = [];
 
+// Vista activa: 'general' o 'chofer'
+let vistaActual = 'general';
+
 let choferIva = true;
 
 let cartaPorteFunc;
@@ -126,19 +129,12 @@ export function formatFecha(fecha) {
     return new Date(fecha).toISOString().split('T')[0];
 }
 
-export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo) {
+function actualizarValores(resumenViajes, resumenPagos, resumenSaldo) {
     // Calcular totales
     const subtotal = resumenViajes.viajes.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
     let iva = 0;
     if (choferIva) iva = resumenViajes.viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
     let totalViajes = subtotal + iva;
-    let totalPagos;
-    let totalResumen;
-    if (resumenPagos) {
-        totalPagos = resumenPagos.pagos.reduce((sum, pago) => sum + (pago.importe || 0), 0);
-        totalResumen = totalViajes - totalPagos;
-        if (Math.abs(totalResumen) < 0.01) totalResumen = 0;
-    }
 
     const subtotalContainer = document.getElementById("subtotal-resumen");
     const ivaContainer = document.getElementById("iva-resumen");
@@ -171,7 +167,7 @@ export function actualizarValores(resumenViajes, resumenPagos, resumenSaldo) {
 
     const totalResumenContainer = document.getElementById("total-resumen");
     if (totalResumenContainer) {
-        totalResumenContainer.textContent = `Saldo del Resumen: ${totalResumen >= 0 ? '$' : '-$'}${Math.abs(totalResumen).toFixed(2)}`;
+        totalResumenContainer.textContent = `Saldo del Resumen ${vistaActual === "chofer"? " del Chofer" : ""}: ${('$' +parseImporte(resumenSaldo.saldo)).replace('$-', '-$')}`;
     }
 }
 
@@ -182,6 +178,7 @@ function changeDataDocuments() {
             if (v.comprobante === viaje[0].comprobante) {
                 v.carta_porte = viaje[0].carta_porte;
                 v.factura_id = viaje[0].factura_id ? viaje[0].factura_id : null;
+                v.selected = false;
             }
         });
         renderizarTablasResumenes(currentResumenesPage);
@@ -189,11 +186,14 @@ function changeDataDocuments() {
 }
 
 // Función para calcular valores derivados en los viajes
-function calcularValoresViaje(viaje) {
+function calcularValoresViaje(viaje, comision) {
     viaje.faltante = parseFloat((viaje.descargado - viaje.cargado).toFixed(3));
     viaje.importe = (parseImporte(viaje.tarifa) - (parseImporte(viaje.tarifa) * viaje.variacion)) * viaje.toneladas;
     viaje.comision = - (viaje.importe * 0.1);
-    viaje.iva = (viaje.importe + viaje.comision) * 0.21;
+    const baseImponible = comision
+        ? (viaje.importe + viaje.comision) 
+        : viaje.importe;
+    viaje.iva = baseImponible * 0.21;
     return viaje;
 }
 
@@ -205,9 +205,9 @@ export function parseImporte(importe) {
     return parseFloat(importe) || 0;
 }
 
-export function parseViaje(viaje) {
+export function parseViaje(viaje, iva = true, comision = true) {
     const processed = { ...viaje };
-    calcularValoresViaje(processed);
+    calcularValoresViaje(processed, comision);
     let retornar = {
         id: processed.comprobante,
         fecha: formatFecha(processed.fecha),
@@ -224,7 +224,8 @@ export function parseViaje(viaje) {
         importe: processed.importe,
         comision: processed.comision,
         saldo: processed.importe + processed.comision,
-        iva: processed.iva,
+        ...(iva && {iva: processed.iva}),
+        ...(processed.estado && {estado: processed.estado}),
         factura_id: processed.factura_id,
         cuil: processed.cuil,
         carta_porte: processed.carta_porte
@@ -234,27 +235,29 @@ export function parseViaje(viaje) {
 
 export function parsePagos(pago) {
     let descripcion;
-    switch (pago.tipo) {
-        case "Cheque":
+    switch (pago.tipo.toLowerCase()) {
+        case "cheque":
             const fechaCheque = formatFecha(pago.fecha_cheque);
             descripcion = `${pago.tercero} - Fecha de Cobro: ${fechaCheque} `;
             break;
-        case "Gasoil":
+        case "gasoil":
             const precio = parseImporte(pago.importe) / pago.litros;
             descripcion = `${pago.litros}L a $${precio.toFixed(2)} c/L`;
             break;
-        case "Otro":
-            descripcion = pago.descripcion ? pago.descripcion : pago.detalle;
-            break;
         default:
-            descripcion = "Sin descripción";
+            try {
+                descripcion = pago.descripcion ? pago.descripcion : pago.detalle;
+            } catch (error){
+                descripcion = "Sin descripción";
+            }
     }
     return {
         id: pago.id,
         fecha_pago: formatFecha(pago.fecha_pago),
         tipo: pago.tipo,
         descripcion: descripcion,
-        importe: parseImporte(pago.importe)
+        importe: parseImporte(pago.importe),
+        ...(pago.destino && {destino: pago.destino})
     };
 }
 
@@ -264,6 +267,12 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null)
         choferIva = false;
     else
         choferIva = true;
+
+    pagosResumenes = [];
+    viajesResumenes = [];
+    currentResumenesPage = 1;
+    saldosResumenes = [];
+    vistaActual = 'general';
 
     cartaPorteFunc = cartaPorte;
     deleteFactura = deleteFunc;
@@ -289,6 +298,27 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null)
         }));
 
         saldosResumenes = data.saldos;
+
+        // Si el usuario autenticado es el propio chofer, siempre usamos vista 'chofer' sin toggle
+        const esUsuarioChofer = choferData.trabajador === 'Chofer';
+
+        const btnToggle = document.getElementById('btnChoferViewResumenes');
+        if (btnToggle) {
+            if (!esUsuarioChofer) {
+                // El chofer solo ve su propia vista, ocultamos/desactivamos el toggle permanentemente
+                btnToggle.disabled = true;
+                btnToggle.classList.add('hidden');
+            } else {
+                btnToggle.classList.remove('hidden');
+                // El estado disabled del botón se actualiza en cada página en renderizarTablasResumenes
+                btnToggle.onclick = () => {
+                    vistaActual = vistaActual === 'general' ? 'chofer' : 'general';
+                    renderizarTablasResumenes(currentResumenesPage);
+                };
+            }
+        } else 
+            vistaActual = 'chofer';
+
         renderizarTablasResumenes();
     } catch (error) {
         console.error('Error en setHistorial:', error.message);
@@ -320,14 +350,49 @@ function renderizarTablasResumenes(currentPage = 1) {
 
     // Filtrar viajes y pagos para el grupo actual
     const resumenViajes = viajesResumenes.find(r => r.group === grupoActual) || { viajes: [] };
-    const resumenPagos = pagosResumenes.find(r => r.group === grupoActual) || { pagos: [] };
-    const resumenSaldo = saldosResumenes.find(s => s.group === grupoActual) || { saldo: 0 };
-    console.log(resumenSaldo);
-    if (saldosResumenes.length > 0 && (typeof resumenSaldo.iva === 'boolean')) choferIva = resumenSaldo.iva;
+    const resumenPagosRaw = pagosResumenes.find(r => r.group === grupoActual) || { pagos: [] };
+
+    // Obtener saldos del grupo actual (nuevo formato: array de { saldo, iva, destino })
+    const resumenSaldoEntry = saldosResumenes.find(s => s.group === grupoActual);
+    const saldosDelGrupo = resumenSaldoEntry ? resumenSaldoEntry.saldos : [];
+
+    // Determinar si este resumen tiene vista de chofer disponible
+    const tieneVistaChofer = saldosDelGrupo.some(s => s.destino === 'chofer');
+
+    // Habilitar/deshabilitar el botón toggle según el resumen actual
+    const btnToggle = document.getElementById('btnChoferViewResumenes');
+    if (btnToggle){
+        btnToggle.disabled = !tieneVistaChofer
+        if (!tieneVistaChofer && vistaActual === 'chofer') vistaActual = 'general';
+    }
+
+    // Seleccionar el saldo correspondiente a la vista activa
+    const saldoActivo = saldosDelGrupo.find(s => s.destino === vistaActual)
+        || saldosDelGrupo.find(s => s.destino === 'general')
+        || { saldo: 0 };
+
+    // Actualizar choferIva desde el saldo activo
+    if (saldosDelGrupo.length > 0 && typeof saldoActivo.iva === 'boolean') {
+        choferIva = saldoActivo.iva;
+    }
+
+    // Filtrar pagos según la vista activa:
+    // - vista 'general': todos los pagos excepto tipo='Resumen' con destino='chofer'
+    // - vista 'chofer': solo pagos con destino='chofer'
+    let pagosFiltrados;
+    if (vistaActual === 'chofer') {
+        pagosFiltrados = resumenPagosRaw.pagos.filter(p => p.destino === 'chofer');
+    } else {
+        pagosFiltrados = resumenPagosRaw.pagos.filter(p =>
+            !(p.tipo === 'Resumen' && p.destino === 'chofer')
+        );
+    }
+    const resumenPagos = { ...resumenPagosRaw, pagos: pagosFiltrados };
+
     renderTables(resumenViajes.viajes, currentResumenesPage, optionsViajes);
     renderTables(resumenPagos.pagos, currentResumenesPage, optionsPagos);
 
-    actualizarValores(resumenViajes, resumenPagos, resumenSaldo);
+    actualizarValores(resumenViajes, resumenPagos, saldoActivo);
 
     // Renderizar paginación
     renderPaginacionResumenes(currentPage, grupos.length > 0 ? grupos.length : 1);

@@ -4,7 +4,7 @@ import { mockClientes, setupSearchBar, renderCurrentTable } from "./choferes-cli
 import { renderTables } from "./tabla.js";
 import { initializeFacturaUpload, viaje, closeModalFactura, updateViajeStatus } from "./subir-factura.js";
 import { formatFecha, columnasPagos, parsePagos, parseImporte } from "./resumenes.js";
-import { deletePago, getPagosProveedor, getOrdenesProveedor, setupClienteAutocomplete, addPagos, pagarOrdenesProveedor, socket } from "./api.js";
+import { deletePago, getPagosProveedor, getOrdenesProveedor, setupClienteAutocomplete, addPagos, pagarOrdenesProveedor, socket, redondear } from "./api.js";
 
 let mainContent;
 
@@ -18,12 +18,20 @@ let currentEditingTableType = 'ordenes';
 
 let pagosOpen = true;
 
-const ordenesColumns = [
+const ordenesColumnsGasoil = [
     { key: 'fecha_pago', label: 'Fecha', class: [] },
     { key: 'comprobante', label: 'Comprobante', class: [] },
     { key: 'nombre', label: 'Para', class: []},
     { key: 'litros', label: 'Litros', class: [] },
     { key: 'precio', label: 'Precio', class: [], modify: (content) => {return `$${parseImporte(content).toFixed(2)}`} },
+    { key: 'importe', label: 'Importe', class: ['text-right', 'bold'], modify: (content) => {return `$${parseImporte(content).toFixed(2)}`} },
+];
+
+const ordenesColumnsOtro = [
+    { key: 'fecha_pago', label: 'Fecha', class: [] },
+    { key: 'comprobante', label: 'Comprobante', class: [] },
+    { key: 'nombre', label: 'Para', class: []},
+    { key: 'detalle', label: 'Detalle', class: [] },
     { key: 'importe', label: 'Importe', class: ['text-right', 'bold'], modify: (content) => {return `$${parseImporte(content).toFixed(2)}`} },
 ];
 
@@ -76,7 +84,7 @@ const checkboxHeaderAction = {
                 }));
 
                 try {
-                    const response = await pagarOrdenesProveedor(ordenesToMark);
+                    const response = await pagarOrdenesProveedor(ordenesToMark, proveedorData.tipo_orden);
                     const data = await response.json();
                     if (response.ok){
                         // Update local data
@@ -109,7 +117,7 @@ const checkboxHeaderAction = {
 
         uploadFactura.onclick = () => {
             modal.remove();
-            initializeFacturaUpload(changeDataFactura, null, null, "ordenProveedor", selectedRows);
+            initializeFacturaUpload(changeDataFactura, null, null, proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro", selectedRows);
         }
 
         cancelBtn.onclick = () => {
@@ -130,7 +138,7 @@ const checkboxHeaderActionUpload = {
             return;
         }
 
-        initializeFacturaUpload(changeDataFactura, null, null, "ordenProveedor", selectedRows.map( r =>  r.comprobante));
+        initializeFacturaUpload(changeDataFactura, null, null, proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro", selectedRows.map( r =>  r.comprobante));
     }
 }
 
@@ -145,8 +153,8 @@ const ordenesActions = [
             viaje.push(item);
             initializeFacturaUpload( changeDataFactura,
                 null,
-                (facturaId) => deleteFactura(facturaId, changeDataDocuments,  'ordenProveedor'),
-                "ordenProveedor");
+                (facturaId) => deleteFactura(facturaId, changeDataDocuments,  proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro"),
+                proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro");
         }
     },
     {
@@ -156,7 +164,7 @@ const ordenesActions = [
         id: null,
         handler: (item, tr) => {
             showConfirmModal("¿Estás seguro de eliminar esta orden de gasoil?", "delete", async () => {
-            const result = await deletePago(item.id, 'Gasoil');
+            const result = await deletePago(item.id, item.tipo);
             if (result.ok) {
                 ordenesProveedor = ordenesProveedor.filter(o => o.id !== item.id);
                 proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) - parseImporte(item.importe)).toFixed(2));
@@ -174,7 +182,9 @@ const ordenesActions = [
 const optionsOrdenes = {
     containerId: 'proveedoresOrden-table',
     paginacionContainerId: '',
-    columnas: [ordenesColumns],
+    get columnas() {
+        return proveedorData.tipo_orden === 'gasoil'? [ordenesColumnsGasoil] : [ordenesColumnsOtro]
+    },
     itemsPorPagina: () => pagosOpen? 3 : 10,
     actions: ordenesActions,
     onEdit: null,
@@ -191,7 +201,9 @@ const optionsOrdenes = {
 const optionsOrdenesHistorial = {
     containerId: 'proveedoresOrden-table',
     paginacionContainerId: '',
-    columnas: [ordenesColumns],
+    get columnas() {
+        return proveedorData.tipo_orden === 'gasoil'? [ordenesColumnsGasoil] : [ordenesColumnsOtro]
+    },
     itemsPorPagina: () => pagosOpen? 3 : 10,
     actions: [ordenesActions[0]],
     onEdit: null,
@@ -322,6 +334,7 @@ const setupAddPagoBtn = () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPagoInput = document.getElementById('fechaPago')?.value;
 
+        const tipoOtro = document.getElementById('tipoOtro');
         const comprobante = document.getElementById('comprobanteOtro');
         const detalle = document.getElementById('detalleOtro');
         const importeOtro = document.getElementById('importeOtro');
@@ -377,7 +390,7 @@ const setupAddPagoBtn = () => {
                 payload = {
                     ...payload,
                     pagos: {
-                        tipo: 'Otro',
+                        tipo: tipoOtro?.value && tipoOtro?.value !== ''? tipoOtro.value : 'Otro',
                         fecha_pago: fechaPago,
                         comprobante: comprobante?.value,
                         detalle: detalle?.value,
@@ -454,7 +467,7 @@ async function cargarOrdenes() {
             }
             ordenesProveedor = data.ordenes;
             ordenesProveedor.forEach( orden => {
-                orden.precio = parseImporte(orden.precio);
+                if (proveedorData.tipo_orden === 'gasoil') orden.precio = parseImporte(orden.precio);
                 orden.importe = parseImporte(orden.importe);
             });
             console.log(ordenesProveedor);
@@ -508,6 +521,7 @@ export async function inicializarModalProveedor(data) {
                 currentEditingTableType = "ordenes";
 
                 socket.off('nuevoPago');
+                socket.off('updatePagos');
                 socket.off('nuevoFactura');
                 socket.off('updatePagadasProveedor');
                 socket.off('deleteProveedor', manejarDeleteProveedor);
@@ -548,6 +562,10 @@ export async function inicializarModalProveedor(data) {
                     p.precio = p.importe / p.litros;
                     ordenesProveedor.push(p);
                     proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) + parseImporte(p.importe)).toFixed(2));
+                } else if(p.tipo === 'Otro' && pago.cuil){
+                    p.fecha_pago = formatFecha(p.fecha_pago);
+                    ordenesProveedor.push(p);
+                    proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) + parseImporte(p.importe)).toFixed(2));
                 } else {
                     ultimosPagosProveedor.push(parsePagos(p));
                     proveedorData.balance = parseFloat((parseImporte(proveedorData.balance) - parseImporte(p.importe)).toFixed(2));
@@ -560,10 +578,30 @@ export async function inicializarModalProveedor(data) {
         }
     });
 
+    socket.on('updatePagos', async ({ updatedPagos }) => {
+        let updated = false;
+        for (const pago of updatedPagos){
+            if (pago.proveedor_cuit && pago.proveedor_cuit === proveedorData.cuit && pago.old_proveedor_cuit !== proveedorData.cuit){
+                ultimosPagosProveedor.push(parsePagos(pago));
+                proveedorData.balance = redondear(parseImporte(proveedorData.balance) - parseImporte(pago.importe));
+                updated = true;
+            } else if (pago.old_proveedor_cuit && pago.old_proveedor_cuit === proveedorData.cuit && pago.proveedor_cuit !== proveedorData.cuit) {
+                ultimosPagosProveedor = ultimosPagosProveedor.filter(p => p.id !== pago.id);
+                proveedorData.balance = redondear(parseImporte(proveedorData.balance) + parseImporte(pago.importe));
+                updated = true;
+            }
+        }
+        if (updated){
+            renderTables(ultimosPagosProveedor, 1, optionsPagos, actualizarTotales);
+            renderCurrentTable();
+            showConfirmModal("Se actualizaron los pagos del proveedor");
+        }
+    });
+
     socket.on('deletePago', async (pago) => {
         if (pago.proveedor_cuit && pago.proveedor_cuit === proveedorData.cuit){
             let lenght;
-            if (pago.tipo === 'Gasoil'){
+            if (pago.tipo === 'Gasoil' || (pago.cuil && pago.tipo === 'Otro')){
                 lenght = ordenesProveedor.length;
                 ordenesProveedor = ordenesProveedor.filter(o => {
                     let cond = o.id === pago.id;
@@ -736,7 +774,7 @@ export async function inicializarModalProveedor(data) {
             toggleSpinnerVisible(mainContent);
             changeSpinnerText(mainContent);
             document.getElementById("back-historial").classList.remove("hidden");
-            headerModal.textContent = "Ordenes de Gasoil - Historial";
+            headerModal.textContent = "Ordenes del Proveedor - Historial";
             historialBtn.classList.add("hidden");
             if (!ordenesProveedorHistorial){
                 backHistorialBtn?.click();
@@ -745,7 +783,7 @@ export async function inicializarModalProveedor(data) {
 
         backHistorialBtn?.addEventListener("click", () =>{
             document.getElementById("back-historial").classList.add("hidden");
-            headerModal.textContent = "Ordenes de Gasoil";
+            headerModal.textContent = 'Ordenes del Proveedor';
             historialBtn.classList.remove("hidden");
             currentEditingTableType = 'ordenes';
             renderTables(ordenesProveedor, 1, optionsOrdenes, actualizarTotales);

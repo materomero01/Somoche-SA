@@ -165,7 +165,7 @@ exports.getViajeCuit = async (req, res) => {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
-    if (!cuit || !facturados || cuit === 'null' || facturados === 'null' || cuit === 'undefined' || facturados === 'undefined') {
+    if (!cuit || cuit === 'null' || cuit === 'undefined' || facturados === 'undefined') {
         return res.status(406).json({ message: 'No se pudieron obtener los datos para buscar los viajes del cliente' });
     }
     try {
@@ -181,17 +181,18 @@ exports.getViajeCuit = async (req, res) => {
         let params = [cuit];
         let query = `SELECT * FROM viaje_clienteV WHERE cuit = $1`;
 
-        if (pagados && pagados === "false")
-            if (facturados && facturados === "false")
-                query += " AND factura_id IS NULL AND pagado = false";
-            else
-                query += " AND factura_id IS NOT NULL AND pagado = false";
-        else
+        if (pagados && pagados === "false"){
+            if (facturados === "false")
+                query += " AND factura_id IS NULL";
+            else if (facturados === "true")
+                query += " AND factura_id IS NOT NULL";
+            query+= " AND pagado = false"
+        } else
             query += " AND pagado = true";
 
         if (cantidad && cantidad !== "undefined" && cantidad !== "null") {
             query += `
-                ORDER BY 3, 2 DESC
+                ORDER BY 3 DESC, 2 
                 LIMIT $2`;
             params.push(cantidad);
         } else
@@ -235,15 +236,14 @@ exports.updateViajes = async (req, res) => {
                 continue;
             }
 
-            console.log(data);
             // Validar datos de entrada con viajeSchema (validación parcial)
             const { errors: validationErrors, validatedData } = viajeSchema(data, true); // true indica validación parcial
 
+            console.log(validatedData);
             if (validationErrors.length > 0) {
                 errors.push({ comprobante, message: 'Errores de validación', errors: validationErrors });
                 continue;
             }
-            console.log(validatedData);
 
             // Verificar si el nuevo comprobante ya existe
             if (comprobante !== validatedData.comprobante) {
@@ -303,7 +303,6 @@ exports.updateViajes = async (req, res) => {
                 continue;
             }
 
-            const viajeUpdateado = await client.query('SELECT update_at FROM viaje WHERE valid = true AND comprobante = $1', [comprobante]);
             try {
                 const io = getIO();
                 // Avisar a todos los clientes conectados
@@ -312,6 +311,9 @@ exports.updateViajes = async (req, res) => {
                         if (tablaUpdate === "viaje") {
                             socket.emit('updateViaje', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData } });
                             socket.emit('updateViajeCliente', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, producto: validatedData.producto, kilometros: viajeExistsClient.rows[0].kilometros, tarifa: viajeExistsClient.rows[0].tarifa, variacion: viajeExistsClient.rows[0].variacion, toneladas: viajeExistsClient.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado } });
+                        } else if ((validatedData.cliente_cuit && viajeExists.rows[0].cuit !== validatedData.cliente_cuit) || (validatedData.chofer_cuil && viajeExists.rows[0].cuil !== validatedData.chofer_cuil)) {
+                            socket.emit('nuevoViaje', { cuil: viajeExists.rows[0].cuil !== validatedData.chofer_cuil? validatedData.chofer_cuil : null, cuit: viajeExists.rows[0].cuit !== validatedData.cliente_cuit? validatedData.cliente_cuit : null, ...validatedData });
+                            socket.emit('deleteViaje', { comprobante: comprobante, cuil: viajeExists.rows[0].cuil !== validatedData.chofer_cuil? viajeExists.rows[0].cuil : null, cuit: viajeExists.rows[0].cuit !== validatedData.cliente_cuit? viajeExists.rows[0].cuit : null});
                         } else {
                             socket.emit('updateViaje', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, fecha: validatedData.fecha, comprobante: validatedData.comprobante, campo: validatedData.campo, producto: validatedData.producto, kilometros: viajeExists.rows[0].kilometros, tarifa: viajeExists.rows[0].tarifa, variacion: viajeExists.rows[0].variacion, toneladas: viajeExists.rows[0].toneladas, cargado: validatedData.cargado, descargado: validatedData.descargado } });
                             socket.emit('updateViajeCliente', { comprobanteOriginal: comprobante, updatedData: { cuil: viajeExists.rows[0].cuil, cuit: viajeExists.rows[0].cuit, ...validatedData } });

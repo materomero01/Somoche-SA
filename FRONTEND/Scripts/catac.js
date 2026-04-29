@@ -1,12 +1,54 @@
 //catac.js
-import { updateTarifas, tarifasCatac, loadTarifas} from './api.js';
+import { updateTarifas, tarifasCatac, tarifasFetra, loadTarifas} from './api.js';
 import { showConfirmModal, createLoadingSpinner,toggleSpinnerVisible, changeSpinnerText} from './apiPublic.js';
 
 let paginaActual = 1;
+let contentShow = "catac";
 
 const contentPrincipal = document.getElementById("catac-section");
 
-function renderTabla({ containerId, datos, filas = 10, columnas = 5, pageNum = 1 }) {
+// Tab content display
+const handleTabContentDisplay = (selectedTab) => {
+    const fetraHeader = document.getElementById("fetraHeader");
+    const catacHeader = document.getElementById("catacHeader");
+    const fetraData = document.getElementById("fetraData");
+    const catacData = document.getElementById("catacData");
+    if (selectedTab === 'catac') {
+        fetraHeader?.classList.add("hidden");
+        fetraData?.classList.add("hidden");
+        catacHeader?.classList.remove("hidden");
+        catacData?.classList.remove("hidden");
+    } else if (selectedTab === 'fetra') {
+        catacHeader?.classList.add("hidden");
+        catacData?.classList.add("hidden");
+        fetraHeader?.classList.remove("hidden");
+        fetraData?.classList.remove("hidden");
+    }
+    contentShow = selectedTab;
+};
+
+// Setup tab selectors
+const setupTabSelectors = () => {
+    const tabSelector = document.getElementById('tarifasSectionSelector');
+    if (!tabSelector) {
+        console.warn("Elemento #tarifasSectionSelector no encontrado.");
+        return;
+    }
+
+    const tabItems = tabSelector.querySelectorAll('.tab-item');
+    tabItems.forEach(item => {
+        item.addEventListener('click', () => {
+            tabItems.forEach(tab => tab.classList.remove('active'));
+            item.classList.add('active');
+            handleTabContentDisplay(item.dataset.tab);
+        });
+    });
+
+    const initialActive = tabSelector.querySelector('.tab-item.active');
+    if (initialActive) handleTabContentDisplay(initialActive.dataset.tab);
+};
+
+function renderTabla({ containerId, tableId, datos, filas = 10, columnas = 5, pageNum = 1 }) {
     const container = document.getElementById(containerId);
     if (!container) {
         console.error(`Contenedor ${containerId} no encontrado.`);
@@ -16,7 +58,7 @@ function renderTabla({ containerId, datos, filas = 10, columnas = 5, pageNum = 1
     container.dataset.currentPage = pageNum;
     container.innerHTML = '';
     const tabla = document.createElement("table");
-    tabla.id = "catacTable"; // Corregido para coincidir con el CSS
+    tabla.id = tableId; // Corregido para coincidir con el CSS
     const tbody = document.createElement("tbody");
 
     const itemsPorPagina = filas * columnas;
@@ -147,18 +189,19 @@ function configurarInteraccionesCatac() {
             }
             const factor = porcentaje / 100;
             const payload = {
-                porcentaje: factor
+                porcentaje: factor,
+                tabla: contentShow
             }
 
-            showConfirmModal(`Estas seguro de que desea actualizar las tarifas de Catac en un ${textoPorcentaje}%?`, 'confirm', async () => {
+            showConfirmModal(`Estas seguro de que desea actualizar las tarifas de ${contentShow === "catac"? "Catac" : "Fe.Tr.A"} en un ${textoPorcentaje}%?`, 'confirm', async () => {
                 try {
-                    changeSpinnerText(contentPrincipal, "Actualizando tarifas de Catac...");
+                    changeSpinnerText(contentPrincipal, "Actualizando tarifas...");
                     toggleSpinnerVisible(contentPrincipal);
                     const data = await updateTarifas(payload);
                     const updateInput = document.getElementById('catac-update');
                     updateInput.value = '';
-                    if (data.tarifas.length > 0){
-                        const container = document.getElementById('tabla-catac');
+                    if ((contentShow === 'catac' && data.tarifas.catac.length > 0) || (contentShow === 'fetra' && data.tarifas.fetra.length > 0)){
+                        const container = contentShow === 'catac'? document.getElementById('tabla-catac') : document.getElementById('tabla-fetra');
                         if (!container) {
                             console.error('Contenedor tabla-catac no encontrado.');
                             showConfirmModal('Error: No se pudo actualizar la tabla.');
@@ -167,8 +210,9 @@ function configurarInteraccionesCatac() {
 
                         paginaActual = parseInt(container.dataset.currentPage) || 1;
                         renderTabla({
-                            containerId: 'tabla-catac',
-                            datos: tarifasCatac,
+                            containerId: contentShow === "catac"? 'tabla-catac' : 'tabla-fetra',
+                            tableId: contentShow === "catac"? 'catacTable' : 'fetraTable',
+                            datos: contentShow === "catac"? tarifasCatac : tarifasFetra,
                             filas: 10,
                             columnas: 5,
                             pageNum: paginaActual
@@ -210,7 +254,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         await loadTarifas();
-
         const currentPath = window.location.pathname;
         const sidebarItems = document.querySelectorAll('.sidebar-item');
 
@@ -230,9 +273,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         await createLoadingSpinner(contentPrincipal);
 
+        setupTabSelectors();
+
         renderTabla({
             containerId: 'tabla-catac',
+            tableId: 'catacTable',
             datos: tarifasCatac,
+            filas: 10,
+            columnas: 5,
+            pageNum: paginaActual
+        });
+
+        renderTabla({
+            containerId: 'tabla-fetra',
+            tableId: 'fetraTable',
+            datos: tarifasFetra,
             filas: 10,
             columnas: 5,
             pageNum: paginaActual

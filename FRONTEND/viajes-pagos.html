@@ -120,98 +120,118 @@
                     </div>
                 </div>
                 
-                <div class="add-wrapper" id="chofer-pagos-wrapper">
-                    <button id="agregar-pago" class="btn btn-success btn-plus"> + </button>
-                    <div id="addPagoCard" class="add-card chofer hidden">
-                        <div class="form-grid" style="padding-bottom: 5px;">
-                            <div class="form-group">
-                                <label for="fechaPago" style="font-weight: bold;">Fecha de Pago</label>
-                                <input type="date" id="fechaPago">
-                            </div>
-                            <div class="form-group">
-                                <label for="tipoPago" style="font-weight: bold;">Tipo de Pago</label>
-                                <select id="tipoPago">
-                                    <option value="cheque">Cheque</option>
-                                    <option value="gasoil">Gasoil</option>
-                                    <option value="otro">Otro</option>
-                                </select>
-                            </div>
-                            <div class="form-group" id="cuitCliente">
-                                <label for="cuitCheque" style="font-weight: bold;">Asignar Cliente?</label>
-                                <input type="search" id="cuitCheque" placeholder="Razón Social">
-                            </div>
-                            <div class="form-group hidden" id="cuitProveedor">
-                                <label for="cuitProveedorGasoil" style="font-weight: bold;">Asignar Proveedor *</label>
-                                <input type="search" id="cuitProveedorGasoil" placeholder="Razón Social">
-                            </div>
-                        </div>
-                        
-                        <div id="chequeFields" class="payment-type-fields">
-                            <div class="form-grid">
+                <div>
+                    <button class="btn btn-sm btn-lightgray" id="btnChoferView">
+                        <i class="bi bi-people-fill"></i>
+                    </button>
+                    <div class="add-wrapper" id="chofer-pagos-wrapper">
+                        <button id="agregar-pago" class="btn btn-success btn-plus"> + </button>
+                        <div id="addPagoCard" class="add-card chofer hidden">
+                            <div class="form-grid" style="padding-bottom: 5px;">
                                 <div class="form-group">
-                                    <label for="fechaCheque">Fecha del Cheque</label>
-                                    <input type="date" id="fechaCheque">
+                                    <label for="fechaPago" style="font-weight: bold;">Fecha de Pago</label>
+                                    <input type="date" id="fechaPago">
                                 </div>
                                 <div class="form-group">
-                                    <label for="nroCheque">Nro. de Cheque</label>
-                                    <input type="number" id="nroCheque" placeholder="Número de Cheque">
+                                    <label for="tipoPago" style="font-weight: bold;">Tipo de Pago</label>
+                                    <select id="tipoPago">
+                                        <option value="cheque">Cheque</option>
+                                        <option value="gasoil">Gasoil</option>
+                                        <option value="otro">Otro</option>
+                                    </select>
                                 </div>
-                                <div class="form-group">
-                                    <label for="terceroCheque">Banco</label>
-                                    <input type="text" id="terceroCheque" placeholder="Nombre del Banco">
+                                <div class="form-group hidden" id="pagoGeneralSelect">
+                                    <label for="pagoDestino" style="font-weight: bold;">Pago del Chofer?</label>
+                                    <select id="pagoDestino">
+                                        <option value="general">General</option>
+                                        <option value="chofer">Chofer</option>
+                                    </select>
                                 </div>
-                                <div class="form-group">
-                                    <label for="destinatarioCheque">Destinatario</label>
-                                    <input type="text" id="destinatarioCheque" placeholder="Nombre del Destinatario">
+                                <div class="form-group" id="cuitCliente">
+                                    <label for="cuitCheque" style="font-weight: bold;">Asignar Cliente?</label>
+                                    <input type="search" id="cuitCheque" placeholder="Razón Social">
                                 </div>
-                                <div class="form-group">
-                                    <label for="importeCheque">Importe</label>
-                                    <input type="number" id="importeCheque" placeholder="Importe">
+                                <div class="form-group hidden" id="cuitProveedor">
+                                    <label for="cuitProveedorGasoil" style="font-weight: bold;">Asignar Proveedor *</label>
+                                    <input type="search" id="cuitProveedorGasoil" placeholder="Razón Social">
+                                </div>
+                                <div class="form-group hidden" id="cuitProveedorRepuesto">
+                                    <label for="cuitProveedorOtro" style="font-weight: bold;">Asignar Proveedor?</label>
+                                    <input type="search" id="cuitProveedorOtro" placeholder="Razón Social">
                                 </div>
                             </div>
-                        </div>
+                            
+                            <div id="chequeFields" class="payment-type-fields">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="fechaCheque">Fecha del Cheque</label>
+                                        <input type="date" id="fechaCheque">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="nroCheque">Nro. de Cheque</label>
+                                        <input type="text" id="nroCheque" placeholder="Número de Cheque">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="terceroCheque">Banco</label>
+                                        <input type="text" id="terceroCheque" placeholder="Nombre del Banco">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="destinatarioCheque">Destinatario</label>
+                                        <input type="text" id="destinatarioCheque" placeholder="Nombre del Destinatario">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="importeCheque">Importe</label>
+                                        <input type="number" id="importeCheque" placeholder="Importe">
+                                    </div>
+                                </div>
+                            </div>
 
-                        <div id="gasoilFields" class="payment-type-fields hidden">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="comprobanteGasoil">Comprobante</label>
-                                    <input type="text" id="comprobanteGasoil" placeholder="Comprobante">
-                                </div>
-                                <div class="form-group">
-                                    <label for="precioGasoil">Precio Gasoil</label>
-                                    <input type="number" id="precioGasoil" placeholder="Precio por Litro">
-                                </div>
-                                <div class="form-group">
-                                    <label for="litrosGasoil">Litros</label>
-                                    <input type="number" id="litrosGasoil" placeholder="Cantidad de Litros">
-                                </div>
-                                <div class="form-group">
-                                    <label for="importeGasoil">Importe</label>
-                                    <input type="number" id="importeGasoil" placeholder="Importe Total" readonly>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="otroFields" class="payment-type-fields hidden">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="comprobanteOtro">Comprobante</label>
-                                    <input type="text" id="comprobanteOtro" placeholder="Comprobante">
-                                </div>
-                                <div class="form-group">
-                                    <label for="detalleOtro">Detalle</label>
-                                    <input type="text" id="detalleOtro" placeholder="Descripción del pago">
-                                </div>
-                                <div class="form-group">
-                                    <label for="importeOtro">Importe</label>
-                                    <input type="number" id="importeOtro" placeholder="Importe">
+                            <div id="gasoilFields" class="payment-type-fields hidden">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="comprobanteGasoil">Comprobante</label>
+                                        <input type="text" id="comprobanteGasoil" placeholder="Comprobante">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="precioGasoil">Precio Gasoil</label>
+                                        <input type="number" id="precioGasoil" placeholder="Precio por Litro">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="litrosGasoil">Litros</label>
+                                        <input type="number" id="litrosGasoil" placeholder="Cantidad de Litros">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="importeGasoil">Importe</label>
+                                        <input type="number" id="importeGasoil" placeholder="Importe Total" readonly>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <button class="btn btn-success btn-sm" id="addPagoBtn" style="max-width: 50%; height: 30px; align-self: center; width: 40vw; margin-bottom: 15px;">
-                            Cargar pago
-                        </button>
+                            <div id="otroFields" class="payment-type-fields hidden">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="tipoOtro">Tipo</label>
+                                        <input type="text" id="tipoOtro" placeholder="Tipo" value="Otro">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="comprobanteOtro">Comprobante</label>
+                                        <input type="text" id="comprobanteOtro" placeholder="Comprobante">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="detalleOtro">Detalle</label>
+                                        <input type="text" id="detalleOtro" placeholder="Descripción del pago">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="importeOtro">Importe</label>
+                                        <input type="number" id="importeOtro" placeholder="Importe">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-success btn-sm" id="addPagoBtn" style="max-width: 50%; height: 30px; align-self: center; width: 40vw; margin-bottom: 15px;">
+                                Cargar pago
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -219,6 +239,9 @@
             <div class="summary-boxes">
                 <div id="total-pagar" class="total-pagar-box" style="width: 80%;">
                     Total a Pagar: $ 0.00
+                </div>
+                <div id="total-pagarChofer" class="total-pagar-box hidden" style="width: 80%;">
+                    Total a Pagar Chofer: $ 0.00
                 </div>
                 <button id="cerrarCuenta" class="btn close-account-btn" style="width: 15%;">
                     Cerrar Cuenta
@@ -249,7 +272,12 @@
         </div>
 
         <div class="table-section">
-            <h3 style="text-align: left;">Pagos</h3>
+            <div class="table-header-with-button">
+                <h3 style="text-align: left;">Pagos</h3>
+                <button class="btn btn-sm btn-lightgray" id="btnChoferViewResumenes">
+                    <i class="bi bi-people-fill"></i>
+                </button>
+            </div>
             <div id="pagos-table-resumenes" class="tabla-dinamica tabla-pagos"></div>
             <div id="total-resumen" class="total-pagar-box gray">
                 Saldo del Resumen: $ 0.00

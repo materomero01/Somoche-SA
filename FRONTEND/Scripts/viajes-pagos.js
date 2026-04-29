@@ -1,8 +1,8 @@
 import { renderTables, enterEditMode, handleEdit, editingRowId, originalEditingData, stagedEditingData, resetEditingState, currentEditingTableType } from './tabla.js';
 import { getViajes, getPagosCuil, showConfirmModal, toggleSpinnerVisible, changeSpinnerText, createLoadingSpinner } from './apiPublic.js';
-import { addViaje, addPagos, updateViaje, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje, socket, tarifasCatac} from './api.js';
+import { addViaje, addPagos, updateViaje, setupTarifaAutocomplete, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje, socket, tarifasCatac, tarifasFetra, redondear} from './api.js';
 import { mockClientes, mockProveedores } from './choferes-clientes.js';
-import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos, actualizarValores} from './resumenes.js';
+import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos} from './resumenes.js';
 import { viaje, initializeFacturaUpload, updateViajeStatus, closeModalFactura } from './subir-factura.js';
 
 
@@ -14,7 +14,15 @@ let viajesData = [];
 
 let pagosData = [];
 
+let pagoResumenChofer = null;
+
 let mainContent;
+
+let esChofer = false;
+let esRespIncripto = false;
+let vistaChofer = false;
+
+let btnVistaChofer = null;
 
 // Regex for input validation
 const regexInputs = {
@@ -58,7 +66,11 @@ const accionesViajes = [
                 const data = await result.json();
                 if (result.ok) {
                     viajesData = viajesData.filter(v => v.id !== item.id);
-                    await renderTables(viajesData, 1, optionsViajes, actualizarTotales);
+                    if (vistaChofer){
+                        vistaChofer = false;
+                        await btnVistaChofer.click();
+                    } else
+                        await renderTables(viajesData, 1, optionsViajes, actualizarTotales);
                     showConfirmModal(data.message);
                 } else {
                     showConfirmModal(`Error: ${data.message}`);
@@ -82,10 +94,13 @@ const accionesPagos = [
                     showConfirmModal(data.message);
                     return;
                 }
-
                 pagosData = pagosData.filter(p => p.tipo !== item.tipo || p.id !== item.id);
                 showConfirmModal(data.message);
-                renderTables(pagosData, 1, optionsPagos, actualizarTotales);
+                if (vistaChofer){
+                    vistaChofer = false;
+                    btnVistaChofer.click();
+                } else
+                    renderTables(pagosData, 1, optionsPagos, actualizarTotales);
             });
         }
     }
@@ -109,8 +124,11 @@ const checkboxHeaderActionUpload = {
 const optionsViajes = {
     containerId: 'viajes-table',
     paginacionContainerId: '',
-    columnas: [ columnasViajes.filter(col => !["cargado", "descargado"].includes(col.key)), 
-                columnasViajes.filter(col => !["faltante", "importe", "comision", "iva", "saldo"].includes(col.key))],
+    get columnas(){
+    return esRespIncripto? [ columnasViajes.filter(col => !["cargado", "descargado"].includes(col.key)), 
+                columnasViajes.filter(col => !["faltante", "importe", "comision", "iva", "saldo"].includes(col.key))] : 
+            [ columnasViajes.filter(col => !["cargado", "descargado", "iva"].includes(col.key)), 
+                columnasViajes.filter(col => !["faltante", "importe", "comision", "iva", "saldo"].includes(col.key))]},
     itemsPorPagina: () => 10,
     actions: accionesViajes,
     onEdit: (id, field, value) => handleEdit(id, field, value, 'viajes', () => {return tarifasCatac}),
@@ -138,7 +156,12 @@ const optionsPagos = {
     checkboxHeaderAction: null,
     onCheckboxChange: null,
     uploadFactura: null,
-    useScrollable: true
+    useScrollable: true,
+    modifyCell: (item, td) => {
+        if (item.destino && item.destino === 'chofer'){
+            td.classList.add("orange");
+        }
+    }
 }
 
 // Set today's date in date inputs
@@ -219,7 +242,7 @@ export async function deleteFactura(facturaId = null, changeDataDocuments, table
 // Función para actualizar los totales
 function actualizarTotales() {
     const subtotal = viajesData.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
-    const iva = choferData.trabajador === "Responsable Inscripto"? viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0) : 0;
+    const iva = viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
     const totalViajes = subtotal + iva;
     let totalPagos;
     let totalAPagar;
@@ -303,7 +326,7 @@ export async function handleSaveEditViajes() {
             return;
         }
     }
-    console.log(payload[comprobanteOriginal].toneladas);
+
     if (payload[comprobanteOriginal].toneladas >= 100.0 || payload[comprobanteOriginal].cargado >= 100.0 || payload[comprobanteOriginal].descargado >= 100.0){
         showConfirmModal("Las toneladas no pueden ser mayor a 100");
         return;
@@ -313,8 +336,13 @@ export async function handleSaveEditViajes() {
     if (response) {
         showConfirmModal('Los cambios se realizaron con exito.');
         const viajeIndex = viajesData.findIndex(v => v.comprobante === comprobanteOriginal);
-        if (viajeIndex !== -1)
-            viajesData[viajeIndex] = parseViaje({...payload[comprobanteOriginal], factura_id: stagedEditingData.factura_id});
+        if (viajeIndex !== -1){
+            viajesData[viajeIndex] = parseViaje({...payload[comprobanteOriginal], factura_id: stagedEditingData.factura_id}, esRespIncripto);
+            if (vistaChofer){
+                vistaChofer = false;
+                btnVistaChofer.click();
+            }
+        }
     } else {
         showConfirmModal('Error al guardar los cambios del viaje.');
     }
@@ -394,10 +422,14 @@ async function setupAddViajeBtn() {
             const response = await addViaje(payload);
             const data = await response.json();
             if (response.ok) {
-                viajesData.push(parseViaje({...viaje, cuil: choferData.cuil}));
+                viajesData.push(parseViaje({...viaje, cuil: choferData.cuil}, esRespIncripto));
                 form.reset();
                 setTodayDate();
                 renderTables(viajesData, 1, optionsViajes, actualizarTotales);
+                if (vistaChofer){
+                    vistaChofer = false;
+                    btnVistaChofer.click();
+                }
             }
             showConfirmModal(data.message);
         } catch (error) {
@@ -405,17 +437,21 @@ async function setupAddViajeBtn() {
         }
     });
 
-    setupTarifaAutocomplete();
+    setupTarifaAutocomplete('tarifa', 'nuevoKm');
     setupCargaDescargaAutocomplete();
 }
 
 // Setup add pago button
 const setupAddPagoBtn = () => {
     const btn = document.getElementById('addPagoBtn');
+    const pagoDestino = document.getElementById('pagoDestino');
     const cuitCliente = document.getElementById('cuitCheque');
-    const cuitProveedor = document.getElementById('cuitProveedorGasoil');
+    const cuitProveedorGasoil = document.getElementById('cuitProveedorGasoil');
+    const cuitProveedorOtro = document.getElementById('cuitProveedorOtro');
+
     setupClienteAutocomplete('cuitCheque', mockClientes);
-    setupClienteAutocomplete('cuitProveedorGasoil', mockProveedores);
+    setupClienteAutocomplete('cuitProveedorGasoil', mockProveedores.filter(proveedor => proveedor.tipo_orden === 'gasoil'));
+    setupClienteAutocomplete('cuitProveedorOtro', mockProveedores.filter(proveedor => proveedor.tipo_orden === 'otro'));
     btn?.addEventListener('click', async () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPagoInput = document.getElementById('fechaPago')?.value;
@@ -430,6 +466,7 @@ const setupAddPagoBtn = () => {
         const litros = document.getElementById('litrosGasoil');
         const importeGasoil = document.getElementById('importeGasoil');
 
+        const tipoOtro = document.getElementById('tipoOtro');
         const comprobanteOtro = document.getElementById('comprobanteOtro');
         const detalle = document.getElementById('detalleOtro');
         const importeOtro =  document.getElementById('importeOtro');
@@ -466,6 +503,7 @@ const setupAddPagoBtn = () => {
                         tercero: tercero?.value,
                         destinatario: destinatario?.value,
                         importe: importeCheque?.value,
+                        destino: pagoDestino?.value,
                         cliente_cuit: cuitCliente?.dataset.selectedClienteCuit
                     }
                 };
@@ -480,16 +518,17 @@ const setupAddPagoBtn = () => {
                     ...payload,
                     pagos: {
                         tipo: 'Gasoil',
-                        proveedor_cuit: cuitProveedor?.dataset.selectedClienteCuit,
+                        proveedor_cuit: cuitProveedorGasoil?.dataset.selectedClienteCuit,
                         fecha_pago: fechaPago,
                         comprobante: comprobanteGasoil?.value,
                         precioGasoil: precioGasoil?.value,
                         litros: litros?.value,
-                        importe: importeGasoil?.value
+                        importe: importeGasoil?.value,
+                        destino: pagoDestino?.value
                     }
                 };
 
-                if (!cuitProveedor?.dataset.selectedClienteCuit) {
+                if (!cuitProveedorGasoil?.dataset.selectedClienteCuit) {
                     showConfirmModal('Por favor, selecciona un proveedor de la lista de sugerencias.');
                     return;
                 }
@@ -509,10 +548,12 @@ const setupAddPagoBtn = () => {
                 payload = {
                     ...payload,
                     pagos: {
-                        tipo: 'Otro',
+                        tipo: tipoOtro?.value && tipoOtro?.value !== ''? tipoOtro.value : 'Otro',
+                        proveedor_cuit: cuitProveedorOtro?.dataset.selectedClienteCuit || null,
                         fecha_pago: fechaPago,
                         comprobante: comprobanteOtro?.value,
                         detalle: detalle?.value,
+                        destino: pagoDestino?.value,
                         importe: importeOtro?.value,
                     }
                 };
@@ -540,11 +581,11 @@ const setupAddPagoBtn = () => {
                 if (new Date(payload.pagos.fecha_pago) <= new Date(`${document.getElementById('fechaPagos').value}T00:00:00-03:00`) || new Date())
                     pagosData.push(parsePagos({id: data.pagoId.id, ...payload.pagos}));
                 //reset de los fields aca
-                renderTables(pagosData, 1, optionsPagos, actualizarTotales);
-
-                if (tipoPago === 'gasoil'){
-                    
-                }
+                if (vistaChofer){
+                    vistaChofer = false;
+                    btnVistaChofer.click();
+                } else 
+                    renderTables(pagosData, 1, optionsPagos, actualizarTotales);
 
                 [comprobanteGasoil, litros, precioGasoil, comprobanteOtro, detalle, importeOtro, nroCheque, tercero, destinatario, importeCheque, cuitCliente].forEach( input => {
                     input.value = '';
@@ -567,25 +608,29 @@ const setupAddPagoBtn = () => {
 // Setup payment type selector
 export const setupPaymentTypeSelector = (fields) => {
     const tipoPagoSelect = document.getElementById('tipoPago');
-
+    if (esChofer) document.getElementById('pagoGeneralSelect')?.classList.remove("hidden");
     const showPaymentFields = type => {
         Object.values(fields).forEach(field => field?.classList.add('hidden'));
         fields[type]?.classList.remove('hidden');
         setTodayDate();
+
         switch (type){
             case 'cheque':
                 document.getElementById('cuitCliente')?.classList.remove("hidden");
                 document.getElementById('cuitProveedor')?.classList.add("hidden");
+                document.getElementById('cuitProveedorRepuesto')?.classList.add("hidden");
                 document.getElementById('tipoAsignar')?.classList.remove("hidden");
                 break;
             case 'gasoil':
                 document.getElementById('cuitCliente')?.classList.add("hidden");
                 document.getElementById('cuitProveedor')?.classList.remove("hidden");
+                document.getElementById('cuitProveedorRepuesto')?.classList.add("hidden");
                 calculateGasoilImporte();
                 break;
             default:
                 document.getElementById('cuitCliente')?.classList.add("hidden");
                 document.getElementById('cuitProveedor')?.classList.add("hidden");
+                document.getElementById('cuitProveedorRepuesto')?.classList.remove("hidden");
                 document.getElementById('tipoAsignar')?.classList.add("hidden");
                 break;
         }
@@ -610,6 +655,37 @@ export const setupPaymentTypeSelector = (fields) => {
     litrosGasoil?.addEventListener('input', calculateGasoilImporte);
 };
 
+async function cargarPagos(){
+    const responsePagos = await getPagosCuil(choferData.cuil);
+    let dataPagos = await responsePagos.json();
+    if (!responsePagos.ok) {
+        showConfirmModal(dataPagos.message);
+        deleteModal("viajesPagosModal", "contentModalViajes", () => {
+            choferData = null;
+            pagosData = [];
+            viajesData = [];
+            esRespIncripto = false;
+            esChofer = false;
+            vistaChofer = false;
+            btnVistaChofer = null;
+            pagoResumenChofer = null;
+        }
+        );
+    }
+
+    if (esChofer){
+        dataPagos = dataPagos.filter(p => {
+            let cond = p.tipo === "Resumen" && p.destino === "chofer";
+            if (cond) pagoResumenChofer = parsePagos(p);
+            return !cond;
+        });
+    }
+    pagosData = dataPagos.map(p => {
+        return parsePagos(p);
+    });
+    renderTables(pagosData, 1, optionsPagos);
+}
+
 async function cargarTablas() {
     if (choferData.cuil) {
         try {
@@ -620,73 +696,30 @@ async function cargarTablas() {
                 deleteModal("viajesPagosModal", "contentModalViajes", () => {
                     choferData = null;
                     pagosData = [];
-                    viajesData = [];}
+                    viajesData = [];
+                    esRespIncripto = false;
+                    esChofer = false;
+                    vistaChofer = false;
+                    btnVistaChofer = null;
+                    pagoResumenChofer = null;
+                }
                 );
             }
             viajesData = data.viajes.map(c => {
-                return parseViaje(c);
+                return parseViaje(c, esRespIncripto);
             });
-            if (choferData.trabajador !== "Responsable Inscripto") {
+            if (!esRespIncripto) {
                 document.getElementById("iva").classList.add("hidden");
                 document.getElementById("subtotal").classList.add("hidden");
             }
 
-            const responsePagos = await getPagosCuil(choferData.cuil);
-            const dataPagos = await responsePagos.json();
-            if (!responsePagos.ok) {
-                showConfirmModal(dataPagos.message);
-                deleteModal("viajesPagosModal", "contentModalViajes", () => {
-                    choferData = null;
-                    pagosData = [];
-                    viajesData = [];}
-                );
-            }
-            pagosData = dataPagos.map(p => {
-                return parsePagos(p);
-            });
-            renderTables(pagosData, 1, optionsPagos)
+            await cargarPagos();
         } catch (error) {
             console.log(error.message);
         }
     }
     renderTables(viajesData, 1, optionsViajes, actualizarTotales);
 }
-
-// Setup tarifa autocomplete
-const setupTarifaAutocomplete = () => {
-    const tarifaAutodescargableBase = 0;
-
-    setupAutocomplete({
-        inputId: 'tarifa',
-        dependentInputId: 'nuevoKm',
-        filterSuggestions: () => {
-            const currentKm = parseInt(document.getElementById('nuevoKm')?.value.trim(), 10);
-            const tarifaCatacCalculada = (!isNaN(currentKm) && currentKm > 0 && currentKm <= tarifasCatac.length && tarifasCatac[currentKm - 1]?.valor !== undefined)
-                ? tarifasCatac[currentKm - 1].valor
-                : tarifasCatac[tarifasCatac.length - 1].valor;
-
-            return [
-                { type: 'Tarifa CATAC', value: tarifaCatacCalculada },
-                { type: 'Tarifa Autodescargable', value: tarifaAutodescargableBase }
-            ];
-        },
-        renderSuggestion: suggestion => `${suggestion.type}: ${suggestion.value}`,
-        onSelect: (input, suggestion) => input.value = suggestion.value,
-        onDependentChange: (dependentInput, input, suggestionsDiv) => {
-            const queryKm = parseInt(dependentInput.value.trim(), 10);
-            if (isNaN(queryKm) || queryKm <= 0 || queryKm > tarifasCatac.length) {
-                input.value = '';
-                suggestionsDiv.style.display = 'none';
-                return;
-            }
-
-            const tarifa = tarifasCatac[queryKm - 1];
-            input.value = tarifa?.valor ?? '';
-            suggestionsDiv.style.display = 'none';
-            if (!tarifa?.valor) console.warn(`No se encontró tarifa para ${queryKm} km.`);
-        }
-    });
-};
 
 // Setup carga/descarga autocomplete
 const setupCargaDescargaAutocomplete = () => {
@@ -709,7 +742,6 @@ const setupCargaDescargaAutocomplete = () => {
 };
 
 async function cerrarCuenta() {
-    const totalPagarContainer = document.getElementById("total-pagar");
     const comprobantes = viajesData.map(viaje => viaje.comprobante);
     const pagos = pagosData.map(pagos => {
         return {
@@ -718,11 +750,27 @@ async function cerrarCuenta() {
         };
     });
     let saldoRestante = "";
-    let importeRestante = 0;
-    if (totalPagarContainer) {
-        importeRestante = parseImporte(totalPagarContainer.textContent.split(': ')[1]);
-        if (importeRestante !== 0)
-            saldoRestante = `<br>El saldo restante de ${totalPagarContainer.textContent.split(': ')[1]} se agregará al siguiente resumen`;
+    const subtotal = viajesData.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
+    const iva = viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
+    const totalViajes = subtotal + iva;
+    let totalAPagar = totalViajes;
+    let totalPagos = 0;
+    if (pagosData){
+        totalPagos = pagosData?.reduce((sum, pago) => sum + (pago.importe || 0), 0);
+        totalAPagar = redondear(totalViajes - totalPagos);
+        if (Math.abs(totalAPagar) < 0.01) totalAPagar = 0;
+    }
+    if (totalAPagar !== 0)
+        saldoRestante = `<br>El saldo restante de ${('$'+totalAPagar.toFixed(2)).replace('$-','-$')} se agregará al siguiente resumen`;
+
+    let totalAPagarChofer = 0;
+    if (esChofer){
+        let totalPagosChofer = pagosData.reduce((sum, pago) => pago.destino === "chofer"? sum + pago.importe : sum + 0, 0);
+        if (pagoResumenChofer) totalPagosChofer = redondear(totalPagosChofer + pagoResumenChofer.importe);
+        totalAPagarChofer = redondear((totalViajes * 0.2) - totalPagosChofer);
+        if (totalAPagarChofer > 0){
+            saldoRestante += `<br>El saldo restante del chofer, de ${('$'+totalAPagarChofer.toFixed(2)).replace('$-','-$')}, se agregará al siguiente resumen`
+        }
     }
 
     const confirmar = async () => {
@@ -738,6 +786,7 @@ async function cerrarCuenta() {
         });
 
         let payloadPagos = {};
+        if (pagoResumenChofer) pagos.push(pagoResumenChofer);
         pagos.forEach(p => {
             const idCompuesto = p.id + "°" + p.tipo;
             payloadPagos = {
@@ -748,37 +797,57 @@ async function cerrarCuenta() {
                 }
             };
         });
-        let payloadRestante = null;
-        if (importeRestante !== 0) {
-            payloadRestante = {
-                tipo: "Otro",
-                detalle: importeRestante > 0 ? "Saldo a favor del resumen anterior" : "Saldo adeudado del resumen anterior",
-                importe: -importeRestante
-            };
+        let payloadRestante = [];
+        if (totalAPagar !== 0) {
+            payloadRestante.push({
+                destino: "general",
+                tipo: "Resumen",
+                detalle: totalAPagar > 0 ? "Saldo a favor del resumen anterior" : "Saldo adeudado del resumen anterior",
+                importe: -totalAPagar
+            });
+        }
+
+        if (totalAPagarChofer !== 0){
+            payloadRestante.push({
+                destino: "chofer",
+                tipo: "Resumen",
+                detalle: totalAPagarChofer > 0 ? "Saldo a favor del resumen anterior" : "Saldo adeudado del resumen anterior",
+                importe: -totalAPagarChofer
+            });
         }
 
         changeSpinnerText(mainContent, "Generando resumen...");
         toggleSpinnerVisible(mainContent);
 
         try {
-            const response = await addResumen(choferData.cuil, groupStamp, choferData.trabajador, payloadViajes, payloadPagos, payloadRestante);
+            const response = await addResumen(choferData.cuil, groupStamp, payloadViajes, payloadPagos, payloadRestante);
+            const dataId = await response.json();
             if (!response.ok) {
-                showConfirmModal("No se pudo cerrar el resumen del chofer");
+                showConfirmModal(dataId.message);
                 toggleSpinnerVisible(mainContent);
                 changeSpinnerText(mainContent);
                 return;
             }
-            const dataId = await response.json();
-            console.log(dataId);
+            
             pagosData = [];
             viajesData = [];
-            if (dataId.idPagoAdicional)
-                pagosData = [{id: dataId.idPagoAdicional.id, fecha_pago: groupStamp, ...payloadRestante}].map( p => {
-                    return parsePagos(p);
-                })
+
+            if (dataId.idPagoAdicional && dataId.idPagoAdicional.length > 0){
+                for (let i = 0; i < dataId.idPagoAdicional.length ;i++){
+                    let pago = dataId.idPagoAdicional[i];
+                    if (pago.destino === "chofer")
+                        pagoResumenChofer = parsePagos({id: pago.id, destino: pago.destino, fecha_pago: groupStamp, ...payloadRestante[i]});
+                    else 
+                        pagosData.push(parsePagos({id: pago.id, destino: pago.destino, fecha_pago: groupStamp, ...payloadRestante[i]}));
+                }
+            }
+                
             showConfirmModal("Resumen cerrado con exito!");
-           renderTables(pagosData, 1, optionsPagos);
-           renderTables(viajesData, 1, optionsViajes, actualizarTotales);
+            if (vistaChofer) 
+                btnVistaChofer.click();
+            else
+                renderTables(pagosData, 1, optionsPagos);
+            renderTables(viajesData, 1, optionsViajes, actualizarTotales);
         } catch (error) {
             console.log(error.message);
         }
@@ -824,6 +893,12 @@ export async function inicializarModal(data) {
 
     cargarNombreChofer(choferData.nombre);
 
+    esChofer = choferData.trabajador === "Chofer";
+    esRespIncripto = choferData.trabajador === "Responsable Inscripto";
+
+    btnVistaChofer = document.getElementById("btnChoferView");
+    if (!esChofer) btnVistaChofer.remove();
+
     const closeButton = document.getElementById('closeBtnViaje');
     if (closeButton) {
         closeButton.onclick = () => {
@@ -832,12 +907,19 @@ export async function inicializarModal(data) {
                 choferData = null;
                 pagosData = [];
                 viajesData = [];
+                esChofer = false;
+                esRespIncripto = false;
+                esChofer = false;
+                vistaChofer = false;
+                btnVistaChofer = null;
+                pagoResumenChofer = null;
 
                 socket.off('nuevoViaje');
                 socket.off('nuevoPago');
                 socket.off('nuevoFactura');
                 socket.off('nuevoCartaPorte');
                 socket.off('updateViaje');
+                socket.off('updatePagos');
                 socket.off('updateUsuario', manejarUpdateUsuario);
                 socket.off('deleteViaje');
                 socket.off('deletePago');
@@ -896,8 +978,12 @@ export async function inicializarModal(data) {
             if (viaje.length > 0){
                 viaje[0].cuil = choferData.cuil;
             }
-            await renderTables(pagosData, 1, optionsPagos);
             await renderTables(viajesData, 1, optionsViajes);
+            if (vistaChofer){
+                vistaChofer = false;
+                await btnVistaChofer.click();
+            } else 
+                await renderTables(pagosData, 1, optionsPagos);
             showConfirmModal("Se actualizaron los datos del chofer");
         }
     }
@@ -915,11 +1001,14 @@ export async function inicializarModal(data) {
     socket.on('deleteUsuario', manejarDeleteUsuario);
 
     socket.on('nuevoViaje', async (viaje) => {
-        console.log(viaje);
-        if (viaje.chofer_cuil === choferData.cuil){
-            let viajeParseado = parseViaje(viaje);
+        if (viaje.cuil === choferData.cuil){
+            let viajeParseado = parseViaje(viaje, esRespIncripto);
             viajesData.push(viajeParseado);
             await renderTables(viajesData, 1, optionsViajes, actualizarTotales);
+            if (vistaChofer){
+                vistaChofer = false;
+                await btnVistaChofer.click();
+            }
             showConfirmModal("Se actualizaron los viajes del chofer");
         }
     });
@@ -928,7 +1017,7 @@ export async function inicializarModal(data) {
         if (viaje.updatedData.cuil === choferData.cuil){
             const index = viajesData.findIndex(v => v.id === viaje.comprobanteOriginal);
             if (index !== -1) {
-                viajesData[index] = parseViaje(viaje.updatedData);
+                viajesData[index] = parseViaje(viaje.updatedData, esRespIncripto);
                 console.log(`Se modifico el viaje con comprobante ${viaje.comprobanteOriginal}`);
                 if (editingRowId)
                     if (editingRowId === viaje.comprobanteOriginal)
@@ -936,6 +1025,10 @@ export async function inicializarModal(data) {
                     else
                         return;
                 await renderTables(viajesData, 1, optionsViajes, actualizarTotales);
+                if (vistaChofer){
+                    vistaChofer = false;
+                    await btnVistaChofer.click();
+                }
                 showConfirmModal("Se actualizaron los viajes del chofer");
             }
         }
@@ -946,6 +1039,10 @@ export async function inicializarModal(data) {
             viajesData = viajesData.filter(v => v.id !== viaje.comprobante);
             if (currentEditingTableType === "viajes" && editingRowId) await resetEditingState();
             await renderTables(viajesData, 1,optionsViajes, actualizarTotales);
+            if (vistaChofer){
+                vistaChofer = false;
+                await btnVistaChofer.click();
+            }
             showConfirmModal("Se actualizaron los viajes del chofer");
         }
     });
@@ -961,23 +1058,52 @@ export async function inicializarModal(data) {
                     }
                 });
             if (actualizo) {
-                await renderTables(pagosData, 1,optionsPagos, actualizarTotales);
+                if (vistaChofer){
+                    vistaChofer = false;
+                    await btnVistaChofer.click();
+                } else 
+                    await renderTables(pagosData, 1,optionsPagos, actualizarTotales);
+                
                 showConfirmModal("Se actualizaron los pagos del chofer");
             }
+        }
+    });
+
+    socket.on('updatePagos', async ({ updatedPagos }) => {
+        let updated = false;
+        for (const pago of updatedPagos){
+            if (pago.chofer_cuil && pago.chofer_cuil === choferData.cuil && pago.old_chofer_cuil !== choferData.cuil){
+                pagosData.push(parsePagos(pago));
+                updated = true;
+            } else if (pago.old_chofer_cuil && pago.old_chofer_cuil === choferData.cuil && pago.chofer_cuil !== choferData.cuil) {
+                pagosData = pagosData.filter(p => p.id !== pago.id);
+                updated = true;
+            }
+        }
+        if (updated){
+            if (vistaChofer){
+                vistaChofer = false;
+                btnVistaChofer.click();
+            } else
+                renderTables(pagosData, 1, optionsPagos, actualizarTotales);
+            showConfirmModal("Se actualizaron los pagos del chofer");
         }
     });
 
     socket.on('deletePago', async (pago) => {
         if (pago.cuil && pago.cuil === choferData.cuil){
             pagosData = pagosData.filter(p => p.id !== pago.id || p.tipo !== pago.tipo);
-            await renderTables(pagosData, 1, optionsPagos, actualizarTotales);
+            if (vistaChofer){
+                vistaChofer = false;
+                await btnVistaChofer.click();
+            } else 
+                await renderTables(pagosData, 1, optionsPagos, actualizarTotales);
             showConfirmModal("Se actualizaron los pagos del chofer");
         }
     });
     
 
     try {
-        if (choferData.trabajador !== "Responsable Inscripto") optionsViajes.columnas[0] = optionsViajes.columnas[0].filter(col => !["iva"].includes(col.key));
         await cargarTablas();
         setTodayDate();
         setupPaymentTypeSelector(fields);
@@ -989,7 +1115,37 @@ export async function inicializarModal(data) {
         const selectCantidad = document.getElementById("selectResumenes");
         const contentResumenes = document.getElementById("content-resumenes");
         const inputCantResumenes = document.getElementById('inputSelectResumenes');
+
+        const totalPagarChoferContainer = document.getElementById('total-pagarChofer');
         
+        btnVistaChofer?.addEventListener("click", () => {
+            if (!vistaChofer){
+                vistaChofer = true;
+                const dataPagosChofer = pagosData.filter(p => p.destino === "chofer");
+                if (pagoResumenChofer) dataPagosChofer.push(pagoResumenChofer);
+                const totalPagosChofer = dataPagosChofer.reduce((sum, pago) => sum + (pago.importe || 0), 0);
+
+                const subtotal = viajesData.reduce((sum, viaje) => sum + (viaje.saldo || 0), 0);
+                const iva = viajesData.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
+                const totalViajesChofer = (subtotal + iva)*0.2;
+                
+                const totalPagarChofer = redondear(totalViajesChofer - totalPagosChofer);
+                if (totalPagarChoferContainer){
+                    renderTables(dataPagosChofer, 1, optionsPagos);
+                    totalPagarChoferContainer.textContent = `Total a Pagar Chofer: ${("$" + totalPagarChofer.toFixed(2)).replace("$-", "-$")}`;
+                    document.getElementById("total-pagar")?.classList.add("hidden");
+                    totalPagarChoferContainer.classList.remove("hidden");
+                }
+            } else {
+                vistaChofer = false;
+                if (totalPagarChoferContainer){ 
+                    renderTables(pagosData, 1, optionsPagos, actualizarTotales);
+                    totalPagarChoferContainer.classList.add("hidden");
+                    document.getElementById("total-pagar")?.classList.remove("hidden");
+                }
+            }
+
+        });
 
         inputCantResumenes?.addEventListener("change", () => {
             if (inputCantResumenes.value > 0)
@@ -1064,7 +1220,6 @@ export async function inicializarModal(data) {
         })
 
         socket.on('deleteFactura', (factura) => {
-            console.log(factura);
             if (factura.cuil === choferData.cuil){
                 let viajeEditado = false;
                 viajesData.forEach( viaje => {
@@ -1106,6 +1261,7 @@ export async function inicializarModal(data) {
                 toggleSpinnerVisible(mainContent);
                 
                 if (historialBtn.classList.contains("hidden")) historialBtn.click();
+                if (vistaChofer) btnVistaChofer.click();
                 showConfirmModal("Se actualizo el resumen del chofer");
             }
         });

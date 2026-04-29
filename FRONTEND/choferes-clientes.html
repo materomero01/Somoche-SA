@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="CSS/tabla.css" />
     <link rel="stylesheet" href="CSS/modal.css" />
     <link rel="stylesheet" href="CSS/card.css" />
+    <link rel="stylesheet" href="CSS/filtro.css">
     <link rel="stylesheet" href="CSS/loading-spinner.css" />
     <link rel="stylesheet" href="CSS/factura-upload.css" />
 </head>
@@ -140,6 +141,13 @@
                                     <input type="text" id="nuevoClienteCuit" name="cuit" placeholder="20-12345678-1" required>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="nuevoClienteCategoria" class="cuil">Categoria *</label>
+                                    <select id="nuevoClienteCategoria" name="categoria">
+                                        <option value="Responsable Inscripto">Responsable Inscripto</option>
+                                        <option value="Monotributista">Monotributista</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
                                     <label for="nuevoClienteCuit">Email</label>
                                     <input type="email" id="nuevoClienteEmail" name="email" placeholder="example@address.com">
                                 </div>
@@ -175,6 +183,13 @@
                                 <div class="form-group" style="margin-bottom: 10px;">
                                     <label for="nuevoProveedorCuit">CUIL / CUIT *</label>
                                     <input type="text" id="nuevoProveedorCuit" name="cuit" placeholder="20-12345678-1" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label for="tipo_orden" class="cuil">Tipo Proveedor *</label>
+                                    <select id="tipo_orden" name="tipo_orden">
+                                        <option value="gasoil">Gasoil</option>
+                                        <option value="otro">Otro</option>
+                                    </select>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 10px;">
                                     <label for="nuevoProveedorTelefono">Teléfono</label>

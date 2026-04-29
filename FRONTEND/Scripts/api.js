@@ -4,6 +4,7 @@ const apiURL = BASE_URL;
 
 
 export let tarifasCatac = [];
+export let tarifasFetra = [];
 
 // Detectar entorno automáticamente: Local vs Producción
 const SOCKET_URL = ['localhost', '127.0.0.1'].includes(window.location.hostname)
@@ -123,6 +124,9 @@ export const setupClienteAutocomplete = (inputId, dataClientes) => setupAutocomp
         input.value = cliente.nombre;
         input.dataset.selectedClienteNombre = cliente.nombre;
         input.dataset.selectedClienteCuit = cliente.cuit;
+
+        const evento = new Event('change', { bubbles: true });
+        input.dispatchEvent(evento);
     }
 });
 
@@ -130,13 +134,62 @@ export const setupClienteAutocomplete = (inputId, dataClientes) => setupAutocomp
 export const setupChoferAutocomplete = (inputId, dataChoferes) => setupAutocomplete({
     inputId,
     filterSuggestions: query => dataChoferes.filter(chofer => chofer.nombre.toLowerCase().includes(query.toLowerCase())),
-    renderSuggestion: chofer => `${chofer.nombre} (${chofer.cuil})`,
+    renderSuggestion: chofer => `${chofer.nombre} (${chofer.cuil || chofer.cuit})`,
     onSelect: (input, chofer) => {
         input.value = chofer.nombre;
         input.dataset.selectedChoferNombre = chofer.nombre;
-        input.dataset.selectedChoferCuil = chofer.cuil;
+        input.dataset.selectedChoferCuil = chofer.cuil || chofer.cuit;
+
+        const evento = new Event('change', { bubbles: true });
+        input.dispatchEvent(evento);
     }
 });
+
+// Setup tarifa autocomplete
+export const setupTarifaAutocomplete = (inputId, dependentInputId) => {
+
+    setupAutocomplete({
+        inputId: inputId,
+        dependentInputId: dependentInputId,
+        filterSuggestions: () => {
+            const currentKm = parseInt(document.getElementById(dependentInputId)?.value.trim(), 10);
+            const tarifaCatacCalculada = (!isNaN(currentKm) && currentKm > 0 && currentKm <= tarifasCatac.length && tarifasCatac[currentKm - 1]?.valor !== undefined)
+                ? tarifasCatac[currentKm - 1].valor
+                : tarifasCatac[tarifasCatac.length - 1].valor;
+
+            const tarifaFetraCalculada = (!isNaN(currentKm) && currentKm > 0 && currentKm <= tarifasFetra.length && tarifasFetra[currentKm - 1]?.valor !== undefined)
+                ? tarifasFetra[currentKm - 1].valor
+                : tarifasCatac[tarifasCatac.length - 1].valor;;
+
+            return [
+                { type: 'Tarifa CATAC', value: tarifaCatacCalculada },
+                { type: 'Tarifa Fe.Tr.A', value: tarifaFetraCalculada }
+            ];
+        },
+        renderSuggestion: suggestion => `${suggestion.type}: ${suggestion.value}`,
+        onSelect: (input, suggestion) => input.value = suggestion.value,
+        onDependentChange: (dependentInput, input, suggestionsDiv) => {
+            const queryKm = parseInt(dependentInput.value.trim(), 10);
+            if (isNaN(queryKm) || queryKm <= 0 || queryKm > tarifasCatac.length) {
+                input.value = '';
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            const tarifa = tarifasCatac[queryKm - 1];
+            input.value = tarifa?.valor ?? '';
+            suggestionsDiv.style.display = 'none';
+            if (!tarifa?.valor) console.warn(`No se encontró tarifa para ${queryKm} km.`);
+        }
+    });
+};
+
+export function redondear(valor){
+    let valorReturn = valor;
+    if (typeof valor === "string")
+        valorReturn = parseFloat(valor.replace(/[$,]/g, ''))
+    return parseFloat(valorReturn.toFixed(2));
+}
 
 // Función para cerrar sesión
 export function logout() {
@@ -377,14 +430,13 @@ export async function deleteViaje(comprobante) {
 ////////////////////////////////////////////////////////////////////////////
 
 // Añadir resumen luego de cerrar cuenta
-export async function addResumen(cuil, groupId, iva, viajesGroup, pagosGroup, pagoRestante) {
+export async function addResumen(cuil, groupId, viajesGroup, pagosGroup, pagoRestante) {
     try {
         const token = getToken();
         handleAuthorization();
         let payload = {
             choferCuil: cuil,
             groupStamp: groupId,
-            iva: iva,
             viajes: viajesGroup,
             pagos: pagosGroup,
         };
@@ -811,17 +863,21 @@ export async function getPagosProveedor(cuit, cantidad) {
     }
 }
 
-export async function pagarOrdenesProveedor(ordenes) {
+export async function pagarOrdenesProveedor(ordenes, tipo_orden) {
     try {
         const token = getToken();
         handleAuthorization();
+        const payload = {
+            ordenes: ordenes,
+            tipo_orden: tipo_orden
+        }
         const response = await fetch(`${apiURL}/pagos/pagarOrdenes`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(ordenes)
+            body: JSON.stringify(payload)
         });
 
         if (response.status === 403) {
@@ -868,6 +924,31 @@ export async function addPagos(payload) {
     }
 }
 
+// Buscar pago
+export async function getPago(id, type) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/pagos/getPago?id=${encodeURIComponent(id)}&type=${encodeURIComponent(type)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+        throw error;
+    }
+}
+
 // Modificar Pagos
 export async function updatePagos(payload) {
     try {
@@ -881,17 +962,15 @@ export async function updatePagos(payload) {
             },
             body: JSON.stringify(payload)
         });
-        const data = await response.json();
-        if (response.status === 403) {
+       
+        if (response.status === 403) { 
+            const data = await response.json();
             handleAuthError(data);
             return;
         }
         setToken(response.headers.get('X-New-Token'));
 
-        if (!response.ok) {
-            console.log(data.message);
-        }
-        return response.ok;
+        return response;
     } catch (error) {
         console.log(error.message);
     }
@@ -955,7 +1034,9 @@ export async function setChequesPagos(cheques) {
 /////////////////////////////////////////////////////////////////
 
 export async function loadTarifas() {
-    tarifasCatac = await fetchTarifas();
+    const tarifas = await fetchTarifas();
+    tarifasCatac = tarifas.catac;
+    tarifasFetra = tarifas.fetra;
 }
 
 // Obtener todas las tarifas
@@ -980,9 +1061,7 @@ export async function fetchTarifas() {
             throw new Error('Error al cargar tarifas');
         }
 
-        if (data.tarifas.length > 0)
-            localStorage.setItem('tarifasCatac', JSON.stringify(data.tarifas));
-        return data.tarifas;
+        return data;
     } catch (error) {
         console.error('Error al buscar las tarifas en el backend:', error.message);
         return [];
@@ -1013,8 +1092,9 @@ export async function updateTarifas(payload) {
         if (!response.ok) {
             console.log(data.message);
         }
-
-        tarifasCatac = data.tarifas;
+        console.log(data);
+        tarifasCatac = data.tarifas.catac;
+        tarifasFetra = data.tarifas.fetra;
 
         return data;
     } catch (error) {
@@ -1026,6 +1106,32 @@ export async function updateTarifas(payload) {
 //////////////////////////////////////////////////////////////////////
 //                    API LLAMADA DOCUMENTOS                        //
 //////////////////////////////////////////////////////////////////////
+
+export async function getFacturasData(facturasToGet) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/facturas/getFacturasData`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(facturasToGet)
+        });
+
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
 
 export async function generarFactura(payload) {
     try {
@@ -1069,6 +1175,36 @@ export async function uploadCartaPorte(viajeId, files) {
                 'Authorization': `Bearer ${token}`,
             },
             body: formData
+        });
+
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+export async function pagarFacturaCliente(facturasToMark, cuit){
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const payload = {
+            facturasToMark: facturasToMark,
+            cuit: cuit
+        }
+        const response = await fetch(`${apiURL}/facturas/pagarFacturas`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
         });
 
         if (response.status === 403) {
@@ -1155,9 +1291,9 @@ export async function fetchLogs(page = 1, limit = 50) {
     }
 }
 
-socket.on('updateCatac', async () => {
+socket.on('updateTarifas', async () => {
     if (window.location.href.includes("catac.html"))
         return showConfirmModal("Se actualizaron las tarifas de Catac", "aviso", () => { window.location.reload() });
     await loadTarifas();
-    showConfirmModal("Se actualizaron las tarifas de Catac");
+    showConfirmModal("Se actualizaron las tarifas");
 });

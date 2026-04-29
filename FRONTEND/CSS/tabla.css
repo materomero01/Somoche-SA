@@ -208,7 +208,6 @@
 
 /* Estilo para la tabla de cheques */
 .tabla-dinamica {
-    overflow-x: auto; 
     margin-bottom: 10px;
 }
 
@@ -270,6 +269,18 @@
 .tabla-dinamica td {
     background-color: #ffffff;
 }
+
+td.yellow {
+    background-color: #eeee9f !important;
+}
+
+td.green {
+    background-color: #9feb9f !important;
+}
+
+td.orange {
+    background-color: #f9b575 !important;
+} 
 
 .tabla-dinamica td:last-child {
     text-align: center;

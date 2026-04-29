@@ -16,7 +16,7 @@ exports.getProveedores = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(
-            'SELECT cuit AS id, razon_social AS nombre, cuit, telefono, balance FROM proveedor WHERE valid = true ORDER BY 2 ASC'
+            'SELECT cuit AS id, razon_social AS nombre, cuit, telefono, tipo_orden, balance FROM proveedor WHERE valid = true ORDER BY 2 ASC'
         );
 
         res.status(208).json({ proveedores: result.rows });
@@ -36,8 +36,12 @@ exports.insertProveedor = async (req, res) => {
         return res.status(404).json({ message: 'El formato ingresado del CUIT no es valido.' });
     if (!data.nombre || data.nombre === '')
         return res.status(405).json({ message: 'El cliente debe llevar el Nombre / Razon Social' });
+
+    if (!data.tipo_orden || !['gasoil', 'otro'].includes(data.tipo_orden))
+        return res.status(400).json({ message: 'El tipo de orden ingresado para el Proveedor no es valida' });
+    
     if (data.telefono && data.telefono !== '' && isNaN(data.telefono))
-        return res.status(405).json({ message: 'El telefono ingresado no es valido, deben ser unicamente números.' })
+        return res.status(405).json({ message: 'El telefono ingresado no es valido, deben ser unicamente números.' });
 
     let client;
     try {
@@ -57,7 +61,7 @@ exports.insertProveedor = async (req, res) => {
         let proveedorRecuperado = false;
         if (proveedorExists.rows.length > 0) {
             if (!proveedorExists.rows[0].valid) {
-                const responseRecuperar = await client.query('UPDATE proveedor SET valid = true, razon_social = $2, telefono = $3 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.telefono]);
+                const responseRecuperar = await client.query('UPDATE proveedor SET valid = true, razon_social = $2, telefono = $3, tipo_orden = $4 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.telefono, data.tipo_orden]);
                 if (responseRecuperar.rowCount > 0) {
                     proveedorRecuperado = true;
                     balance = responseRecuperar.rows[0].balance;
@@ -72,8 +76,8 @@ exports.insertProveedor = async (req, res) => {
 
         if (!proveedorRecuperado)
             await client.query(
-                'INSERT INTO proveedor(cuit, razon_social, telefono) VALUES($1, $2, $3)',
-                [data.cuit, data.nombre, data.telefono]
+                'INSERT INTO proveedor(cuit, razon_social, telefono, tipo_orden) VALUES($1, $2, $3, $4)',
+                [data.cuit, data.nombre, data.telefono, data.tipo_orden]
             );
 
         await client.query('COMMIT');
@@ -109,6 +113,10 @@ exports.updateProveedores = async (req, res) => {
         return res.status(404).json({ message: 'El formato ingresado del CUIT no es valido.' });
     if (!data.nombre || data.nombre === '')
         return res.status(405).json({ message: 'El proveedor debe llevar el Nombre / Razon Social' });
+
+    if (!data.tipo_orden || !['gasoil', 'otro'].includes(data.tipo_orden))
+        return res.status(400).json({ message: 'El tipo de orden ingresado para el Proveedor no es valida' });
+
     if (data.telefono && data.telefono !== '' && isNaN(data.telefono))
         return res.status(405).json({ message: 'El telefono ingresado no es valido, deben ser unicamente números.' })
 
@@ -133,9 +141,9 @@ exports.updateProveedores = async (req, res) => {
 
         await client.query(
             `UPDATE proveedor
-            SET cuit = $1, razon_social = $2, telefono = $3
-            WHERE cuit = $4`,
-            [data.cuit, data.nombre, data.telefono, cuitOriginal]
+            SET cuit = $1, razon_social = $2, telefono = $3, tipo_orden = $4
+            WHERE cuit = $5`,
+            [data.cuit, data.nombre, data.telefono, data.tipo_orden, cuitOriginal]
         );
 
         await client.query('COMMIT');

@@ -1,10 +1,12 @@
-import { fetchAllChoferes, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje, setupAutocomplete, setupClienteAutocomplete, setupChoferAutocomplete, loadTarifas, tarifasCatac, fetchProveedores } from './api.js';
+import { fetchAllChoferes, addViaje, addPagos, fetchClientes, getViajeComprobante, updateViaje, setupAutocomplete, setupClienteAutocomplete, setupChoferAutocomplete, loadTarifas, tarifasCatac, tarifasFetra, fetchProveedores, getPago, setupTarifaAutocomplete } from './api.js';
 import { showConfirmModal, createLoadingSpinner, toggleSpinnerVisible } from './apiPublic.js';
 
 // Global variables
 let allChoferes = [];
 let allClientes = [];
 let allProveedores = [];
+
+let pagoTab = 'Cheque';
 
 const contentPrincipal = document.getElementById("add-viajes-section");
 
@@ -61,7 +63,7 @@ const handleTabContentDisplay = (selectedTab) => {
     } else if (selectedTab === 'viajes') {
         setupChoferAutocomplete('chofer', allChoferes);
         setupClienteAutocomplete('cliente', allClientes);
-        setupTarifaAutocomplete();
+        setupTarifaAutocomplete('tarifa', 'kilometro');
         setupCargaDescargaAutocomplete();
     }
 };
@@ -331,6 +333,155 @@ const setupViajesSearchBar = () => {
     icon.addEventListener('click', handleSearch);
 };
 
+const setupPagosSearchBar = () => {
+    const input = document.querySelector('#pagosSearchBar .search-input');
+    const icon = document.querySelector('#pagosSearchBar .search-icon');
+    if (!input || !icon) {
+        console.warn("Elementos de la barra de búsqueda no encontrados.");
+        return;
+    }
+
+    const handleSearch = async () => {
+        const term = input.value.trim();
+        try {
+            const response = await getPago(term, pagoTab);
+            const data = await response.json();
+            console.log(data);
+            if (!response.ok)
+                return showConfirmModal(data.message);
+            return;
+            input.value = '';
+            const buttonsAddViaje = document.getElementById("añadirViaje");
+            const buttonsEditViaje = document.getElementById("editarViaje");
+
+            const editViajeBtn = document.getElementById("editViajeBtn");
+
+            buttonsAddViaje.classList.add("hidden");
+            buttonsEditViaje.classList.remove("hidden");
+
+
+            const inputChofer = document.getElementById("chofer");
+            const inputCliente = document.getElementById("cliente");
+            const inputKilometro = document.getElementById("kilometro");
+            const inputToneladas = document.getElementById("toneladas");
+            const inputFecha = document.getElementById("fecha");
+            const inputTarifa = document.getElementById("tarifa");
+            const inputCargado = document.getElementById("cargado");
+            const inputComprobante = document.getElementById("comprobante");
+            const inputVariacion = document.getElementById("variacion");
+            const inputDescargado = document.getElementById("descargado");
+            const inputCampo = document.getElementById("campo");
+            const inputProducto = document.getElementById("producto");
+
+            const chofer = allChoferes.find(chofer => chofer.cuil === data.cuil);
+            if (chofer) {
+                inputChofer.value = chofer.nombre;
+                inputChofer.dataset.selectedChoferNombre = chofer.nombre;
+            } else {
+                inputChofer.value = "CHOFER ELIMINADO";
+            }
+            inputChofer.dataset.selectedChoferCuil = data.cuil;
+
+            const cliente = data.cuit ? allClientes.filter(cliente => cliente.cuit === data.cuit) : null;
+            if (cliente) {
+                inputCliente.value = cliente[0].nombre;
+                inputCliente.dataset.selectedClienteNombre = cliente[0].nombre;
+                inputCliente.dataset.selectedClienteCuit = cliente[0].cuit;
+            } else {
+                inputCliente.value = data.cuit ? "CLIENTE ELIMINADO" : '';
+                inputCliente.removeAttribute('data-selected-cliente-nombre');
+                if (data.cuit)
+                    inputCliente.dataset.selectedClienteCuit = data.cuit;
+                else
+                    inputCliente.removeAttribute('data-selected-cliente-cuit');
+            }
+
+            inputKilometro.value = data.kilometros;
+            inputTarifa.value = data.tarifa;
+            inputToneladas.value = data.toneladas;
+            inputFecha.value = data.fecha.split("T")[0];
+            inputCargado.value = data.cargado;
+            inputComprobante.value = data.comprobante;
+            inputVariacion.value = data.variacion;
+            inputDescargado.value = data.descargado;
+            inputCampo.value = data.campo;
+            inputProducto.value = data.producto;
+
+            [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo, inputProducto].forEach(input => {
+                input.setAttribute('readonly', true);
+            });
+
+            const acceptViajeBtn = document.getElementById("acceptViajeBtn");
+            const cancelViajeBtn = document.getElementById("cancelViajeBtn");
+
+            editViajeBtn.onclick = () => {
+                editViajeBtn.classList.add("hidden");
+                acceptViajeBtn.classList.remove("hidden");
+                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo, inputProducto].forEach(input => {
+                    input.removeAttribute('readonly');
+                    input.setAttribute('editing', true);
+                });
+            }
+            acceptViajeBtn.onclick = () => {
+                console.log(inputComprobante.value);
+                const payload = {
+                    [data.comprobante]: {
+                        chofer_cuil: inputChofer.dataset.selectedChoferCuil,
+                        cliente_cuit: inputCliente.dataset.selectedClienteCuit,
+                        kilometros: parseInt(inputKilometro.value),
+                        toneladas: parseFloat(inputToneladas.value),
+                        fecha: `${inputFecha.value}T00:00:00-03:00`,
+                        tarifa: inputTarifa.value,
+                        cargado: parseFloat(inputCargado.value) || parseFloat(inputToneladas.value),
+                        comprobante: inputComprobante.value.trim(),
+                        descargado: parseFloat(inputDescargado.value) || parseFloat(inputToneladas.value),
+                        variacion: parseFloat(inputVariacion.value) > 1 ? parseFloat(inputVariacion.value) / 100 : parseFloat(inputVariacion.value),
+                        campo: inputCampo.value.trim(),
+                        producto: inputProducto.value.trim()
+                    }
+                }
+                console.log(payload);
+                if (!validarInputs(payload[data.comprobante])) return;
+
+                try {
+                    showConfirmModal(`Esta seguro de que desea editar el viaje con comprobante ${data.comprobante}?`, "confirm", async () => {
+                        const response = await updateViaje(payload);
+                        const data = await response.json();
+                        showConfirmModal(data.message);
+                        cancelViajeBtn.click();
+                    });
+                } catch (error) {
+                    console.log(error.message);
+                }
+            }
+
+            cancelViajeBtn.onclick = () => {
+                editViajeBtn.classList.remove("hidden");
+                acceptViajeBtn.classList.add("hidden");
+                buttonsAddViaje.classList.remove("hidden");
+                buttonsEditViaje.classList.add("hidden");
+                [inputChofer, inputCliente, inputKilometro, inputToneladas, inputFecha, inputTarifa, inputCargado, inputComprobante, inputVariacion, inputDescargado, inputCampo, inputProducto].forEach(input => {
+                    input.removeAttribute('readonly');
+                    input.removeAttribute('editing');
+                    input.value = '';
+                    input.removeAttribute('data-selected-chofer-nombre');
+                    input.removeAttribute('data-selected-chofer-cuil');
+                    input.removeAttribute('data-selected-cliente-nombre');
+                    input.removeAttribute('data-selected-cliente-cuit');
+                });
+
+                setTodayDate();
+            }
+
+        } catch (error) {
+            console.log(error.message);
+        }
+    };
+
+    input.addEventListener('keydown', e => e.key === 'Enter' && handleSearch());
+    icon.addEventListener('click', handleSearch);
+}
+
 // Setup payment type selector
 const setupPaymentTypeSelector = () => {
     const tipoPagoSelect = document.getElementById('tipoPago');
@@ -345,6 +496,7 @@ const setupPaymentTypeSelector = () => {
     const showPaymentFields = type => {
         Object.values(fields).forEach(field => field?.classList.add('hidden'));
         fields[type]?.classList.remove('hidden');
+        pagoTab = type;
         if (type === 'Cheque') {
             addChequeBtn?.classList.remove('hidden');
             chequeFieldsContainer?.classList.remove('hidden');
@@ -405,7 +557,7 @@ const setupAddChequeBtn = () => {
                 </div>
                 <div class="form-group">
                     <label for="nroCheque_${chequeCounter}">Nro. de Cheque</label>
-                    <input type="number" id="nroCheque_${chequeCounter}" name="nroCheque_${chequeCounter}" placeholder="Número de Cheque">
+                    <input type="text" id="nroCheque_${chequeCounter}" name="nroCheque_${chequeCounter}" placeholder="Número de Cheque">
                 </div>
                 <div class="form-group">
                     <label for="terceroCheque_${chequeCounter}">Banco</label>
@@ -456,40 +608,40 @@ const setupAddChequeBtn = () => {
     });
 };
 
-// Función de debug para verificar el payload antes de enviarlo
-const debugPayload = (payload, tipoPago) => {
-    console.log('=== DEBUG PAYLOAD ===');
-    console.log('Tipo de pago:', tipoPago);
-    console.log('Payload completo:', JSON.stringify(payload, null, 2));
+// // Función de debug para verificar el payload antes de enviarlo
+// const debugPayload = (payload, tipoPago) => {
+//     console.log('=== DEBUG PAYLOAD ===');
+//     console.log('Tipo de pago:', tipoPago);
+//     console.log('Payload completo:', JSON.stringify(payload, null, 2));
 
-    if (tipoPago.toLowerCase() === 'cheque') {
-        console.log('Número de cheques:', payload.pagos.length);
-        payload.pagos.forEach((cheque, index) => {
-            console.log(`Cheque ${index + 1}:`, {
-                tipo: cheque.tipo,
-                fecha_pago: cheque.fechaPago,
-                fecha_cheque: cheque.fechaCheque,
-                nroCheque: cheque.nroCheque,
-                tercero: cheque.tercero,
-                destinatario: cheque.destinatario,
-                importe: cheque.importe
-            });
-        });
-    }
-    console.log('=====================');
+//     if (tipoPago.toLowerCase() === 'cheque') {
+//         console.log('Número de cheques:', payload.pagos.length);
+//         payload.pagos.forEach((cheque, index) => {
+//             console.log(`Cheque ${index + 1}:`, {
+//                 tipo: cheque.tipo,
+//                 fecha_pago: cheque.fechaPago,
+//                 fecha_cheque: cheque.fechaCheque,
+//                 nroCheque: cheque.nroCheque,
+//                 tercero: cheque.tercero,
+//                 destinatario: cheque.destinatario,
+//                 importe: cheque.importe
+//             });
+//         });
+//     }
+//     console.log('=====================');
 
-    // Verificar que el payload coincida con lo que espera el backend
-    const backendExpected = {
-        choferCuil: 'string',
-        pagos: tipoPago.toLowerCase() === 'cheque' ? 'array' : 'object'
-    };
+//     // Verificar que el payload coincida con lo que espera el backend
+//     const backendExpected = {
+//         choferCuil: 'string',
+//         pagos: tipoPago.toLowerCase() === 'cheque' ? 'array' : 'object'
+//     };
 
-    console.log('Estructura esperada por backend:', backendExpected);
-    console.log('Estructura enviada:', {
-        choferCuil: typeof payload.choferCuil,
-        pagos: Array.isArray(payload.pagos) ? 'array' : typeof payload.pagos
-    });
-};
+//     console.log('Estructura esperada por backend:', backendExpected);
+//     console.log('Estructura enviada:', {
+//         choferCuil: typeof payload.choferCuil,
+//         pagos: Array.isArray(payload.pagos) ? 'array' : typeof payload.pagos
+//     });
+// };
 
 // Añadir esta línea justo antes del try-catch en setupAddPagoBtn:
 // debugPayload(payload, tipoPago);
@@ -498,7 +650,8 @@ const debugPayload = (payload, tipoPago) => {
 const setupAddPagoBtn = () => {
     const btn = document.getElementById('addPagoBtn');
     setupClienteAutocomplete('clienteCheque', allClientes);
-    setupClienteAutocomplete('proveedorGasoil', allProveedores);
+    setupClienteAutocomplete('proveedorGasoil', allProveedores.filter(proveedor => proveedor.tipo_orden === 'gasoil'));
+    setupClienteAutocomplete('proveedorOtro', allProveedores.filter(proveedor => proveedor.tipo_orden === 'otro'));
     btn?.addEventListener('click', async () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPago = document.getElementById('fechaPago')?.value;
@@ -617,6 +770,7 @@ const setupAddPagoBtn = () => {
                 break;
 
             case 'otro':
+                const tipoOtro = document.getElementById('tipoOtro')?.value;
                 const comprobanteOtro = document.getElementById('comprobanteOtro')?.value;
                 const detalle = document.getElementById('detalleOtro')?.value;
                 const importeOtro = document.getElementById('importeOtro')?.value;
@@ -634,7 +788,8 @@ const setupAddPagoBtn = () => {
                 payload = {
                     ...payload,
                     pagos: {
-                        tipo: tipoPago,
+                        proveedor_cuit: document.getElementById('proveedorOtro')?.dataset.selectedClienteCuit || null,
+                        tipo: tipoOtro && tipoOtro !== ''? tipoOtro : 'otro',
                         fecha_pago: fechaPago,
                         comprobante: comprobanteOtro,
                         detalle: detalle,
@@ -649,28 +804,6 @@ const setupAddPagoBtn = () => {
         }
 
         try {
-            // Debug: Mostrar payload antes de enviar
-            console.log('=== DEBUG PAYLOAD ===');
-            console.log('Tipo de pago:', tipoPago);
-            console.log('Payload completo:', JSON.stringify(payload, null, 2));
-
-            if (tipoPago.toLowerCase() === 'cheque') {
-                console.log('Número de cheques:', payload.pagos.length);
-                payload.pagos.forEach((cheque, index) => {
-                    console.log(`Cheque ${index + 1}:`, {
-                        tipo: cheque.tipo,
-                        fecha_pago: cheque.fechaPago,
-                        fecha_cheque: cheque.fechaCheque,
-                        nroCheque: cheque.nroCheque,
-                        tercero: cheque.tercero,
-                        destinatario: cheque.destinatario,
-                        importe: cheque.importe,
-                        cliente_cuit: cheque.cliente_cuit
-                    });
-                });
-            }
-            console.log('=====================');
-
             const response = await addPagos(payload);
             const data = await response.json();
 
@@ -710,42 +843,6 @@ const setupAddPagoBtn = () => {
         }
 
         console.log('[Registrar Pago]', payload);
-    });
-};
-
-// Setup tarifa autocomplete
-const setupTarifaAutocomplete = () => {
-    const tarifaAutodescargableBase = 0;
-
-    setupAutocomplete({
-        inputId: 'tarifa',
-        dependentInputId: 'kilometro',
-        filterSuggestions: () => {
-            const currentKm = parseInt(document.getElementById('kilometro')?.value.trim(), 10);
-            const tarifaCatacCalculada = (!isNaN(currentKm) && currentKm > 0 && currentKm <= tarifasCatac.length && tarifasCatac[currentKm - 1]?.valor !== undefined)
-                ? tarifasCatac[currentKm - 1].valor
-                : 0;
-
-            return [
-                { type: 'Tarifa CATAC', value: tarifaCatacCalculada },
-                { type: 'Tarifa Autodescargable', value: tarifaAutodescargableBase }
-            ];
-        },
-        renderSuggestion: suggestion => `${suggestion.type}: ${suggestion.value}`,
-        onSelect: (input, suggestion) => input.value = suggestion.value,
-        onDependentChange: (dependentInput, input, suggestionsDiv) => {
-            const queryKm = parseInt(dependentInput.value.trim(), 10);
-            if (isNaN(queryKm) || queryKm <= 0 || queryKm > tarifasCatac.length) {
-                input.value = '';
-                suggestionsDiv.style.display = 'none';
-                return;
-            }
-
-            const tarifa = tarifasCatac[queryKm - 1];
-            input.value = tarifa?.valor ?? '';
-            suggestionsDiv.style.display = 'none';
-            if (!tarifa?.valor) console.warn(`No se encontró tarifa para ${queryKm} km.`);
-        }
     });
 };
 
@@ -798,6 +895,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setupAddViajeBtn();
     setupViajesSearchBar();
+    setupPagosSearchBar();
     setupAddPagoBtn();
     setupAddChequeBtn();
 

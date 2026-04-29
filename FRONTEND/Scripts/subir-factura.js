@@ -46,7 +46,7 @@ export function closeModalFactura() {
 }
 // Initialize the document upload modal
 
-export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc, deleteFunc, tableType = "viajes", selectedRows = []) {
+export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc, deleteFunc, tableType = "viajes", selectedRows = [], iva = true) {
     if (selectedRows.length === 0 && viaje.length === 0) {
         return showConfirmModal("Selecciona los viajes para los que desea subir los documentos");
     }
@@ -93,8 +93,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     const valueViajes = document.getElementById('valueViajes');
 
     if (valueViajes && tableType === "viajeCliente"){
-        console.log(selectedRows);
-        valueViajes.textContent = `Total con IVA de los ${selectedRows.length} viajes seleccionados: $${parseFloat(selectedRows.reduce((sum, viaje) => { return sum + viaje.importe + viaje.iva }, 0)).toFixed(2)}`;
+        valueViajes.textContent = `Total ${iva? "con IVA" : "sin IVA"} de los ${selectedRows.length} viajes seleccionados: $${parseFloat(selectedRows.reduce((sum, viaje) => { return iva? sum + viaje.importe + viaje.iva : sum + viaje.importe}, 0)).toFixed(2)}`;
         valueViajes.classList.remove("hidden");
     }
 
@@ -103,7 +102,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
 
     if (viaje.length > 0) {
         if (!cartaPorteFunc) {
-            if (tableType === 'ordenProveedor') {
+            if (tableType.includes('ordenProveedor')) {
                 document.getElementById('cartaPorteSection').remove();
                 document.getElementById('section-divider').remove();
                 document.getElementById('headerDocuments').textContent = "Documentos de la Orden";
@@ -215,6 +214,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
 
         try {
             let facturaId = null;
+            let facturaEstado = null;
             if (facturaFile) {
                 if (selectedRows.length === 0 && viaje.length > 0) {
                     selectedRows.push(viaje[0].comprobante);
@@ -223,6 +223,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
                 const facturaData = await facturaResponse.json();
                 if (!facturaResponse.ok) throw new Error(facturaData.message);
                 facturaId = facturaData.facturaId;
+                if (tableType === "viajeCliente" && facturaData.estado) facturaEstado = facturaData.estado;
             }
 
             if (cartaPorteFiles.length > 0 && cartaPorteFunc && viaje.length > 0) {
@@ -230,7 +231,7 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
             }
 
             if (facturaId) {
-                await changeDataFactura(facturaId, viaje.length > 0 && tableType === "viajeCliente" ? viaje : selectedRows);
+                await changeDataFactura(facturaId, viaje.length > 0 && tableType === "viajeCliente" ? viaje : selectedRows, facturaEstado);
                 if (viaje.length > 0) {
                     viaje[0].factura_id = facturaId; // Actualiza el viaje actual
                 }

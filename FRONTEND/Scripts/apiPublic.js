@@ -244,10 +244,10 @@ export async function updateChofer(cuilOriginal, payload) {
 }
 
 // Get pagos cheques
-export async function getCheques(pagados, choferCuil, cantidad = null) {
+export async function getCheques(pagados, choferCuil, cantidad = null, tipo = null) {
     try {
         const token = getToken();
-        const response = await fetch(`${apiURL}/pagos/getPagosCheques?pagado=${encodeURIComponent(pagados)}&choferCuil=${encodeURIComponent(choferCuil)}&cantidad=${encodeURIComponent(cantidad)}`, {
+        const response = await fetch(`${apiURL}/pagos/getPagosCheques?pagado=${encodeURIComponent(pagados)}&choferCuil=${encodeURIComponent(choferCuil)}&cantidad=${encodeURIComponent(cantidad)}&tipo=${encodeURIComponent(tipo)}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,

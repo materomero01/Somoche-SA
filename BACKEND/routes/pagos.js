@@ -3,6 +3,7 @@ var router = express.Router();
 var ctrlPagos = require('../controllers/ctrlPagos.js');
 
 /* GETs pagos */
+router.get('/getPago', ctrlPagos.getPagoComprobante);
 router.get('/getPagosCheques', ctrlPagos.getPagosCheque);
 router.get('/getPagosGasoil', ctrlPagos.getPagosGasoil);
 router.get('/getPagosOtros', ctrlPagos.getPagosOtros);

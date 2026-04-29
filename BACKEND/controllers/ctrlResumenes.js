@@ -23,7 +23,6 @@ exports.insertResumen = async (req, res) => {
         const groupStamp = req.body.groupStamp;
         const pagos = req.body.pagos;
         const viajes = req.body.viajes;
-        const iva = req.body.iva === 'Responsable Inscripto';
 
 
         if (!groupStamp || !viajes)
@@ -33,7 +32,7 @@ exports.insertResumen = async (req, res) => {
             return res.status(405).json({ message: 'El groupStamp no es valido' });
 
         const userExists = await client.query(
-            'SELECT cuil FROM usuario WHERE valid = true AND cuil = $1',
+            'SELECT cuil, tipo_trabajador FROM chofer WHERE valid = true AND cuil = $1',
             [choferCuil]
         );
 
@@ -42,26 +41,29 @@ exports.insertResumen = async (req, res) => {
                 message: `El chofer con CUIL ${choferCuil} no está registrado.`
             });
         }
+
+        const iva = userExists.rows[0].tipo_trabajador === 'Responsable Inscripto';
+
         for (const [index, pago] of Object.entries(pagos)) {
             // Construir consulta de actualización dinámica
             const tipo = pago.tipo;
             let query, values;
 
             values = [groupStamp, index.split('°')[0]];
-            if (tipo.toLowerCase() === 'cheque') {
-                query = `UPDATE pagos_cheque SET group_r = $1 WHERE valid = true AND nro = $2 AND group_r IS NULL`;
-            } else if (tipo.toLowerCase() === 'gasoil') {
-                query = `UPDATE pagos_gasoil SET group_r = $1 WHERE valid = true AND comprobante = $2 AND group_r IS NULL`;
-            } else if (tipo.toLowerCase() === 'otro') {
-                query = `UPDATE pagos_otro SET group_r = $1 WHERE valid = true AND comprobante = $2 AND group_r IS NULL`;
-            } else {
-                await client.query('ROLLBACK');
-                client.release();
-                return res.status(405).json({ message: `No se pudo modificar el pago ${index}` });
+            switch (tipo.toLowerCase()){
+                case 'cheque':
+                    query = `UPDATE pagos_cheque SET group_r = $1 WHERE valid = true AND nro = $2 AND group_r IS NULL`;
+                    break;
+                case 'gasoil':
+                    query = `UPDATE pagos_gasoil SET group_r = $1 WHERE valid = true AND comprobante = $2 AND group_r IS NULL`;
+                    break;
+                default:
+                    query = `UPDATE pagos_otro SET group_r = $1 WHERE valid = true AND comprobante = $2 AND group_r IS NULL`;
             }
             // Ejecutar la actualización
             const result = await client.query(query, values);
-            if (tipo.toLowerCase() === "otro" && result.rowCount === 0) {
+            if (result.rowCount === 0) {
+                console.log(values);
                 const resultOtro = await client.query('UPDATE pagos_otro SET group_r = $1 WHERE valid = true AND id = $2 AND group_r IS NULL', values);
                 if (resultOtro.rowCount === 0) {
                     await client.query('ROLLBACK');
@@ -78,38 +80,36 @@ exports.insertResumen = async (req, res) => {
                 [groupStamp, index]);
         }
 
-        let idPagoAdicional = null;
+        let idPagoAdicional = [];
         const pagoAdicional = req.body.pagoAdicional;
-        if (pagoAdicional) {
-            if (!pagoAdicional.tipo || pagoAdicional.tipo.toLowerCase() !== "otro") {
-                await client.query('ROLLBACK');
-                client.release();
-                return res.status(405).json({ message: `El tipo del pago para el saldo restante no es valido` });
-            }
+        if (pagoAdicional && pagoAdicional.length > 0) {
+            for (const pago of pagoAdicional) {
 
-            if (!pagoAdicional.importe || isNaN(pagoAdicional.importe)) {
-                await client.query('ROLLBACK');
-                client.release();
-                return res.status(405).json({ message: `El importe del pago para el saldo restante no es valido` });
-            }
+                if (!pago.importe || isNaN(pago.importe)) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    return res.status(405).json({ message: `El importe del pago para el saldo restante no es valido` });
+                }
 
-            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva) VALUES ($1, $2, $3, $4)', [groupStamp, choferCuil, -pagoAdicional.importe, iva]);
-            if (responseResumen.rowCount === 0) {
-                await client.query('ROLLBACK');
-                client.release();
-                console.log(groupStamp);
-                console.log(choferCuil);
-                console.log(pagoAdicional);
-                return res.status(405).json({ message: `No se pudo cerrar el resumen del chofer` });
-            }
+                const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, destino, iva) VALUES ($1, $2, $3, $4, $5)', [groupStamp, choferCuil, -pago.importe, pago.destino, iva]);
+                if (responseResumen.rowCount === 0) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    return res.status(405).json({ message: `No se pudo cerrar el resumen del chofer` });
+                }
 
-            const response = await client.query("INSERT INTO pagos_otro(detalle, importe, chofer_cuil, fecha_pago) VALUES ($1,$2,$3,$4) RETURNING id",
-                [pagoAdicional.detalle, pagoAdicional.importe, choferCuil, groupStamp]
-            );
-            idPagoAdicional = response.rows[0];
+                const response = await client.query("INSERT INTO pagos_otro(detalle, importe, chofer_cuil, fecha_pago, tipo, destino) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id",
+                    [pago.detalle, pago.importe, choferCuil, groupStamp, pago.tipo, pago.destino]
+                );
+
+                idPagoAdicional.push({destino: pago.destino, id: response.rows[0].id});
+            };
         } else {
             const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva) VALUES ($1, $2, $3, $4)', [groupStamp, choferCuil, 0, iva]);
-            if (responseResumen.rowCount === 0) {
+            let responseResumenChofer = null;
+            if (userExists.rows[0].tipo_trabajador === 'Chofer')
+                responseResumenChofer = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva, destino) VALUES ($1, $2, $3, $4, $5)', [groupStamp, choferCuil, 0, iva, 'chofer']);
+            if (responseResumen.rowCount === 0 || (responseResumenChofer && responseResumenChofer.rowCount === 0)) {
                 await client.query('ROLLBACK');
                 client.release();
                 return res.status(405).json({ message: `No se pudo cerrar el resumen del chofer` });
@@ -117,7 +117,7 @@ exports.insertResumen = async (req, res) => {
         }
 
 
-        client.query('COMMIT');
+        await client.query('COMMIT');
         client.release();
 
         try {
@@ -132,7 +132,7 @@ exports.insertResumen = async (req, res) => {
             console.error("Error al sincronizar los datos en insertResumen", error.stack);
         }
 
-        res.status(202).json({ message: "El resumen fue realizado con exito", idPagoAdicional });
+        res.status(202).json({ message: "El resumen fue realizado con exito", idPagoAdicional: idPagoAdicional });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
         client?.release();
@@ -155,26 +155,26 @@ exports.getResumenCuil = async (req, res) => {
     if (isNaN(cantidad) || cantidad <= 0) {
         return res.status(400).json({ message: 'La cantidad debe ser un número positivo.' });
     }
-
+ 
     let client;
     try {
         client = await pool.connect();
         await client.query('BEGIN');
         // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
         await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
-
+ 
         // Verificar si el chofer existe
         const userExists = await client.query(
             'SELECT cuil FROM usuario WHERE valid = true AND cuil = $1',
             [cuil]
         );
-
+ 
         if (userExists.rows.length === 0) {
             await client.query('ROLLBACK');
             client.release();
             return res.status(404).json({ message: `El chofer con CUIL ${cuil} no está registrado.` });
         }
-
+ 
         // Obtener los últimos n grupos de viajes
         const viajesResult = await client.query(`
             SELECT group_r, viajes
@@ -183,7 +183,7 @@ exports.getResumenCuil = async (req, res) => {
             ORDER BY group_r DESC
             LIMIT $2
         `, [cuil, cantidad]);
-
+ 
         // Obtener los últimos n grupos de pagos (unificados)
         const pagosResult = await client.query(`
             SELECT group_r, pagos
@@ -192,35 +192,61 @@ exports.getResumenCuil = async (req, res) => {
             ORDER BY group_r DESC
             LIMIT $2
         `, [cuil, cantidad]);
-
+ 
+        // Si el usuario autenticado es el propio chofer, solo ve pagos con destino = 'chofer'
+        const esChofer = req.user.role === 'chofer';
+ 
         const saldosResult = await client.query(`
-            SELECT group_r, saldo, iva
+            SELECT group_r, saldo, iva, destino
             FROM saldo_resumen
-            WHERE chofer_cuil = $1
-            ORDER BY group_r DESC
-            LIMIT $2
+            WHERE group_r IN (
+                SELECT DISTINCT group_r
+                FROM saldo_resumen
+                WHERE chofer_cuil = $1
+                ${esChofer ? `AND destino = 'chofer'` : ''}
+                ORDER BY group_r DESC
+                LIMIT $2
+            )
+            ${esChofer ? `AND destino = 'chofer'` : ''}
+            ORDER BY group_r DESC;
             `, [cuil, cantidad])
-
+ 
         await client.query('COMMIT');
         client.release();
-
+ 
         // Formatear la respuesta
+        // Si el usuario autenticado es el propio chofer, filtramos los pagos a solo destino='chofer'
+        const pagosFormateados = pagosResult.rows.map(row => ({
+            group: row.group_r,
+            pagos: esChofer
+                ? row.pagos.filter(p => p.destino === 'chofer')
+                : row.pagos
+        }));
+ 
+        // Agrupar saldos por group_r para que el frontend maneje ambos destinos
+        const saldosPorGroup = {};
+        for (const row of saldosResult.rows) {
+            const key = row.group_r.toISOString();
+            if (!saldosPorGroup[key]) saldosPorGroup[key] = [];
+            saldosPorGroup[key].push({
+                saldo: row.saldo,
+                iva: row.iva,
+                destino: row.destino
+            });
+        }
+        console.log(saldosPorGroup);
+ 
         const response = {
             viajes: viajesResult.rows.map(row => ({
                 group: row.group_r,
                 viajes: row.viajes
             })),
-            pagos: pagosResult.rows.map(row => ({
-                group: row.group_r,
-                pagos: row.pagos
-            })),
-            saldos: saldosResult.rows.map(row => ({
-                group: row.group_r,
-                saldo: row.saldo,
-                iva: row.iva
+            pagos: pagosFormateados,
+            saldos: Object.entries(saldosPorGroup).map(([group, saldos]) => ({
+                group,
+                saldos // array de { saldo, iva, destino }
             }))
         };
-
         res.status(200).json(response);
     } catch (error) {
         if (client) await client.query('ROLLBACK');

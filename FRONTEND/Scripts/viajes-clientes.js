@@ -1,6 +1,6 @@
 import { cargarNombreChofer, deleteModal, cartaPorteFunc, deleteFactura, setupPaymentTypeSelector, validateInputs } from "./viajes-pagos.js";
 import { mockChoferes, mockProveedores, renderCurrentTable, setupSearchBar } from "./choferes-clientes.js";
-import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete } from "./api.js";
+import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete, redondear, pagarFacturaCliente, getFacturasData } from "./api.js";
 import { changeSpinnerText, createLoadingSpinner, showConfirmModal, toggleSpinnerVisible } from "./apiPublic.js";
 import { renderTables, originalEditingData, resetEditingState, stagedEditingData, editingRowId, enterEditMode, handleEdit } from "./tabla.js";
 import { columnasPagos, columnasViajes, formatFecha, parsePagos, parseViaje, parseImporte } from "./resumenes.js";
@@ -12,10 +12,13 @@ let clienteData = [];
 let viajesFacturadosData = [];
 let viajesAFacturarData = [];
 
+let facturasFacturadosData = [];
+
 let viajesHistorialData = [];
 
 let ultimosPagosCliente = [];
 let pagosOpen = true;
+let vistaFacturas = false;
 
 let currentViajesClientesPage = 1;
 
@@ -24,6 +27,27 @@ let currentEditingTable = "viajes";
 const regexInputs = {
     'comprobante': /^(\d{4}-\d{8}|\d{11})$/
 };
+
+let viajesFacturadosContent;
+let facturasBtn;
+let historialBtn;
+let closeButton;
+let paginacionContainer;
+let backFacturasBtn;
+let backHistorialBtn;
+let searchInput;
+let searchInputFacturas;
+
+let esMonotributista = false;
+
+// Configuración de columnas para la tabla de facturas
+export const columnasFacturas = [
+    { label: "Fecha", key: "fecha", class: [] },
+    { label: "Comprobante Viaje", key: "comprobante", class: [] },
+    { label: "Fecha Vto Pago", key: "fecha_vto_pago", class: []},
+    { label: "Nro Factura", key: "nro_factura", class: [] },
+    { label: "Importe Total Factura", key: "importe_total", class: ['text-right', 'bold'], modify: (content) => { return `$${content.toFixed(2)}` } },
+];
 
 // Acciones para la tabla de viajes
 const accionesViajes = [
@@ -34,7 +58,7 @@ const accionesViajes = [
         id: null,
         handler: (item) => {
             enterEditMode({ ...item, clienteCuit: clienteData.cuit }, 'viajesCliente',
-                () => renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales), handleSaveEditViajesCliente);
+                () => renderTables(!esMonotributista? viajesAFacturarData : viajesFacturadosData, currentViajesClientesPage, !esMonotributista? optionsViajes: optionsViajesMonotributista, actualizarTotales), handleSaveEditViajesCliente);
         }
     },
     {
@@ -59,8 +83,15 @@ const accionesViajes = [
             showConfirmModal("¿Estás seguro de eliminar este viaje?", "delete", async () => {
                 const result = await deleteViaje(item.id);
                 if (result.ok) {
-                    viajesAFacturarData = viajesAFacturarData.filter(v => v.id !== item.id);
-                    renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
+                    const currentData = getCurrentData();
+                    const filtered = currentData.filter(v => v.id !== item.id);
+                    if (currentEditingTable === "viajes") viajesAFacturarData = filtered;
+                    else if (currentEditingTable === "viajesFacturados") viajesFacturadosData = filtered;
+                    if (esMonotributista){
+                        clienteData.balance = redondear(clienteData.balance - redondear(item.importe));
+                        renderCurrentTable();
+                    } 
+                    renderTables(filtered, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
                     showConfirmModal("Viaje eliminado con éxito");
                 } else {
                     const data = await result.json();
@@ -82,39 +113,154 @@ const checkboxHeaderAction = {
             return;
         }
 
-        showConfirmModal(
-            `¿Estás seguro de marcar ${selectedRows.length} viaje(s) como pagado(s)?`,
-            "confirm",
-            async () => {
-                const viajesToMark = selectedRows.map(row => ({
-                    viaje_comprobante: row.comprobante,
-                    cliente_cuit: clienteData.cuit
-                }));
+        const modal = document.createElement('div');
+        modal.id = 'documentGenerateModal';
+        modal.className = 'modal';
+        modal.classList.add('active');
+        modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <h2 style="margin-top: 0"> ¿Que acción desea realizar? </h2>
+            <div class="modal-actions-vertical">
+                <button id="payViajesBtn" class="btn btn-primary">Marcar Viajes como Pagados</button>
+                <button id="payFacturasBtn" class="btn btn-success">Marcar Facturas como Pagadas</button>
+                <button id="uploadDocumentsBtn" class="btn btn-yellow hidden">Subir Factura Manualmente</button>   
+            </div>
+            <button id="modalCancelBtn" class="btn btn-danger" style="margin-top: 12px;">Cancelar</button>
+        </div>
+        `;
+        document.body.appendChild(modal);
 
-                try {
-                    const response = await pagarViajeCliente(viajesToMark);
-                    const data = await response.json();
-                    if (response.ok) {
-                        // Update local data
-                        viajesFacturadosData = viajesFacturadosData.map(v => {
-                            if (selectedRows.some(selected => selected.comprobante === v.comprobante)) {
-                                return { ...v, pagado: true, selected: false };
+        const payViaje = document.getElementById("payViajesBtn")
+        const payFactura = document.getElementById("payFacturasBtn");
+        const uploadFactura = document.getElementById("uploadDocumentsBtn");
+        const cancelBtn = document.getElementById("modalCancelBtn");
+
+        payViaje.onclick = null;
+        payFactura.onclick = null;
+        uploadFactura.onclick = null;
+        cancelBtn.onclick = null;
+
+        payViaje.onclick = () => {
+            showConfirmModal(
+                `¿Estás seguro de marcar ${selectedRows.length} viaje(s) como pagado(s)?`,
+                "confirm",
+                async () => {
+                    const viajesToMark = selectedRows.map(row => ({
+                        viaje_comprobante: row.comprobante,
+                        cliente_cuit: clienteData.cuit
+                    }));
+
+                    try {
+                        const response = await pagarViajeCliente(viajesToMark);
+                        const data = await response.json();
+                        if (response.ok) {
+                            // Update local data
+                            viajesFacturadosData = viajesFacturadosData.map(v => {
+                                if (selectedRows.some(selected => selected.comprobante === v.comprobante)) {
+                                    return { ...v, pagado: true, selected: false };
+                                }
+                                return v;
+                            });
+
+                            // Optionally remove paid trips from the table
+                            viajesFacturadosData = viajesFacturadosData.filter(v => !v.pagado);
+
+                            if (vistaFacturas){
+                                facturasFacturadosData = facturasFacturadosData.filter(v => !selectedRows.some(selected => selected.comprobante === v.comprobante));
+                                actualizarTotales(viajesFacturadosData);
+                                return renderTables(facturasFacturadosData, 1, optionsFacturas);
                             }
-                            return v;
-                        });
 
-                        // Optionally remove paid trips from the table
-                        viajesFacturadosData = viajesFacturadosData.filter(v => !v.pagado);
-
-                        // Re-render table and update totals
-                        renderTables(viajesFacturadosData, 1, optionsViajesFacturados, actualizarTotales);
+                            // Re-render table and update totals
+                            renderTables(viajesFacturadosData, 1, !esMonotributista? optionsViajesFacturados : optionsViajesMonotributista, actualizarTotales);
+                        }
+                        showConfirmModal(data.message);
+                    } catch (error) {
+                        console.log(`Error: ${error.message}`);
                     }
-                    showConfirmModal(data.message);
-                } catch (error) {
-                    console.log(`Error: ${error.message}`);
+                },
+                () => {
+                    modal.classList.add("active");
                 }
-            }
+            );
+        };
+
+        const facturasToMark = Array.from(
+            new Set(
+                selectedRows
+                    .filter(row => row.factura_id && row.estado !== "Pagada")
+                    .map(row => row.factura_id)
+            )
         );
+        
+        if (facturasToMark && facturasToMark.length === 0){
+            payFactura.disabled = true;
+            payFactura.title = "Esta función se encuentra deshabilitada para estos viajes";
+        } else {
+            payFactura.title = "";
+        }
+
+        payFactura.onclick = () => {
+            showConfirmModal(
+                `¿Estás seguro de marcar ${selectedRows.length} viaje(s) como pagado(s)?`,
+                "confirm",
+                async () => {
+
+                    try {
+                        const response = await pagarFacturaCliente(facturasToMark, clienteData.cuit);
+                        const data = await response.json();
+                        if (response.ok) {
+                            // Update local data
+                            viajesFacturadosData = viajesFacturadosData.map(v => {
+                                if (data.idFacturas.some(selected => selected.factura_id === v.factura_id)) {
+                                    return { ...v, estado: "Pagada", selected: false };
+                                }
+                                v.selected = false;
+                                return v;
+                            });
+
+                            if (vistaFacturas){
+                                facturasFacturadosData.forEach(v => {
+                                    if (data.idFacturas.some(selected => selected.factura_id === v.factura_id)) {
+                                        v.estado = "Pagada";
+                                    }
+                                    v.selected = false;
+                                });
+                                renderTables(facturasFacturadosData, 1, optionsFacturas);
+                            } else 
+                                renderTables(viajesFacturadosData, 1, !esMonotributista? optionsViajesFacturados : optionsViajesMonotributista, actualizarTotales);
+                        }
+                        showConfirmModal(data.message);
+                    } catch (error) {
+                        console.log(`Error: ${error.message}`);
+                    }
+                },
+                () => {
+                    modal.classList.add("active");
+                }
+            );
+        };
+
+        const facturasToUpload = selectedRows.filter(row => row.factura_id === null);
+        
+        if (facturasToUpload && facturasToUpload.length === 0){
+            uploadFactura.disabled = true;
+            uploadFactura.title = "Esta función se encuentra deshabilitada para estos viajes";
+        } else {
+            uploadFactura.title = "";
+        }
+
+        if (esMonotributista){
+            uploadFactura.classList.remove("hidden");
+            uploadFactura.onclick = () => {
+                modal.remove();
+                initializeFacturaUpload(changeDataFactura, null, null, "viajeCliente", facturasToUpload, false);
+            }
+        }
+
+        cancelBtn.onclick = () => {
+            modal.remove();
+        }
     }
 }
 
@@ -129,52 +275,56 @@ const checkboxHeaderActionGenerate = {
             return;
         }
 
-        const modal = document.createElement('div');
-        modal.id = 'documentGenerateModal';
-        modal.className = 'modal';
-        modal.classList.add('active');
-        modal.innerHTML = `
-        <div class="modal-content" style="max-width: 400px;">
-            <h2 style="margin-top: 0"> ¿Que acción desea realizar? </h2>
-            <div class="modal-actions-vertical">
-                <button id="generateDocumentsBtn" class="btn btn-primary">Generar Factura Automaticamente</button>
-                <button id="uploadDocumentsBtn" class="btn btn-success">Subir Factura Manualmente</button>   
+        if (!esMonotributista){
+            const modal = document.createElement('div');
+            modal.id = 'documentGenerateModal';
+            modal.className = 'modal';
+            modal.classList.add('active');
+            modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <h2 style="margin-top: 0"> ¿Que acción desea realizar? </h2>
+                <div class="modal-actions-vertical">
+                    <button id="generateDocumentsBtn" class="btn btn-primary">Generar Factura Automaticamente</button>
+                    <button id="uploadDocumentsBtn" class="btn btn-success">Subir Factura Manualmente</button>   
+                </div>
+                <button id="modalCancelBtn" class="btn btn-danger" style="margin-top: 12px;">Cancelar</button>
             </div>
-            <button id="modalCancelBtn" class="btn btn-danger" style="margin-top: 12px;">Cancelar</button>
-        </div>
-        `;
-        document.body.appendChild(modal);
+            `;
+            document.body.appendChild(modal);
 
-        const generateFactura = document.getElementById("generateDocumentsBtn");
-        const uploadFactura = document.getElementById("uploadDocumentsBtn");
-        const cancelBtn = document.getElementById("modalCancelBtn");
+            const generateFactura = document.getElementById("generateDocumentsBtn");
+            const uploadFactura = document.getElementById("uploadDocumentsBtn");
+            const cancelBtn = document.getElementById("modalCancelBtn");
 
-        generateFactura.onclick = null;
-        uploadFactura.onclick = null;
-        cancelBtn.onclick = null;
+            generateFactura.onclick = null;
+            uploadFactura.onclick = null;
+            cancelBtn.onclick = null;
 
-        generateFactura.onclick = () => {
-            modal.classList.remove("active");
-            showConfirmModal(
-                `¿Estás seguro de generar la factura para los  ${selectedRows.length} viaje(s) seleccionado(s)?`,
-                "confirm",
-                () => {
-                    modal.remove();
-                    handleGenerateInvoice(selectedRows);
-                },
-                () => {
-                    modal.classList.add("active");
-                }
-            );
-        };
+            generateFactura.onclick = () => {
+                modal.classList.remove("active");
+                showConfirmModal(
+                    `¿Estás seguro de generar la factura para los  ${selectedRows.length} viaje(s) seleccionado(s)?`,
+                    "confirm",
+                    () => {
+                        modal.remove();
+                        handleGenerateInvoice(selectedRows);
+                    },
+                    () => {
+                        modal.classList.add("active");
+                    }
+                );
+            };
 
-        uploadFactura.onclick = () => {
-            modal.remove();
+            uploadFactura.onclick = () => {
+                modal.remove();
+                initializeFacturaUpload(changeDataFactura, null, null, "viajeCliente", selectedRows);
+            }
+
+            cancelBtn.onclick = () => {
+                modal.remove();
+            }
+        } else {
             initializeFacturaUpload(changeDataFactura, null, null, "viajeCliente", selectedRows);
-        }
-
-        cancelBtn.onclick = () => {
-            modal.remove();
         }
     }
 }
@@ -197,7 +347,7 @@ const optionsViajes = {
     onPageChange: (page) => { currentViajesClientesPage = page; },
     checkboxColumn: true,
     checkboxHeaderAction: checkboxHeaderActionGenerate,
-    useScrollable: false
+    useScrollable: false,
 };
 
 const optionsViajesFacturados = {
@@ -210,19 +360,94 @@ const optionsViajesFacturados = {
     onPageChange: null,
     checkboxColumn: true,
     checkboxHeaderAction: checkboxHeaderAction,
-    useScrollable: true
+    useScrollable: true,
+    modifyCell: (item, td) => {
+        if (item.estado){
+            switch (item.estado){
+                case "Pendiente":
+                    td.classList.add("yellow");
+                    return;
+                case "Pagada":
+                    td.classList.add("green");
+                    return;
+                default:
+                    return;
+            }
+        }
+    }
 };
 
+const optionsViajesMonotributista = {
+    ...optionsGeneral,
+    columnas: [columnasViajes.filter(col => !["cargado", "descargado", "comision", "saldo", "iva"].includes(col.key)), columnasViajes.filter(col => !["faltante", "importe", "comision", "iva", "saldo"].includes(col.key))],
+    itemsPorPagina: () => 8,
+    actions: accionesViajes,
+    onEdit: (id, field, value) => handleEdit(id, field, value, 'viajesCliente', () => { return tarifasCatac }),
+    tableType: 'viajesCliente',
+    onPageChange: null,
+    checkboxColumn: true,
+    checkboxHeaderAction: checkboxHeaderAction,
+    useScrollable: true,
+    modifyCell: (item, td) => {
+        if (item.estado){
+            switch (item.estado){
+                case "Pendiente":
+                    td.classList.add("yellow");
+                    return;
+                case "Pagada":
+                    td.classList.add("green");
+                    return;
+                default:
+                    return;
+            }
+        }
+    }
+}
+
+const optionsFacturas = {
+    ...optionsGeneral,
+    columnas: [columnasFacturas],
+    itemsPorPagina: () => 8,
+    actions: [accionesViajes[1]],
+    onEdit: null,
+    tableType: 'viajesCliente',
+    onPageChange: null,
+    get checkboxColumn(){
+        return currentEditingTable !== 'historial'? true : false
+    },
+    get checkboxHeaderAction() {
+        return currentEditingTable !== 'historial'? checkboxHeaderAction : null
+    },
+    useScrollable: true,
+    modifyCell: (item, td) => {
+        if (item.estado){
+            switch (item.estado){
+                case "Pendiente":
+                    td.classList.add("yellow");
+                    return;
+                case "Pagada":
+                    td.classList.add("green");
+                    return;
+                default:
+                    return;
+            }
+        }
+    }
+}
+
+const columnasViajesHistorial = columnasViajes.filter(col => !["cargado", "descargado", "comision", "saldo"].includes(col.key));
 const optionsHistorial = {
     ...optionsGeneral,
-    columnas: [columnasViajes.filter(col => !["cargado", "descargado", "comision", "saldo"].includes(col.key))],
+    get columnas() {
+        return !esMonotributista? [columnasViajesHistorial] : [columnasViajesHistorial.filter(col => !["iva"].includes(col.key))]
+    },
     itemsPorPagina: () => pagosOpen ? 3 : 8,
-    actions: accionesViajes[1],
+    actions: [accionesViajes[1]],
     onEdit: null,
     tableType: 'viajesCliente',
     onPageChange: null,
     checkboxColumn: false,
-    checkboxHeaderAction: checkboxHeaderAction,
+    checkboxHeaderAction: null,
     useScrollable: true
 };
 
@@ -243,7 +468,7 @@ const accionesPagos = [
                 }
                 ultimosPagosCliente = ultimosPagosCliente.filter(p => p.id !== item.id);
                 showConfirmModal(data.message);
-                clienteData.balance = parseFloat((parseImporte(clienteData.balance) + parseFloat(parseImporte(item.importe))).toFixed(2));
+                clienteData.balance = parseFloat(parseImporte(clienteData.balance) + redondear(item.importe));
                 renderTables(ultimosPagosCliente, 1, optionsPagos);
                 actualizarTotales(viajesFacturadosData);
                 renderCurrentTable();
@@ -285,7 +510,7 @@ function getCurrentOptions() {
         case "viajes":
             return optionsViajes;
         case "viajesFacturados":
-            return optionsViajesFacturados;
+            return !esMonotributista? optionsViajesFacturados : optionsViajesMonotributista;
         case "historial":
             return optionsHistorial;
     }
@@ -306,7 +531,10 @@ function changeDataDocuments() {
                     }
                 });
             }
-            renderTables(viajesHistorialData, 1, optionsHistorial, actualizarTotales);
+            if (vistaFacturas){
+                facturasBtn.click();
+            } else
+                renderTables(viajesHistorialData, 1, optionsHistorial, actualizarTotales);
             break;
         case 'viajesFacturados':
             if (viajesFacturadosData.length > 0) {
@@ -314,27 +542,52 @@ function changeDataDocuments() {
                     if (v.comprobante === viaje[0].comprobante) {
                         v.carta_porte = viaje[0].carta_porte;
                         v.factura_id = viaje[0].factura_id ? viaje[0].factura_id : null;
-                        clienteData.balance = parseFloat((parseImporte(clienteData.balance) + (viaje[0].factura_id ? parseImporte(v.importe) + parseImporte(v.iva) : -(parseImporte(v.importe) + parseImporte(v.iva)))).toFixed(2));
-                        return v.factura_id !== null;
+                        if (!v.factura_id) v.estado = "Sin Facturar";
+                        if (!esMonotributista){
+                            const importeTotal = parseImporte(v.importe) + parseImporte(v.iva);
+                            clienteData.balance = redondear(parseImporte(clienteData.balance) + (viaje[0].factura_id ? importeTotal : -importeTotal));
+                        }
+                        return esMonotributista || v.factura_id !== null;
                     }
                     return true;
                 });
             }
-            renderTables(viajesFacturadosData, currentViajesClientesPage, optionsViajesFacturados, actualizarTotales);
+            if (vistaFacturas){
+                facturasBtn.click();
+            } else
+                renderTables(viajesFacturadosData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
             renderCurrentTable();
     }
 }
 
-function changeDataFactura(facturaId, selectedRows) {
+function changeDataFactura(facturaId, selectedRows, estado = null) {
     if (!facturaId) {
         console.warn('No se recibió el facturaId en los encabezados');
     } else {
         switch (currentEditingTable) {
             case "viajes":
-                clienteData.balance = parseFloat((parseImporte(clienteData.balance) + parseFloat(selectedRows.reduce((sum, viaje) => sum + (parseImporte(viaje.importe) + parseImporte(viaje.iva) || 0), 0))).toFixed(2));
+                clienteData.balance = parseFloat((parseImporte(clienteData.balance) + parseFloat(selectedRows.reduce((sum, viaje) => {
+                    const importe = parseImporte(viaje.importe);
+                    const iva = clienteData.categoria !== "Monotributista" ? parseImporte(viaje.iva) : 0;
+                    return sum + importe + iva;
+                }, 0))).toFixed(2));
                 viajesAFacturarData = viajesAFacturarData.filter(v => !selectedRows.some(row => row.id === v.id));
                 renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
                 renderCurrentTable();
+                break;
+            case "viajesFacturados":
+                if (esMonotributista){
+                    viajesFacturadosData.forEach(v => {
+                        if (selectedRows.some(row => row.comprobante === v.comprobante)){
+                            v.factura_id = facturaId;
+                            v.estado = estado;
+                        }
+                    });
+                    if (vistaFacturas){
+                        facturasBtn.click();
+                    } else
+                        renderTables(viajesFacturadosData, 1, optionsViajesMonotributista);
+                }
                 break;
             case "historial":
                 if (viajesHistorialData.length > 0) {
@@ -344,6 +597,9 @@ function changeDataFactura(facturaId, selectedRows) {
                         }
                     });
                 }
+                if (vistaFacturas){
+                    facturasBtn.click();
+                } else
                 renderTables(viajesHistorialData, 1, optionsHistorial, actualizarTotales);
                 break;
             default:
@@ -353,18 +609,31 @@ function changeDataFactura(facturaId, selectedRows) {
 }
 
 function actualizarTotales(viajes, tablesTab = currentEditingTable) {
-    const subtotal = viajes.reduce((sum, viaje) => sum + (viaje.importe || 0), 0);
-    const iva = viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
+    const subtotal = viajes.reduce((sum, viaje) => sum + (redondear(viaje.importe) || 0), 0);
+    const iva = esMonotributista ? 0 : viajes.reduce((sum, viaje) => sum + (viaje.iva || 0), 0);
     const totalViajes = subtotal + iva;
 
     const subtotalContainer = document.getElementById("subtotal");
     if (subtotalContainer)
-        subtotalContainer.textContent = `Subtotal: $${subtotal.toFixed(2)}`;
-    const ivaContainer = document.getElementById("iva")
-    ivaContainer.textContent = `IVA (21%): $${iva.toFixed(2)}`;
+        if (esMonotributista)
+            subtotalContainer.classList.add("hidden");
+        else
+            subtotalContainer.textContent = `Subtotal: $${subtotal.toFixed(2)}`;
+
+    const ivaContainer = document.getElementById("iva");
+    if (ivaContainer) {
+        if (esMonotributista) {
+            ivaContainer.classList.add('hidden');
+        } else {
+            ivaContainer.classList.remove('hidden');
+            ivaContainer.textContent = `IVA (21%): $${iva.toFixed(2)}`;
+        }
+    }
+
     const totalViajesContainer = document.getElementById("total-viajes");
     if (totalViajesContainer)
         totalViajesContainer.textContent = `Total Viajes: $${totalViajes.toFixed(2)}`;
+
     const totalPagarContainer = document.getElementById("total-cobrar");
     if (totalPagarContainer) {
         if (tablesTab === "historial")
@@ -423,9 +692,17 @@ async function handleSaveEditViajesCliente() {
     const response = await updateViaje(payload);
     if (response.ok) {
         showConfirmModal('Los cambios se realizaron con exito.');
-        const viajeIndex = viajesAFacturarData.findIndex(v => v.comprobante === comprobanteOriginal);
-        if (viajeIndex !== -1)
-            viajesAFacturarData[viajeIndex] = parseViaje({ ...payload[comprobanteOriginal], factura_id: stagedEditingData.factura_id, carta_porte: stagedEditingData.carta_porte });
+        const dataViajes = getCurrentData();
+        const viajeIndex = dataViajes.findIndex(v => v.comprobante === comprobanteOriginal);
+        if (viajeIndex !== -1){
+            dataViajes[viajeIndex] = parseViaje({ ...payload[comprobanteOriginal], factura_id: stagedEditingData.factura_id, carta_porte: stagedEditingData.carta_porte }, !esMonotributista, false);
+            if (esMonotributista){
+                if (dataViajes[viajeIndex].importe !== stagedEditingData.importe) clienteData.balance = redondear(clienteData.balance + (dataViajes[viajeIndex].importe - stagedEditingData.importe));
+                resetEditingState();
+                renderCurrentTable();
+            }
+            renderCurrentTable(dataViajes, 1, getCurrentOptions(), actualizarTotales);
+        }
     } else {
         const data = await response.json();
         showConfirmModal(data.message);
@@ -460,6 +737,7 @@ const setupAddPagoBtn = () => {
         const tipoPago = document.getElementById('tipoPago')?.value;
         const fechaPagoInput = document.getElementById('fechaPago')?.value;
 
+        const tipoOtro = document.getElementById('tipoOtro');
         const comprobante = document.getElementById('comprobanteOtro');
         const detalle = document.getElementById('detalleOtro');
         const importeOtro = document.getElementById('importeOtro');
@@ -516,7 +794,7 @@ const setupAddPagoBtn = () => {
                 payload = {
                     ...payload,
                     pagos: {
-                        tipo: 'Otro',
+                        tipo: tipoOtro?.value && tipoOtro?.value !== ''? tipoOtro.value : 'Otro',
                         fecha_pago: fechaPago,
                         comprobante: comprobante?.value,
                         detalle: detalle?.value,
@@ -544,7 +822,7 @@ const setupAddPagoBtn = () => {
             if (response.ok) {
                 const data = await response.json();
                 showConfirmModal(data.message);
-                clienteData.balance = parseFloat((parseImporte(clienteData.balance) - parseFloat(parseImporte(payload.pagos.importe))).toFixed(2));
+                clienteData.balance = redondear(parseImporte(clienteData.balance) - redondear(payload.pagos.importe));
                 ultimosPagosCliente.push(parsePagos({ id: data.pagoId.id, ...payload.pagos }));
                 renderTables(ultimosPagosCliente, 1, optionsPagos);
                 actualizarTotales(viajesFacturadosData);
@@ -644,7 +922,7 @@ async function handleGenerateInvoice(data) {
     const fechaHoy = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Argentina/Buenos_Aires"}));
     const primerDiaMes = new Date(fechaHoy.getFullYear(), fechaHoy.getMonth(), 1);
     const fechaVencimiento = new Date(fechaHoy);
-    fechaVencimiento.setDate(fechaHoy.getDate() + 30);
+    fechaVencimiento.setMonth(fechaHoy.getMonth() + 1);
 
     const invoiceData = {
         ptoVta: 2,
@@ -759,34 +1037,21 @@ async function setUltimosPagos(cantidad) {
     }
 }
 
-async function handleTabContentDisplay(selectedTab) {
-    const viajesFacturadosContent = document.getElementById('content-viajes-facturados');
-    const historialBtn = document.getElementById("historial");
-    const closeButton = document.getElementById("closeBtnViaje");
-    const paginacionContainer = document.getElementById("paginacion-viajes");
-    const backHistorialBtn = document.getElementById("back-historialBtn");
-    const searchInput = document.getElementById('searchInput');
-
-    if (searchInput) searchInput.value = '';
-    toggleSpinnerVisible(mainContent);
+async function renderViajesClienteIVA(selectedTab){
     try {
         if (selectedTab === 'aFacturar') {
             const response = await getViajesCliente(clienteData.cuit, false, null);
             if (response.ok) {
                 viajesFacturadosContent.classList.add('hidden');
+                backFacturasBtn.click();
+                facturasBtn.classList.add("hidden");
                 backHistorialBtn.click();
                 historialBtn.classList.add("hidden");
                 const data = await response.json();
-
-                viajesAFacturarData = data.viajes.map(c => {
-                    const viaje = parseViaje(c);
-                    viaje.iva = viaje.importe * 0.21;
-                    return viaje;
-                });
+                viajesAFacturarData = data.viajes.map(c => parseViaje(c, true, false));
                 paginacionContainer.classList.remove("hidden");
                 currentEditingTable = "viajes";
                 await renderTables(viajesAFacturarData, 1, optionsViajes, actualizarTotales);
-
             } else {
                 showConfirmModal("Ocurrio un error al cargar los viajes del cliente");
                 closeButton.click();
@@ -795,14 +1060,11 @@ async function handleTabContentDisplay(selectedTab) {
             const response = await getViajesCliente(clienteData.cuit, true, null);
             if (response.ok) {
                 viajesFacturadosContent.classList.remove('hidden');
+                backFacturasBtn.click();
                 backHistorialBtn.click();
                 paginacionContainer.classList.add("hidden");
                 const data = await response.json();
-                viajesFacturadosData = data.viajes.map(c => {
-                    const viaje = parseViaje(c);
-                    viaje.iva = viaje.importe * 0.21;
-                    return viaje;
-                });
+                viajesFacturadosData = data.viajes.map(c => parseViaje(c, true, false));
                 console.log(viajesFacturadosData);
                 currentEditingTable = "viajesFacturados";
                 await renderTables(viajesFacturadosData, 1, optionsViajesFacturados, actualizarTotales);
@@ -813,11 +1075,63 @@ async function handleTabContentDisplay(selectedTab) {
 
             const selectPagos = document.getElementById("selectPagos");
             const selectCantidad = selectPagos?.value !== "Otro" ? selectPagos.value : document.getElementById('inputSelectPago')?.value;
-
             await setUltimosPagos(selectCantidad);
         }
     } catch (error) {
         console.log(error.message);
+        closeButton.click();
+    }
+}
+
+async function renderViajesClienteSinIVA(){
+    document.getElementById('facturasSelector').classList.add("hidden");
+    try {
+        const response = await getViajesCliente(clienteData.cuit, null, null);
+        if (response.ok) {
+            viajesFacturadosContent.classList.remove('hidden');
+            backFacturasBtn.click();
+            backHistorialBtn.click();
+            paginacionContainer.classList.add('hidden');
+            const data = await response.json();
+            viajesFacturadosData = data.viajes.map(c => parseViaje(c, false, false));
+            console.log(viajesFacturadosData);
+            currentEditingTable = "viajesFacturados";
+            await renderTables(viajesFacturadosData, 1, optionsViajesMonotributista, actualizarTotales);
+        } else {
+            showConfirmModal("Ocurrio un error al cargar los viajes del cliente");
+            closeButton.click();
+        }
+        const selectPagos = document.getElementById("selectPagos");
+        const selectCantidad = selectPagos?.value !== "Otro" ? selectPagos.value : document.getElementById('inputSelectPago')?.value;
+        await setUltimosPagos(selectCantidad);
+    } catch (error) {
+        console.log(error.message);
+        closeButton.click();
+    }
+}
+
+async function handleTabContentDisplay(selectedTab) {
+    viajesFacturadosContent = document.getElementById('content-viajes-facturados');
+    facturasBtn = document.getElementById("facturas");
+    historialBtn = document.getElementById("historial");
+    closeButton = document.getElementById("closeBtnViaje");
+    paginacionContainer = document.getElementById("paginacion-viajes");
+    backFacturasBtn = document.getElementById("back-facturasBtn");
+    backHistorialBtn = document.getElementById("back-historialBtn");
+    searchInput = document.getElementById('searchInput');
+    searchInputFacturas = document.getElementById('searchInputFacturas');
+
+    if (searchInput) searchInput.value = '';
+    if (searchInputFacturas) searchInputFacturas.value = '';
+
+    toggleSpinnerVisible(mainContent);
+    try {
+        if (!esMonotributista)
+            await renderViajesClienteIVA(selectedTab);
+        else
+            await renderViajesClienteSinIVA();
+        
+    } catch (error) {
         closeButton.click();
     }
     toggleSpinnerVisible(mainContent);
@@ -832,7 +1146,7 @@ async function setHistorial() {
     }
 
     try {
-        const response = await getViajesCliente(clienteData.cuit, true, cantidad, true);
+        const response = await getViajesCliente(clienteData.cuit, clienteData.categoria !== "Monotributista"? true : null, cantidad, true);
         const data = await response.json();
         if (!response.ok) {
             showConfirmModal("Error al cargar el historial del cliente");
@@ -840,11 +1154,7 @@ async function setHistorial() {
             return;
         }
 
-        viajesHistorialData = data.viajes.map(c => {
-            const viaje = parseViaje(c);
-            viaje.iva = viaje.importe * 0.21;
-            return viaje;
-        });
+        viajesHistorialData = data.viajes.map(c => parseViaje(c, !esMonotributista, false));
 
         currentEditingTable = "historial";
         renderTables(viajesHistorialData, 1, optionsHistorial, actualizarTotales);
@@ -859,30 +1169,39 @@ export async function inicializarModaCliente(data) {
     clienteData = data;
 
     cargarNombreChofer(clienteData.nombre);
-
+    esMonotributista = clienteData.categoria === "Monotributista";
     pagosOpen = true;
     const closeButton = document.getElementById('closeBtnViaje');
+
     if (closeButton) {
         closeButton.onclick = () => {
 
             deleteModal("viajesClientesModal", "contentModalViajes", () => {
                 viajesFacturadosData = [];
                 viajesAFacturarData = [];
+                facturasFacturadosData = [];
                 clienteData = [];
                 viajesHistorialData = [];
                 currentViajesClientesPage = 1;
+                viajesFacturadosContent = null;
+                historialBtn = null;
+                paginacionContainer = null;
+                backHistorialBtn = null;
+                esMonotributista = false;
 
                 socket.off('nuevoViaje');
                 socket.off('nuevoCartaPorte');
                 socket.off('actualizarFacturaCliente');
                 socket.off('deleteViaje');
                 socket.off('deleteFactura');
+                socket.off('payFactura');
                 socket.off('deleteCliente', manejarDeleteCliente);
                 socket.off('deleteCartaPorte');
                 socket.off('deletePagoCliente');
                 socket.off('updateCliente', manejarUpdateCliente);
                 socket.off('updatePagados');
                 socket.off('nuevoPago');
+                
             });
 
         };
@@ -944,7 +1263,10 @@ export async function inicializarModaCliente(data) {
             }
             showConfirmModal("Se actualizaron los documentos del cliente");
             if (currentEditingTable === "viajes" && editingRowId) return;
-            renderTables(currentData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
+            if (vistaFacturas)
+                facturasBtn.click();
+            else
+                renderTables(currentData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
         }
     }
 
@@ -966,16 +1288,22 @@ export async function inicializarModaCliente(data) {
                 return !pagados.viajesPagados.includes(viaje.comprobante);
             });
             showConfirmModal("Se actualizaron los viajes del cliente");
-            renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
+            if (vistaFacturas)
+                facturasBtn.click();
+            else
+                renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
         }
     });
 
     socket.on('nuevoPago', async (pago) => {
         if (pago.cuit === clienteData.cuit) {
             console.log("nuevo pago: " + pago.cuit);
+            console.log(pago.pagosArray);
             pago.pagosArray.forEach(p => {
                 ultimosPagosCliente.push(parsePagos(p));
-                parseFloat((parseImporte(clienteData.balance) - parseFloat(parseImporte(p.importe))).toFixed(2));
+                console.log(clienteData.balance);
+                clienteData.balance = redondear(parseImporte(clienteData.balance) - redondear(p.importe));
+                console.log(clienteData.balance);
             });
             await renderTables(ultimosPagosCliente, 1, optionsPagos);
             showConfirmModal("Se actualizaron los pagos del cliente");
@@ -987,14 +1315,14 @@ export async function inicializarModaCliente(data) {
 
     socket.on('deletePagoCliente', async (pago) => {
         if (pago.cuit && pago.cuit === clienteData.cuit) {
-            const lenght = ultimosPagosCliente.lenght;
+            const length = ultimosPagosCliente.length;
             ultimosPagosCliente = ultimosPagosCliente.filter(p => {
                 const cond = p.id === pago.id && p.tipo === pago.tipo;
                 if (cond)
-                    clienteData.balance = parseFloat((parseImporte(clienteData.balance) + parseFloat(parseImporte(p.importe))).toFixed(2));
+                    clienteData.balance = redondear(parseImporte(clienteData.balance) + redondear(p.importe));
                 return !cond;
             });
-            if (lenght !== ultimosPagosCliente.length) {
+            if (length !== ultimosPagosCliente.length) {
                 await renderTables(ultimosPagosCliente, 1, optionsPagos);
                 showConfirmModal("Se actualizaron los pagos del cliente");
                 if (currentEditingTable !== "viajes")
@@ -1005,46 +1333,112 @@ export async function inicializarModaCliente(data) {
     });
 
     socket.on('deleteViaje', async (viaje) => {
-        if (viaje.cuit === clienteData.cuit && currentEditingTable === "viajes") {
-            const lenght = viajesAFacturarData.length;
+        if (viaje.cuit !== clienteData.cuit) return;
+
+        if (esMonotributista && currentEditingTable === "viajesFacturados") {
+            const length = viajesFacturadosData.length;
+            let viajeEliminado = null;
+            viajesFacturadosData = viajesFacturadosData.filter(v => {
+                const viajeAEliminar = v.id === viaje.comprobante;
+                if (viajeAEliminar) viajeEliminado = v;
+                return !viajeAEliminar;
+            });
+
+            if (length !== viajesFacturadosData.length) {
+                clienteData.balance = redondear(clienteData.balance - viajeEliminado.importe);
+                showConfirmModal("Se actualizaron los viajes del cliente");
+                renderTables(viajesFacturadosData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
+                renderCurrentTable();
+            }
+        } else if (!esMonotributista && currentEditingTable === "viajes") {
+            const length = viajesAFacturarData.length;
             viajesAFacturarData = viajesAFacturarData.filter(v => v.id !== viaje.comprobante);
-            if (lenght !== viajesAFacturarData.length) {
+            if (length !== viajesAFacturarData.length) {
                 showConfirmModal("Se actualizaron los viajes del cliente");
                 if (editingRowId && editingRowId === viaje.comprobante)
                     resetEditingState();
                 else
                     return;
-                renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
+                if (vistaFacturas){
+                    facturasFacturadosData = facturasFacturadosData.filter(v => v.comprobante !== viaje.comprobante);
+                    actualizarTotales(viajesFacturadosData);
+                    return renderTables(facturasFacturadosData, 1, optionsFacturas);
+                }
+                renderTables(viajesAFacturarData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
             }
         }
     });
 
     socket.on('nuevoViaje', async (viaje) => {
-        if (viaje.cliente_cuit === clienteData.cuit && currentEditingTable === "viajes") {
-            viaje.variacion = 0;
-            let viajeParseado = parseViaje(viaje);
-            viajesAFacturarData.push(viajeParseado);
-            showConfirmModal("Se actualizaron los viajes del cliente");
-            if (editingRowId) return;
-            renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
+        if (viaje.cuit !== clienteData.cuit) return;
+
+        viaje.variacion = 0;
+        if (esMonotributista) {
+            let viajeParseado = parseViaje(viaje, false, false);
+            viajesFacturadosData.push(viajeParseado);
+            clienteData.balance = redondear(clienteData.balance + viajeParseado.importe);
+            renderCurrentTable();
+        } else if (!esMonotributista && currentEditingTable === "viajes") {
+            viajesAFacturarData.push(parseViaje(viaje, true, false));
+            
         }
+        showConfirmModal("Se actualizaron los viajes del cliente");
+        if (editingRowId) return;
+        if (vistaFacturas)
+            facturasBtn.click();
+        else
+            renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
     });
 
     socket.on('updateViajeCliente', async (viaje) => {
-        if (viaje.updatedData.cuit === clienteData.cuit && currentEditingTable === "viajes") {
-            const index = viajesAFacturarData.findIndex(v => v.id === viaje.comprobanteOriginal);
+        if (viaje.updatedData.cuit !== clienteData.cuit) return;
+        const activeTable = esMonotributista ? "viajesFacturados" : "viajes";
+        if (currentEditingTable === activeTable) {
+            const data = esMonotributista ? viajesFacturadosData : viajesAFacturarData;
+            const index = data.findIndex(v => v.comprobante === viaje.comprobanteOriginal);
             if (index !== -1) {
-                // viajesAFacturarData[index] = parseViaje(viaje.updatedData);
                 console.log(`Se modifico el viaje con comprobante ${viaje.comprobanteOriginal}`);
-                if (editingRowId)
+                let amountBefore = redondear(data[index].importe)
+                data[index] = parseViaje(viaje.updatedData, !esMonotributista, false);
+                console.log(amountBefore);
+                console.log(data[index]);
+                if (esMonotributista && amountBefore !== data[index].importe){
+                    clienteData.balance = redondear(clienteData.balance + (data[index].importe - amountBefore));
+                    renderCurrentTable();
+                }
+
+                if (editingRowId) {
                     if (editingRowId === viaje.comprobanteOriginal)
                         resetEditingState();
                     else
                         return;
+                }
                 showConfirmModal("Se actualizaron los viajes del cliente");
-                renderTables(viajesAFacturarData, currentViajesClientesPage, optionsViajes, actualizarTotales);
+                if (vistaFacturas)
+                    facturasBtn.click();
+                else
+                    renderTables(data, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
             }
         }
+    });
+
+    socket.on('payFactura', async (facturas) => {
+        if (facturas.cuit !== clienteData.cuit || currentEditingTable == "viajes") return;
+
+        const currentData = getCurrentData();
+        currentData.forEach(viaje => {
+            if (facturas.facturasPagadas.some(factura => factura.factura_id === viaje.factura_id))
+                viaje.estado = "Pagada";
+        });
+
+        if (vistaFacturas){
+            facturasFacturadosData.forEach(viaje => {
+                if (facturas.facturasPagadas.some(factura => factura.factura_id ===viaje.factura_id))
+                    viaje.estado = "Pagada";
+            });
+            return renderTables(facturasFacturadosData, 1, optionsFacturas);
+        }
+        renderTables(currentData, 1, getCurrentOptions());
     });
 
 
@@ -1052,7 +1446,6 @@ export async function inicializarModaCliente(data) {
     const pagosHeader = document.getElementById('headerPagos');
     const tablaPagos = document.getElementById('pagos-table');
     const clienteAddPago = document.getElementById('cliente-pagos-wrapper');
-    const searchInput = document.getElementById('searchInput');
     const togglePagosArea = document.getElementById('togglePagosArea');
 
     // Toggle pagos area
@@ -1081,11 +1474,21 @@ export async function inicializarModaCliente(data) {
             },
             (filteredData) => renderTables(filteredData, 1, getCurrentOptions(), actualizarTotales)
         );
+        setupSearchBar("clientesFacturasSearchBar",
+            (searchTerm) => {
+                return facturasFacturadosData.filter(factura =>
+                    formatFecha(factura.fecha)?.includes(searchTerm) ||
+                    factura.comprobante?.toLowerCase().includes(searchTerm) ||
+                    formatFecha(factura.fecha_vto_pago)?.includes(searchTerm) ||
+                    factura.nro_factura?.includes(searchTerm) || 
+                    factura.importe_total?.toString().includes(searchTerm)
+                );
+            },
+            (filteredData) => renderTables(filteredData, 1, optionsFacturas)
+        )
         setupAddPagoBtn();
         setupPaymentTypeSelector(fields);
 
-        const historialBtn = document.getElementById("historial");
-        const backHistorialBtn = document.getElementById("back-historialBtn");
         const headerModal = document.getElementById("headerModal");
         const selectCantidad = document.getElementById("selectResumenes");
         const summaryBoxes = document.getElementById('summaryBoxes');
@@ -1093,56 +1496,47 @@ export async function inicializarModaCliente(data) {
         const inputCantViajes = document.getElementById('inputSelectViaje');
 
         socket.on('actualizarFacturaCliente', async (factura) => {
-            if (factura.cuit === clienteData.cuit) {
-                closeModalFactura();
-                changeSpinnerText(mainContent, "Actualizando datos del cliente...");
-                toggleSpinnerVisible(mainContent);
-                clienteData.balance = parseImporte(factura.balance);
-                renderCurrentTable();
-                try {
+            if (factura.cuit !== clienteData.cuit) return;
+            closeModalFactura();
+            changeSpinnerText(mainContent, "Actualizando datos del cliente...");
+            toggleSpinnerVisible(mainContent);
+            clienteData.balance = parseImporte(factura.balance);
+            renderCurrentTable();
+            if (vistaFacturas) backFacturasBtn.click();
+            const errorMsg = "Ocurrio un error al actualizar los datos del cliente";
+            const onError = () => closeButton.click();
+
+            try {
+                if (!esMonotributista) {
+                    // Recargar viajes a facturar (solo para no-Monotributista)
                     const response = await getViajesCliente(clienteData.cuit, false, null);
-                    if (response.ok) {
-                        const data = await response.json();
-                        viajesAFacturarData = data.viajes.map(c => {
-                            const viaje = parseViaje(c);
-                            viaje.iva = viaje.importe * 0.21;
-                            return viaje;
-                        });
-                    } else {
-                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => { closeButton.click() });
-                    }
-                    const responseFacturados = await getViajesCliente(clienteData.cuit, true, null);
-                    if (responseFacturados.ok) {
-                        const data = await responseFacturados.json();
-                        viajesFacturadosData = data.viajes.map(c => {
-                            const viaje = parseViaje(c);
-                            viaje.iva = viaje.importe * 0.21;
-                            return viaje;
-                        });
-                    } else {
-                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => { closeButton.click() });
-                    }
-                    inputCantViajes.value = '';
-                    selectCantidad.value = "10";
-                    const responseHistorial = await getViajesCliente(clienteData.cuit, true, selectCantidad.value, true);
-                    if (responseHistorial.ok) {
-                        const data = await responseHistorial.json();
-                        viajesHistorialData = data.viajes.map(c => {
-                            const viaje = parseViaje(c);
-                            viaje.iva = viaje.importe * 0.21;
-                            return viaje;
-                        });
-                    } else {
-                        return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => { closeButton.click() });
-                    }
-                } catch (error) {
-                    console.error(error.message, error.stack);
-                    return showConfirmModal("Ocurrio un error al actualizar los datos del cliente", "aviso", () => { closeButton.click() });
+                    if (!response.ok) return showConfirmModal(errorMsg, "aviso", onError);
+                    const data = await response.json();
+                    viajesAFacturarData = data.viajes.map(c => parseViaje(c, true, false));
                 }
-                await renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
-                toggleSpinnerVisible(mainContent);
-                changeSpinnerText(mainContent);
+
+                // Recargar viajes facturados
+                const responseFacturados = await getViajesCliente(clienteData.cuit, esMonotributista ? null : true, null);
+                if (!responseFacturados.ok) return showConfirmModal(errorMsg, "aviso", onError);
+                const dataFacturados = await responseFacturados.json();
+                viajesFacturadosData = dataFacturados.viajes.map(c => parseViaje(c, !esMonotributista, false));
+
+                // Recargar historial
+                inputCantViajes.value = '';
+                selectCantidad.value = "10";
+                const responseHistorial = await getViajesCliente(clienteData.cuit, esMonotributista ? null : true, selectCantidad.value, true);
+                if (!responseHistorial.ok) return showConfirmModal(errorMsg, "aviso", onError);
+                const dataHistorial = await responseHistorial.json();
+                viajesHistorialData = dataHistorial.viajes.map(c => parseViaje(c, !esMonotributista, false));
+
+            } catch (error) {
+                console.error(error.message, error.stack);
+                return showConfirmModal(errorMsg, "aviso", onError);
             }
+
+            await renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
+            toggleSpinnerVisible(mainContent);
+            changeSpinnerText(mainContent);
         });
 
         const cardPagos = document.getElementById("addPagoCard");
@@ -1179,9 +1573,69 @@ export async function inicializarModaCliente(data) {
             historialBtn.click();
         })
 
+        facturasBtn?.addEventListener("click", async () =>{
+            vistaFacturas = true;
+ 
+            const currentData = getCurrentData();
+            const facturasToGet = Array.from(
+                new Set(
+                    currentData
+                        .filter(row => row.factura_id)
+                        .map(row => row.factura_id)
+                )
+            );
+            try {
+                const response = await getFacturasData(facturasToGet);
+                const data = await response.json();
+                console.log(data);
+                if (response.ok){
+                    facturasFacturadosData = currentData.map( viaje => {
+                        const infoFactura = viaje.factura_id ? data.facturasData[viaje.factura_id] : null;
+                        return {
+                            id: viaje.comprobante,
+                            fecha: viaje.fecha,
+                            comprobante: viaje.comprobante,
+                            factura_id: viaje.factura_id || null,
+                            carta_porte: viaje.carta_porte,
+                            estado: viaje.estado,
+                            selected: viaje.selected,
+                            importe: viaje.importe,
+                            // Si hay infoFactura, extraemos los datos; si no, enviamos null
+                            fecha_vto_pago: infoFactura && infoFactura.fecha_vto_pago? formatFecha(infoFactura.fecha_vto_pago) : null,
+                            nro_factura: infoFactura ? infoFactura.nro_factura : null,
+                            importe_total: infoFactura && infoFactura.importe_total ? parseFloat(infoFactura.importe_total) : 0
+                        };
+                    });
+                    renderTables(facturasFacturadosData, 1, optionsFacturas);
+                    actualizarTotales(viajesFacturadosData);
+                    backFacturasBtn.classList.remove("hidden");
+                    facturasBtn.classList.add("hidden");
+                    document.getElementById("clientesViajesSearchBar")?.classList.add("hidden");
+                    document.getElementById("clientesFacturasSearchBar")?.classList.remove("hidden");
+                } else {
+                    showConfirmModal(data.message);
+                    backFacturasBtn.click();
+                }
+            } catch (error){
+                showConfirmModal("Ocurrio un error al obtener los datos de las facturas");
+                console.log(error);
+                backFacturasBtn.click();
+            }
+        });
+
+        backFacturasBtn?.addEventListener("click", () =>{
+            backFacturasBtn.classList.add("hidden");
+            facturasBtn.classList.remove("hidden");
+            vistaFacturas = false;
+            document.getElementById("clientesViajesSearchBar")?.classList.remove("hidden");
+            document.getElementById("clientesFacturasSearchBar")?.classList.add("hidden");
+            renderTables(getCurrentData(), 1, getCurrentOptions());
+        })
+
         historialBtn?.addEventListener("click", async () => {
             changeSpinnerText(mainContent, "Cargando historial...");
             toggleSpinnerVisible(mainContent);
+            backFacturasBtn.click();
             summaryBoxes.classList.add("hidden");
             if (pagosOpen && currentEditingTable !== "historial") togglePagosArea.click();
             await setHistorial();
@@ -1200,7 +1654,7 @@ export async function inicializarModaCliente(data) {
             headerModal.textContent = "Viajes";
             historialBtn.classList.remove("hidden");
             currentEditingTable = "viajesFacturados";
-            renderTables(viajesFacturadosData, 1, optionsViajesFacturados, actualizarTotales);
+            renderTables(viajesFacturadosData, 1, esMonotributista? optionsViajesMonotributista : optionsViajesFacturados, actualizarTotales);
             summaryBoxes.classList.remove("hidden");
         });
 

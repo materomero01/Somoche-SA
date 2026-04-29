@@ -9,6 +9,15 @@
     transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
+.btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+    background: #6c757d;
+}
+
 /* Tamaños */
 .btn-sm {
     padding: 5px 10px;
@@ -97,6 +106,17 @@
 
 .btn-gray:hover {
     background-color: #595f6b;
+}
+
+.btn-lightgray {
+    background-color: #F3F4F6; /* Gris claro perceptible */
+    color: #1F2937;           /* Texto casi negro para contraste */
+    border: 1px solid #D1D5DB; /* Borde más definido */
+}
+
+.btn-lightgray:hover {
+    background-color: #eaecf0; /* Oscurece lo suficiente al interactuar */
+    border-color: #9CA3AF;
 }
 
 .btn-circle {

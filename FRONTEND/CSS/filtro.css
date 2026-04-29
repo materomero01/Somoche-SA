@@ -3,30 +3,42 @@
 /* ============================= */
 .filter-card {
     position: absolute;
-    top: calc(100% + 12px);
+    /* Eliminamos el display: grid de aquí para que los elementos fluyan verticalmente */
+    display: flex;
+    flex-direction: column;
     background-color: #fff;
     border: 1px solid #ddd;
     border-radius: 12px;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    padding: 20px;
+    padding: 25px; /* Un poco más de aire */
     z-index: 1000;
+    width: 500px; /* Ancho fijo o max-width según prefieras */
     max-width: 90vw;
     max-height: 80vh;
     overflow-y: auto;
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    pointer-events: none;
-    
+}
+
+/* NUEVA CLASE: El grid solo para los inputs */
+.filter-grid-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 15px;
+    margin-bottom: 20px;
+    text-align: left;
 }
 
 .filter-card:not(.hidden) {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
+}
+
+.filter-card.center {
+    position: fixed; /* Cambiado de absolute a fixed */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
 }
 
 /* Flecha superior del filtro */
@@ -98,6 +110,15 @@
     transition: all 0.2s ease;
     grid-column: 1 / -1; /* Hace que el botón abarque ambas columnas */
     justify-self: end; /* Alinea el botón al final (derecha) de la cuadrícula */
+}
+
+/* Mantener tu lógica de centrado */
+.filter-card.center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 1; /* Para pruebas, luego cámbialo según tu JS */
+    pointer-events: auto;
 }
 
 /* ============================= */

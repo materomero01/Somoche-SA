@@ -2,6 +2,8 @@ const pool = require('../db');
 const userSchema = require('../models/User');
 const { getIO } = require('../socket');
 
+const { extraerMetadatos } = require('../facturas/facturaQRExtractor');
+
 exports.getChoferesAll = async (req, res) => {
     if (req.user.role === 'chofer') {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
@@ -11,7 +13,9 @@ exports.getChoferesAll = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(
-            'SELECT nombre_apellido AS nombre, cuil FROM usuario WHERE role IS DISTINCT FROM $1 AND valid = true ORDER BY nombre_apellido ASC',
+            `SELECT u.nombre_apellido AS nombre, u.cuil, c.tipo_trabajador FROM usuario u
+            INNER JOIN (SELECT cuil, tipo_trabajador FROM chofer WHERE valid = true) c ON u.cuil = c.cuil
+            WHERE role IS DISTINCT FROM $1 AND valid = true ORDER BY nombre_apellido ASC`,
             ['admin']
         );
         res.status(208).json({ choferes: result.rows });
@@ -31,13 +35,26 @@ exports.getChoferesAllData = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(`SELECT * FROM choferV`);
-        // const response = await pool.query(``);
-
+        // const response = await pool.query(`SELECT * FROM factura_arca WHERE id = 193;`);
+        // const valorespdf = await extraerMetadatos(response.rows[0].factura_pdf);
+        // console.log(valorespdf);
+    
         // console.log(response.rows);
 
-        // await pool.query (``);
+
+        // const resultFactura = await pool.query(`SELECT * FROM factura_arca WHERE valid = true`);
+        // resultFactura.rows.forEach( async factura => {
+        //         const valoresPdf = await extraerMetadatos(factura.factura_pdf);
+        //         if (valoresPdf){
+        //             await pool.query(`UPDATE factura_arca SET fecha_vto_pago = $1, nro_factura = $2, importe_total = $3, cae = $4 WHERE id = $5 AND valid = true;`,
+        //                             [valoresPdf.fechaVtoPago, valoresPdf.nroFactura, valoresPdf.importeTotal, valoresPdf.cae, factura.id]);
+        //         }
+        // });
+
+        // console.log(valoresPdf);
+        
         // const response = await pool.query(``);
-        // console.log(response.rowCount);
+        // console.log(response.rows);
         res.status(208).json({ choferes: result.rows });
 
     } catch (error) {

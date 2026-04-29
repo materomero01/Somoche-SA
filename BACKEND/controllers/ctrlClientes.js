@@ -3,6 +3,7 @@ const { getIO } = require('../socket');
 
 const regexCuit = /^\d{2}-\d{7,9}-\d{1}$/;
 const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const checkCategoria = ['Responsable Inscripto', 'Monotributista'];
 
 function validatecuit(cuit) {
     return cuit && cuit !== '' && regexCuit.test(cuit);
@@ -21,7 +22,7 @@ exports.getClientes = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(
-            'SELECT cuit AS id, razon_social AS nombre, cuit, email, balance FROM cliente WHERE valid = true ORDER BY 1 ASC'
+            'SELECT cuit AS id, razon_social AS nombre, categoria, cuit, email, balance FROM cliente WHERE valid = true ORDER BY 1 ASC'
         );
 
         res.status(208).json({ clientes: result.rows });
@@ -41,6 +42,8 @@ exports.insertCliente = async (req, res) => {
         return res.status(404).json({ message: 'El CUIT no cumple con el formato requerido XX-XXXXXXXX-X' });
     if (!data.nombre || data.nombre === '')
         return res.status(405).json({ message: 'El cliente debe llevar el Nombre / Razon Social' });
+    if (!data.categoria || !checkCategoria.includes(data.categoria))
+        return res.status(405).json({ message: 'Elija una de las opciones validas para la categoria del Cliente'});
     if (data.email && data.email !== '' && !validateEmail(data.email))
         return res.status(405).json({ message: 'El email ingresado no es una dirección de email valida' });
 
@@ -62,7 +65,7 @@ exports.insertCliente = async (req, res) => {
         let balance = 0;
         if (clientExists.rows.length > 0) {
             if (!clientExists.rows[0].valid) {
-                const responseRecuperar = await client.query('UPDATE cliente SET valid = true, razon_social = $2, email = $3 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.email]);
+                const responseRecuperar = await client.query('UPDATE cliente SET valid = true, razon_social = $2, categoria = $3 email = $4 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.categoria, data.email]);
                 if (responseRecuperar.rowCount > 0) {
                     clienteRecuperado = true;
                     balance = responseRecuperar.rows[0].balance;
@@ -77,8 +80,8 @@ exports.insertCliente = async (req, res) => {
 
         if (!clienteRecuperado)
             await client.query(
-                'INSERT INTO cliente(cuit, razon_social, email) VALUES($1, $2, $3)',
-                [data.cuit, data.nombre, data.email]
+                'INSERT INTO cliente(cuit, razon_social, categoria, email) VALUES($1, $2, $3, $4)',
+                [data.cuit, data.nombre, data.categoria, data.email]
             );
 
         await client.query('COMMIT');
@@ -114,6 +117,9 @@ exports.updateClientes = async (req, res) => {
         return res.status(404).json({ message: 'El CUIT no cumple con el formato requerido XX-XXXXXXXX-X' });
     if (!data.nombre || data.nombre === '')
         return res.status(405).json({ message: 'El cliente debe llevar el Nombre / Razon Social' });
+    if (!data.categoria || !checkCategoria.includes(data.categoria))
+        return res.status(405).json({ message: 'Elija una de las opciones validas para la categoria del Cliente'});
+
     try {
         // Consulta a la base de datos (PostgreSQL ejemplo)
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
@@ -131,9 +137,9 @@ exports.updateClientes = async (req, res) => {
 
         await pool.query(
             `UPDATE cliente 
-            SET cuit = $1, razon_social = $2, email = $3
-            WHERE cuit = $4`,
-            [data.cuit, data.nombre, data.email, cuitOriginal]
+            SET cuit = $1, razon_social = $2, categoria = $3, email = $4
+            WHERE cuit = $5`,
+            [data.cuit, data.nombre, data.categoria, data.email, cuitOriginal]
         );
 
         try {

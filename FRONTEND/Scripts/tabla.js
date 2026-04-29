@@ -19,6 +19,7 @@ function parseImporte(importe) {
 export function enterEditMode(rowData, tableType, funcRender, saveEdit) {
     funcRenderTables = funcRender;
     saveEditFunc = saveEdit;
+
     if (editingRowId !== null && editingRowId !== rowData.id) {
         if (hasChanges(originalEditingData, stagedEditingData)) {
             showConfirmModal(
@@ -137,6 +138,7 @@ export function setupTableEventListeners() {
 
     document.addEventListener('cancelEdit', (event) => {
         const { itemId } = event.detail;
+
         if (itemId === editingRowId) {
             handleCancelEdit();
         }
@@ -161,7 +163,8 @@ export function renderTables(data, currentPage = 1, options, actualizarTotales =
         checkboxHeaderAction: options.checkboxHeaderAction,
         onCheckboxChange: options.onCheckboxChange,
         uploadFactura: options.uploadFactura,
-        useScrollable: options.useScrollable
+        useScrollable: options.useScrollable,
+        modifyCell: options.modifyCell
     });
     actualizarTotales(data);
 }
@@ -183,7 +186,8 @@ export function renderTabla({
     checkboxHeaderAction = null,
     onCheckboxChange = null,
     uploadFactura = null,
-    useScrollable = false
+    useScrollable = false,
+    modifyCell = null
 }) {
     const container = document.getElementById(containerId);
     const paginacionContainer = useScrollable ? null : document.getElementById(paginacionContainerId);
@@ -302,7 +306,6 @@ export function renderTabla({
             const tr = document.createElement("tr");
             tr.setAttribute('data-id', item.id);
             tr.id = `row-${item.id}`; // Unique ID for each row
-
             const isEditing = editingRowId === item.id;
             if (isEditing) {
                 tr.classList.add('editing-row');
@@ -326,15 +329,22 @@ export function renderTabla({
                 tr.appendChild(td);
             }
 
-            columnas.forEach(col => {
+            columnas.forEach( async (col) => {
                 const td = document.createElement("td");
 
-                if (isEditing) {
+                if (isEditing && !col.noEdit) {
                     const input = createEditableInput(col, item[col.key], item.id);
                     td.appendChild(input);
+                    if (col.autocompleteFunc && col.id) {
+                        input.id = col.id;
+                        input.type = "search";
+                        td.classList.add('autocomplete-container-table');
+                    }
                 } else {
                     let content = item[col.key] !== undefined ? item[col.key] : '';
                     if (col.modify) content = col.modify(content, editingRowId);
+
+                    if (modifyCell) modifyCell(item, td);
 
                     td.textContent = content;
                     td.title = content;
@@ -459,14 +469,20 @@ export function renderTabla({
 
         input.setAttribute('data-field', column.key);
         input.setAttribute('data-item-id', itemId);
+        let lastValueProcessed;
 
         input.addEventListener('input', (e) => {
+            if (e.target.value === lastValueProcessed) return;
+            lastValueProcessed = e.target.value;
+            console.log(lastValueProcessed);
             if (onEdit) {
                 onEdit(itemId, column.key, e.target.value);
             }
         });
 
         input.addEventListener('change', (e) => {
+            if (e.target.value === lastValueProcessed) return;
+            lastValueProcessed = e.target.value;
             if (onEdit) {
                 onEdit(itemId, column.key, e.target.value);
             }
@@ -612,7 +628,7 @@ export function renderTabla({
             paginaEditando = paginaEditando + 1;
             viajeEditando = viajeEditando - itemsPorPagina;
         }
-        if (paginaEditando !== currentPage) {
+        if (onPageChange && paginaEditando !== currentPage) {
             currentPage = paginaEditando;
             onPageChange(currentPage);
         }

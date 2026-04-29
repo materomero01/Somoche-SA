@@ -23,7 +23,7 @@ const principalContent = document.getElementById('principalContent');
 const choferesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido', class: [] },
     { key: 'cuil', label: 'CUIL/CUIT', class: [] },
-    { key: 'trabajador', label: 'Trabajador', class: [], type: 'select', options: [{ value: 'Monotributista', text: 'Monotributista' }, { value: 'Responsable Inscripto', text: 'Responsable Inscripto' }, { value: 'Chofer', text: 'Chofer' }] },
+    { key: 'trabajador', label: 'Categoría', class: [], type: 'select', options: [{ value: 'Monotributista', text: 'Monotributista' }, { value: 'Responsable Inscripto', text: 'Responsable Inscripto' }, { value: 'Chofer', text: 'Chofer' }] },
     { key: 'patente_chasis', label: 'Chasis', class: [] },
     { key: 'patente_acoplado', label: 'Acoplado', class: [] },
     { key: 'telefono', label: 'Teléfono', class: [] },
@@ -33,6 +33,7 @@ const choferesColumns = [
 const clientesColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
+    { key: 'categoria', label: 'Categoría', class: [], type: 'select', options: [{ value: 'Responsable Inscripto', text: 'Responsable Inscripto' }, { value: 'Monotributista', text: 'Monotributista' }]},
     { key: 'email', label: 'Email', class: [] },
     { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$'); } }
 ];
@@ -40,6 +41,7 @@ const clientesColumns = [
 const proveedoresColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
+    { key: 'tipo_orden', label: 'Tipo de Proveedor', class: [], type: 'select', options: [{ value: 'gasoil', text: 'Gasoil' }, { value: 'otro', text: 'Otro' }] },
     { key: 'telefono', label: 'Teléfono', class: [] },
     { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$'); } }
 ];
@@ -178,7 +180,7 @@ const proveedoresActions = [
 const optionsProveedores = {
     containerId: 'tabla-proveedores',
     paginacionContainerId: 'paginacion-proveedores',
-    columnas: [proveedoresColumns, proveedoresColumns.filter(col => !['balance'].includes(col.key))],
+    columnas: [proveedoresColumns.filter(col => !['tipo_orden'].includes(col.key)), proveedoresColumns.filter(col => !['balance'].includes(col.key))],
     itemsPorPagina: () => 10,
     actions: proveedoresActions,
     onEdit: (id, field, value) => handleEdit(id, field, value, 'proveedores'),
@@ -577,7 +579,7 @@ function setupAddButtons() {
                 proveedorData[key] = value.trim();
             }
             var valid = true;
-            ['nombre', 'cuit'].forEach(key => {
+            ['nombre', 'cuit', 'tipo_orden'].forEach(key => {
                 if (!proveedorData[key] || proveedorData[key] === '')
                     valid = false;
             });
@@ -585,6 +587,7 @@ function setupAddButtons() {
             const payload = {
                 cuit: proveedorData.cuit,
                 nombre: proveedorData.nombre,
+                tipo_orden: proveedorData.tipo_orden,
                 telefono: proveedorData.telefono || null
             };
             const response = await insertProveedor(payload);
@@ -953,7 +956,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
 
-        if (hasChanges(originalEditingData, stagedEditingData)) {
+        if (stagedEditingData &&  originalEditingData && hasChanges(originalEditingData, stagedEditingData)) {
             showConfirmModal(
                 "Hay cambios sin guardar. ¿Deseas guardar los cambios?",
                 "confirm",

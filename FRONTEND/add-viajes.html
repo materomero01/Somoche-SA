@@ -145,7 +145,7 @@
                     </div>
                     <div class="form-group">
                         <label for="nroCheque">Nro. de Cheque</label>
-                        <input type="number" id="nroCheque" placeholder="Número de Cheque">
+                        <input type="text" id="nroCheque" placeholder="Número de Cheque">
                     </div>
                     <div class="form-group">
                         <label for="terceroCheque">Banco</label>
@@ -175,7 +175,7 @@
                 <div class="form-group autocomplete-container">
                         <label for="proveedorGasoil">Proveedor</label>
                         <input type="search" id="proveedorGasoil" placeholder="Proveedor">
-                    </div>
+                </div>
                 <div class="form-group">
                     <label for="comprobanteGasoil">Comprobante</label>
                     <input type="text" id="comprobanteGasoil" placeholder="Comprobante">
@@ -197,6 +197,14 @@
 
         <div id="otroFields" class="payment-type-fields hidden">
             <div class="form-grid">
+                <div class="form-group autocomplete-container">
+                        <label for="proveedorOtro">Proveedor?</label>
+                        <input type="search" id="proveedorOtro" placeholder="Proveedor">
+                </div>
+                <div class="form-group">
+                    <label for="tipoOtro">Tipo</label>
+                    <input type="text" id="tipoOtro" placeholder="Tipo" value="Otro">
+                </div>
                 <div class="form-group">
                     <label for="comprobanteOtro">Comprobante</label>
                     <input type="text" id="comprobanteOtro" placeholder="Comprobante">
@@ -214,6 +222,17 @@
 
         <div class="form-actions">
             <button class="btn btn-success btn-lg" id="addPagoBtn">Registrar Pago</button>
+            <div id="pagosSearchBar" class="search-bar hidden" style="margin-bottom: 15px; border-radius: 5px; height: 45px;">
+                <input type="text" class="search-input" placeholder="Buscar pago por comprobante..." />
+                <div class="search-icon">
+                    <i class="bi bi-search"></i>
+                </div>
+            </div>
+        </div>
+        <div id="editarPago" class="form-actions hidden">
+            <button class="btn btn-success btn-lg hidden" id="acceptPagoBtn">Aceptar</button>
+            <button class="btn btn-yellow btn-lg" id="editPagoBtn">Editar</button>
+            <button class="btn btn-danger btn-lg" id="cancelPagoBtn">Cancelar</button>
         </div>
     </div>
 
