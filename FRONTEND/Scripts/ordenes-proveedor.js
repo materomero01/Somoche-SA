@@ -117,7 +117,7 @@ const checkboxHeaderAction = {
 
         uploadFactura.onclick = () => {
             modal.remove();
-            initializeFacturaUpload(changeDataFactura, null, null, proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro", selectedRows);
+            initializeFacturaUpload(changeDataFactura, null, null, proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro", selectedRows, false, true);
         }
 
         cancelBtn.onclick = () => {
@@ -138,7 +138,7 @@ const checkboxHeaderActionUpload = {
             return;
         }
 
-        initializeFacturaUpload(changeDataFactura, null, null, proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro", selectedRows.map( r =>  r.comprobante));
+        initializeFacturaUpload(changeDataFactura, null, null, proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro", selectedRows.map( r =>  r.comprobante), false, true);
     }
 }
 
@@ -154,7 +154,7 @@ const ordenesActions = [
             initializeFacturaUpload( changeDataFactura,
                 null,
                 (facturaId) => deleteFactura(facturaId, changeDataDocuments,  proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro"),
-                proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro");
+                proveedorData.tipo_orden === 'gasoil'? "ordenProveedorGasoil" : "ordenProveedorOtro", [], false, true);
         }
     },
     {

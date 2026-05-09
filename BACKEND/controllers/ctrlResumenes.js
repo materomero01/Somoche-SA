@@ -3,7 +3,6 @@ const { getIO } = require('../socket');
 
 const isValidDate = (value) => {
     if (typeof value !== 'string') return false;
-    console.log(value);
     const date = Date.parse(value);
     return !isNaN(date); // Verifica si la fecha es parseable
 };
@@ -63,12 +62,10 @@ exports.insertResumen = async (req, res) => {
             // Ejecutar la actualización
             const result = await client.query(query, values);
             if (result.rowCount === 0) {
-                console.log(values);
                 const resultOtro = await client.query('UPDATE pagos_otro SET group_r = $1 WHERE valid = true AND id = $2 AND group_r IS NULL', values);
                 if (resultOtro.rowCount === 0) {
                     await client.query('ROLLBACK');
                     client.release();
-                    console.log(values);
                     return res.status(405).json({ message: 'No se pudo cerrar el resumen del chofer' });
                 }
             }
@@ -234,7 +231,6 @@ exports.getResumenCuil = async (req, res) => {
                 destino: row.destino
             });
         }
-        console.log(saldosPorGroup);
  
         const response = {
             viajes: viajesResult.rows.map(row => ({

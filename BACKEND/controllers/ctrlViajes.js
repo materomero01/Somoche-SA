@@ -239,7 +239,6 @@ exports.updateViajes = async (req, res) => {
             // Validar datos de entrada con viajeSchema (validación parcial)
             const { errors: validationErrors, validatedData } = viajeSchema(data, true); // true indica validación parcial
 
-            console.log(validatedData);
             if (validationErrors.length > 0) {
                 errors.push({ comprobante, message: 'Errores de validación', errors: validationErrors });
                 continue;
@@ -371,7 +370,6 @@ exports.deleteViaje = async (req, res) => {
             client.release();
             return res.status(400).json({ message: 'Se debe proporcionar un comprobante válido como string.' });
         }
-        console.log(comprobante);
         // Verificar si el viaje existe y está válido
         const viajeExists = await client.query(
             'SELECT * FROM viaje WHERE comprobante = $1 AND valid = true',
@@ -482,7 +480,6 @@ exports.pagarViajeCliente = async (req, res) => {
             );
 
 
-            console.log(result.rowCount);
             if (result.rowCount === 0) {
                 updatedRows.push({
                     viaje_comprobante,

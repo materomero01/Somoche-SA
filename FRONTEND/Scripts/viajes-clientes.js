@@ -1,6 +1,6 @@
 import { cargarNombreChofer, deleteModal, cartaPorteFunc, deleteFactura, setupPaymentTypeSelector, validateInputs } from "./viajes-pagos.js";
 import { mockChoferes, mockProveedores, renderCurrentTable, setupSearchBar } from "./choferes-clientes.js";
-import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete, redondear, pagarFacturaCliente, getFacturasData } from "./api.js";
+import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete, redondear, pagarFacturaCliente, getFacturasData, createActionModal } from "./api.js";
 import { changeSpinnerText, createLoadingSpinner, showConfirmModal, toggleSpinnerVisible } from "./apiPublic.js";
 import { renderTables, originalEditingData, resetEditingState, stagedEditingData, editingRowId, enterEditMode, handleEdit } from "./tabla.js";
 import { columnasPagos, columnasViajes, formatFecha, parsePagos, parseViaje, parseImporte } from "./resumenes.js";
@@ -12,7 +12,7 @@ let clienteData = [];
 let viajesFacturadosData = [];
 let viajesAFacturarData = [];
 
-let facturasFacturadosData = [];
+let dataCuentaCorriente = [];
 
 let viajesHistorialData = [];
 
@@ -41,12 +41,14 @@ let searchInputFacturas;
 let esMonotributista = false;
 
 // Configuración de columnas para la tabla de facturas
-export const columnasFacturas = [
-    { label: "Fecha", key: "fecha", class: [] },
-    { label: "Comprobante Viaje", key: "comprobante", class: [] },
-    { label: "Fecha Vto Pago", key: "fecha_vto_pago", class: []},
-    { label: "Nro Factura", key: "nro_factura", class: [] },
-    { label: "Importe Total Factura", key: "importe_total", class: ['text-right', 'bold'], modify: (content) => { return `$${content.toFixed(2)}` } },
+export const columnasCuentaCorriente = [
+    { label: "Fecha", key: "fecha_pago", class: [] },
+    { label: "Tipo", key: "tipo", class: [] },
+    { label: "Comprobante", key: "comprobante", class: [] },
+    { label: "Concepto", key: "descripcion", class: [] },
+    { label: "Fecha Vto", key: "fecha_vto", class: []},
+    { label: "Importe", key: "importe", class: ['text-right', 'bold'], modify: (content) => { return `$${content.toFixed(2)}`.replace('$-','-$') } },
+    { label: "Saldo", key: "saldo", class: ['text-right', 'bold'],  modify: (content) => { return `$${content.toFixed(2)}`.replace('$-','-$') }},
 ];
 
 // Acciones para la tabla de viajes
@@ -102,6 +104,37 @@ const accionesViajes = [
     }
 ];
 
+const accionesFacturas = [{
+        icon: "bi bi-download",
+        tooltip: "Descargar archivos",
+        classList: ['navigate-btn'],
+        required: ["factura_id"],
+        id: null,
+        handler: (item) => {
+            viaje.push(item);
+            initializeFacturaUpload(changeDataFactura,
+                null,
+                (facturaId) => deleteFactura(item.comprobante, changeDataDocuments, 'facturaCompleta'),
+                "viajeCliente", [], false, true);
+        }
+    }]
+
+
+const modifyCellEstado = (item, td) => {
+    if (item.estado === "Pendiente") td.classList.add("yellow");
+    else if (item.estado === "Pagada") td.classList.add("green");
+};
+
+function refreshOrReloadFacturas(data = getCurrentData(), page = currentViajesClientesPage) {
+    if (vistaFacturas) facturasBtn.click();
+    else renderTables(data, page, getCurrentOptions(), actualizarTotales);
+}
+
+function closeModalGenerate() {
+    const modalGenerate = document.getElementById("documentGenerateModal");
+    if (modalGenerate) modalGenerate.remove();
+}
+
 const checkboxHeaderAction = {
     icon: 'bi bi-check-all',
     tooltip: 'Marcar todos los seleccionados como pagados',
@@ -113,22 +146,11 @@ const checkboxHeaderAction = {
             return;
         }
 
-        const modal = document.createElement('div');
-        modal.id = 'documentGenerateModal';
-        modal.className = 'modal';
-        modal.classList.add('active');
-        modal.innerHTML = `
-        <div class="modal-content" style="max-width: 400px;">
-            <h2 style="margin-top: 0"> ¿Que acción desea realizar? </h2>
-            <div class="modal-actions-vertical">
-                <button id="payViajesBtn" class="btn btn-primary">Marcar Viajes como Pagados</button>
-                <button id="payFacturasBtn" class="btn btn-success">Marcar Facturas como Pagadas</button>
-                <button id="uploadDocumentsBtn" class="btn btn-yellow hidden">Subir Factura Manualmente</button>   
-            </div>
-            <button id="modalCancelBtn" class="btn btn-danger" style="margin-top: 12px;">Cancelar</button>
-        </div>
-        `;
-        document.body.appendChild(modal);
+        const modal = createActionModal('documentGenerateModal', '¿Que acción desea realizar?', [
+            { id: 'payViajesBtn',      class: 'btn-primary', label: 'Marcar Viajes como Pagados' },
+            { id: 'payFacturasBtn',    class: 'btn-success', label: 'Marcar Facturas como Pagadas' },
+            { id: 'uploadDocumentsBtn',class: 'btn-yellow',  label: 'Subir Factura Manualmente', hidden: true },
+        ]);
 
         const payViaje = document.getElementById("payViajesBtn")
         const payFactura = document.getElementById("payFacturasBtn");
@@ -139,8 +161,11 @@ const checkboxHeaderAction = {
         payFactura.onclick = null;
         uploadFactura.onclick = null;
         cancelBtn.onclick = null;
+        if (vistaFacturas)
+            payViaje.classList.add("hidden");       
 
         payViaje.onclick = () => {
+            modal.classList.remove("active");
             showConfirmModal(
                 `¿Estás seguro de marcar ${selectedRows.length} viaje(s) como pagado(s)?`,
                 "confirm",
@@ -149,7 +174,7 @@ const checkboxHeaderAction = {
                         viaje_comprobante: row.comprobante,
                         cliente_cuit: clienteData.cuit
                     }));
-
+                    modal.remove();
                     try {
                         const response = await pagarViajeCliente(viajesToMark);
                         const data = await response.json();
@@ -164,12 +189,6 @@ const checkboxHeaderAction = {
 
                             // Optionally remove paid trips from the table
                             viajesFacturadosData = viajesFacturadosData.filter(v => !v.pagado);
-
-                            if (vistaFacturas){
-                                facturasFacturadosData = facturasFacturadosData.filter(v => !selectedRows.some(selected => selected.comprobante === v.comprobante));
-                                actualizarTotales(viajesFacturadosData);
-                                return renderTables(facturasFacturadosData, 1, optionsFacturas);
-                            }
 
                             // Re-render table and update totals
                             renderTables(viajesFacturadosData, 1, !esMonotributista? optionsViajesFacturados : optionsViajesMonotributista, actualizarTotales);
@@ -201,11 +220,12 @@ const checkboxHeaderAction = {
         }
 
         payFactura.onclick = () => {
+            modal.classList.remove("active");
             showConfirmModal(
                 `¿Estás seguro de marcar ${selectedRows.length} viaje(s) como pagado(s)?`,
                 "confirm",
                 async () => {
-
+                    modal.remove();
                     try {
                         const response = await pagarFacturaCliente(facturasToMark, clienteData.cuit);
                         const data = await response.json();
@@ -220,13 +240,13 @@ const checkboxHeaderAction = {
                             });
 
                             if (vistaFacturas){
-                                facturasFacturadosData.forEach(v => {
-                                    if (data.idFacturas.some(selected => selected.factura_id === v.factura_id)) {
-                                        v.estado = "Pagada";
+                                dataCuentaCorriente.forEach(factura => {
+                                    if (data.idFacturas.some(selected => selected.factura_id === factura.factura_id)) {
+                                        factura.estado = "Pagada";
                                     }
-                                    v.selected = false;
+                                    factura.selected = false;
                                 });
-                                renderTables(facturasFacturadosData, 1, optionsFacturas);
+                                renderTables(dataCuentaCorriente, 1, optionsCuentaCorriente);
                             } else 
                                 renderTables(viajesFacturadosData, 1, !esMonotributista? optionsViajesFacturados : optionsViajesMonotributista, actualizarTotales);
                         }
@@ -276,21 +296,10 @@ const checkboxHeaderActionGenerate = {
         }
 
         if (!esMonotributista){
-            const modal = document.createElement('div');
-            modal.id = 'documentGenerateModal';
-            modal.className = 'modal';
-            modal.classList.add('active');
-            modal.innerHTML = `
-            <div class="modal-content" style="max-width: 400px;">
-                <h2 style="margin-top: 0"> ¿Que acción desea realizar? </h2>
-                <div class="modal-actions-vertical">
-                    <button id="generateDocumentsBtn" class="btn btn-primary">Generar Factura Automaticamente</button>
-                    <button id="uploadDocumentsBtn" class="btn btn-success">Subir Factura Manualmente</button>   
-                </div>
-                <button id="modalCancelBtn" class="btn btn-danger" style="margin-top: 12px;">Cancelar</button>
-            </div>
-            `;
-            document.body.appendChild(modal);
+            const modal = createActionModal('documentGenerateModal', '¿Que acción desea realizar?', [
+                { id: 'generateDocumentsBtn', class: 'btn-primary', label: 'Generar Factura Automaticamente' },
+                { id: 'uploadDocumentsBtn',   class: 'btn-success', label: 'Subir Factura Manualmente' },
+            ]);
 
             const generateFactura = document.getElementById("generateDocumentsBtn");
             const uploadFactura = document.getElementById("uploadDocumentsBtn");
@@ -361,20 +370,7 @@ const optionsViajesFacturados = {
     checkboxColumn: true,
     checkboxHeaderAction: checkboxHeaderAction,
     useScrollable: true,
-    modifyCell: (item, td) => {
-        if (item.estado){
-            switch (item.estado){
-                case "Pendiente":
-                    td.classList.add("yellow");
-                    return;
-                case "Pagada":
-                    td.classList.add("green");
-                    return;
-                default:
-                    return;
-            }
-        }
-    }
+    modifyCell: modifyCellEstado
 };
 
 const optionsViajesMonotributista = {
@@ -388,51 +384,24 @@ const optionsViajesMonotributista = {
     checkboxColumn: true,
     checkboxHeaderAction: checkboxHeaderAction,
     useScrollable: true,
-    modifyCell: (item, td) => {
-        if (item.estado){
-            switch (item.estado){
-                case "Pendiente":
-                    td.classList.add("yellow");
-                    return;
-                case "Pagada":
-                    td.classList.add("green");
-                    return;
-                default:
-                    return;
-            }
-        }
-    }
+    modifyCell:modifyCellEstado
 }
 
-const optionsFacturas = {
+const optionsCuentaCorriente = {
     ...optionsGeneral,
-    columnas: [columnasFacturas],
+    columnas: [columnasCuentaCorriente],
     itemsPorPagina: () => 8,
-    actions: [accionesViajes[1]],
+    actions: accionesFacturas,
     onEdit: null,
     tableType: 'viajesCliente',
     onPageChange: null,
-    get checkboxColumn(){
-        return currentEditingTable !== 'historial'? true : false
+    checkboxColumn: true,
+    checkboxRequired: (item) => {
+        return item.factura_id;
     },
-    get checkboxHeaderAction() {
-        return currentEditingTable !== 'historial'? checkboxHeaderAction : null
-    },
+    checkboxHeaderAction: checkboxHeaderAction,
     useScrollable: true,
-    modifyCell: (item, td) => {
-        if (item.estado){
-            switch (item.estado){
-                case "Pendiente":
-                    td.classList.add("yellow");
-                    return;
-                case "Pagada":
-                    td.classList.add("green");
-                    return;
-                default:
-                    return;
-            }
-        }
-    }
+    modifyCell: modifyCellEstado
 }
 
 const columnasViajesHistorial = columnasViajes.filter(col => !["cargado", "descargado", "comision", "saldo"].includes(col.key));
@@ -499,7 +468,7 @@ function getCurrentData() {
         case "viajes":
             return viajesAFacturarData;
         case "viajesFacturados":
-            return viajesFacturadosData;
+            return vistaFacturas? dataCuentaCorriente : viajesFacturadosData;
         case "historial":
             return viajesHistorialData;
     }
@@ -531,30 +500,55 @@ function changeDataDocuments() {
                     }
                 });
             }
-            if (vistaFacturas){
-                facturasBtn.click();
-            } else
-                renderTables(viajesHistorialData, 1, optionsHistorial, actualizarTotales);
+            renderTables(viajesHistorialData, 1, optionsHistorial, actualizarTotales);
             break;
         case 'viajesFacturados':
-            if (viajesFacturadosData.length > 0) {
-                viajesFacturadosData = viajesFacturadosData.filter(v => {
-                    if (v.comprobante === viaje[0].comprobante) {
-                        v.carta_porte = viaje[0].carta_porte;
-                        v.factura_id = viaje[0].factura_id ? viaje[0].factura_id : null;
-                        if (!v.factura_id) v.estado = "Sin Facturar";
-                        if (!esMonotributista){
-                            const importeTotal = parseImporte(v.importe) + parseImporte(v.iva);
-                            clienteData.balance = redondear(parseImporte(clienteData.balance) + (viaje[0].factura_id ? importeTotal : -importeTotal));
-                        }
-                        return esMonotributista || v.factura_id !== null;
-                    }
-                    return true;
-                });
-            }
             if (vistaFacturas){
-                facturasBtn.click();
-            } else
+                if (viaje[0].viaje_comprobantes && viaje[0].viaje_comprobantes.length > 0){
+                    if (esMonotributista){
+                        viajesFacturadosData.forEach(v => {
+                            if (viaje[0].viaje_comprobantes.some(c => c === v.comprobante)){
+                                v.factura_id = null;
+                                v.estado = "Sin Facturar";
+                                v.selected = false;
+                            }
+                        })
+                    } else {
+                        viajesFacturadosData = viajesFacturadosData.filter(v => {
+                            const cond = viaje[0].viaje_comprobantes.some(c => c === v.comprobante);
+                            if (cond){
+                                v.factura_id = null;
+                                const importeTotal = parseImporte(v.importe) + parseImporte(v.iva);
+                                clienteData.balance = redondear(parseImporte(clienteData.balance) - importeTotal);
+                                viajesAFacturarData.push(v);
+                            }
+                            return !cond;
+                        })
+                    }
+                }
+                dataCuentaCorriente = dataCuentaCorriente.filter(f => f.comprobante !== viaje[0].comprobante);
+                normalizeSaldo(dataCuentaCorriente);
+                closeModalFactura();
+            } else {
+                if (viajesFacturadosData.length > 0) {
+                    viajesFacturadosData = viajesFacturadosData.filter(v => {
+                        if (v.comprobante === viaje[0].comprobante) {
+                            v.carta_porte = viaje[0].carta_porte;
+                            v.factura_id = viaje[0].factura_id ? viaje[0].factura_id : null;
+                            if (!v.factura_id) v.estado = "Sin Facturar";
+                            if (!esMonotributista){
+                                const importeTotal = parseImporte(v.importe) + parseImporte(v.iva);
+                                clienteData.balance = redondear(parseImporte(clienteData.balance) + (viaje[0].factura_id ? importeTotal : -importeTotal));
+                            }
+                            return esMonotributista || v.factura_id !== null;
+                        }
+                        return true;
+                    });
+                }
+            }
+            if (vistaFacturas)
+                renderTables(dataCuentaCorriente, 1, optionsCuentaCorriente, actualizarTotales);
+            else
                 renderTables(viajesFacturadosData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
             renderCurrentTable();
     }
@@ -581,12 +575,10 @@ function changeDataFactura(facturaId, selectedRows, estado = null) {
                         if (selectedRows.some(row => row.comprobante === v.comprobante)){
                             v.factura_id = facturaId;
                             v.estado = estado;
+                            v.selected = false;
                         }
                     });
-                    if (vistaFacturas){
-                        facturasBtn.click();
-                    } else
-                        renderTables(viajesFacturadosData, 1, optionsViajesMonotributista);
+                    refreshOrReloadFacturas();
                 }
                 break;
             case "historial":
@@ -597,10 +589,7 @@ function changeDataFactura(facturaId, selectedRows, estado = null) {
                         }
                     });
                 }
-                if (vistaFacturas){
-                    facturasBtn.click();
-                } else
-                renderTables(viajesHistorialData, 1, optionsHistorial, actualizarTotales);
+                refreshOrReloadFacturas();
                 break;
             default:
                 console.error("Error al actualizar datos al subir la factura");
@@ -640,7 +629,10 @@ function actualizarTotales(viajes, tablesTab = currentEditingTable) {
             totalPagarContainer.classList.add('gray');
         else
             totalPagarContainer.classList.remove('gray');
-        totalPagarContainer.textContent = `Total a Cobrar: ${`${clienteData.balance}`.includes('$') ? clienteData.balance : ('$' + clienteData.balance).replace('$-', '-$')}`;
+        if (vistaFacturas)
+            totalPagarContainer.textContent = `Total Cuenta Corriente: ${dataCuentaCorriente.length > 0? ('$' + dataCuentaCorriente[dataCuentaCorriente.length - 1].saldo).replace('$-', '-$'): '$0.00'}`;
+        else
+            totalPagarContainer.textContent = `Total a Cobrar: ${`${clienteData.balance}`.includes('$') ? clienteData.balance : ('$' + clienteData.balance).replace('$-', '-$')}`;
     }
 }
 
@@ -701,7 +693,7 @@ async function handleSaveEditViajesCliente() {
                 resetEditingState();
                 renderCurrentTable();
             }
-            renderCurrentTable(dataViajes, 1, getCurrentOptions(), actualizarTotales);
+            renderTables(dataViajes, 1, getCurrentOptions(), actualizarTotales);
         }
     } else {
         const data = await response.json();
@@ -799,6 +791,7 @@ const setupAddPagoBtn = () => {
                         comprobante: comprobante?.value,
                         detalle: detalle?.value,
                         importe: importeOtro?.value,
+                        proveedor_cuit: null
                     }
                 };
 
@@ -864,7 +857,6 @@ async function handleGenerateInvoice(data) {
 
     // Validate and clean fields
     for (const row of selectedRows) {
-        console.log(typeof row.tarifa);
         const tarifa = typeof row.tarifa !== "number" ? parseFloat(row.tarifa?.replace(/[^0-9.]/g, '')) : row.tarifa; // Clean tarifa
         const importe = typeof row.importe !== "number" ? parseFloat(row.importe?.replace(/[^0-9.]/g, '')) : row.importe; // Clean importe
         const iva = typeof row.iva !== "number" ? parseFloat(row.iva?.replace(/[^0-9.]/g, '')) : row.iva; // Clean iva
@@ -958,8 +950,6 @@ async function handleGenerateInvoice(data) {
         const facturaId = response.headers.get('X-Factura-Id');
         if (!facturaId) {
             console.warn('No se recibió el facturaId en los encabezados');
-        } else {
-            console.log('Factura ID:', facturaId);
         }
 
         await changeDataFactura(facturaId, selectedRows);
@@ -1042,11 +1032,12 @@ async function renderViajesClienteIVA(selectedTab){
         if (selectedTab === 'aFacturar') {
             const response = await getViajesCliente(clienteData.cuit, false, null);
             if (response.ok) {
-                viajesFacturadosContent.classList.add('hidden');
                 backFacturasBtn.click();
-                facturasBtn.classList.add("hidden");
                 backHistorialBtn.click();
                 historialBtn.classList.add("hidden");
+                facturasBtn.classList.add("hidden");
+                viajesFacturadosContent.classList.add('hidden');
+                document.getElementById("total-cobrar")?.classList.add("hidden");
                 const data = await response.json();
                 viajesAFacturarData = data.viajes.map(c => parseViaje(c, true, false));
                 paginacionContainer.classList.remove("hidden");
@@ -1059,13 +1050,13 @@ async function renderViajesClienteIVA(selectedTab){
         } else if (selectedTab === 'facturados') {
             const response = await getViajesCliente(clienteData.cuit, true, null);
             if (response.ok) {
-                viajesFacturadosContent.classList.remove('hidden');
                 backFacturasBtn.click();
                 backHistorialBtn.click();
                 paginacionContainer.classList.add("hidden");
+                viajesFacturadosContent.classList.remove('hidden');
+                document.getElementById("total-cobrar")?.classList.remove("hidden");
                 const data = await response.json();
                 viajesFacturadosData = data.viajes.map(c => parseViaje(c, true, false));
-                console.log(viajesFacturadosData);
                 currentEditingTable = "viajesFacturados";
                 await renderTables(viajesFacturadosData, 1, optionsViajesFacturados, actualizarTotales);
             } else {
@@ -1094,7 +1085,6 @@ async function renderViajesClienteSinIVA(){
             paginacionContainer.classList.add('hidden');
             const data = await response.json();
             viajesFacturadosData = data.viajes.map(c => parseViaje(c, false, false));
-            console.log(viajesFacturadosData);
             currentEditingTable = "viajesFacturados";
             await renderTables(viajesFacturadosData, 1, optionsViajesMonotributista, actualizarTotales);
         } else {
@@ -1114,7 +1104,6 @@ async function handleTabContentDisplay(selectedTab) {
     viajesFacturadosContent = document.getElementById('content-viajes-facturados');
     facturasBtn = document.getElementById("facturas");
     historialBtn = document.getElementById("historial");
-    closeButton = document.getElementById("closeBtnViaje");
     paginacionContainer = document.getElementById("paginacion-viajes");
     backFacturasBtn = document.getElementById("back-facturasBtn");
     backHistorialBtn = document.getElementById("back-historialBtn");
@@ -1163,6 +1152,15 @@ async function setHistorial() {
     }
 }
 
+function normalizeSaldo(data){
+    if (!Array.isArray(data) || data.length === 0) return;
+    data.sort((a, b) => new Date(a.fecha_pago) - new Date(b.fecha_pago));
+    data[0].saldo = data[0].importe;
+    for (let i = 1; i < data.length; i++){
+        data[i].saldo = redondear(data[i-1].saldo + data[i].importe);
+    }
+}
+
 // Inicializar
 export async function inicializarModaCliente(data) {
     document.body.classList.add("no-scroll");
@@ -1171,7 +1169,7 @@ export async function inicializarModaCliente(data) {
     cargarNombreChofer(clienteData.nombre);
     esMonotributista = clienteData.categoria === "Monotributista";
     pagosOpen = true;
-    const closeButton = document.getElementById('closeBtnViaje');
+    closeButton = document.getElementById("closeBtnViaje");
 
     if (closeButton) {
         closeButton.onclick = () => {
@@ -1179,7 +1177,7 @@ export async function inicializarModaCliente(data) {
             deleteModal("viajesClientesModal", "contentModalViajes", () => {
                 viajesFacturadosData = [];
                 viajesAFacturarData = [];
-                facturasFacturadosData = [];
+                dataCuentaCorriente = [];
                 clienteData = [];
                 viajesHistorialData = [];
                 currentViajesClientesPage = 1;
@@ -1188,6 +1186,7 @@ export async function inicializarModaCliente(data) {
                 paginacionContainer = null;
                 backHistorialBtn = null;
                 esMonotributista = false;
+                
 
                 socket.off('nuevoViaje');
                 socket.off('nuevoCartaPorte');
@@ -1264,7 +1263,7 @@ export async function inicializarModaCliente(data) {
             showConfirmModal("Se actualizaron los documentos del cliente");
             if (currentEditingTable === "viajes" && editingRowId) return;
             if (vistaFacturas)
-                facturasBtn.click();
+                return;
             else
                 renderTables(currentData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
         }
@@ -1288,23 +1287,24 @@ export async function inicializarModaCliente(data) {
                 return !pagados.viajesPagados.includes(viaje.comprobante);
             });
             showConfirmModal("Se actualizaron los viajes del cliente");
-            if (vistaFacturas)
-                facturasBtn.click();
-            else
-                renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
+            closeModalGenerate();
+            refreshOrReloadFacturas();
         }
     });
 
     socket.on('nuevoPago', async (pago) => {
         if (pago.cuit === clienteData.cuit) {
-            console.log("nuevo pago: " + pago.cuit);
-            console.log(pago.pagosArray);
             pago.pagosArray.forEach(p => {
                 ultimosPagosCliente.push(parsePagos(p));
-                console.log(clienteData.balance);
+                const pagoParseadoCorriente = parsePagos(p, true);
+                pagoParseadoCorriente.importe = - pagoParseadoCorriente.importe;
+                dataCuentaCorriente.push(pagoParseadoCorriente);
                 clienteData.balance = redondear(parseImporte(clienteData.balance) - redondear(p.importe));
-                console.log(clienteData.balance);
             });
+            if (vistaFacturas){
+                normalizeSaldo(dataCuentaCorriente);
+                renderTables(dataCuentaCorriente, 1, optionsCuentaCorriente, actualizarTotales);
+            }
             await renderTables(ultimosPagosCliente, 1, optionsPagos);
             showConfirmModal("Se actualizaron los pagos del cliente");
             if (currentEditingTable !== "viajes")
@@ -1315,20 +1315,26 @@ export async function inicializarModaCliente(data) {
 
     socket.on('deletePagoCliente', async (pago) => {
         if (pago.cuit && pago.cuit === clienteData.cuit) {
-            const length = ultimosPagosCliente.length;
+            clienteData.balance = redondear(parseImporte(clienteData.balance) + redondear(pago.importe));
             ultimosPagosCliente = ultimosPagosCliente.filter(p => {
                 const cond = p.id === pago.id && p.tipo === pago.tipo;
-                if (cond)
-                    clienteData.balance = redondear(parseImporte(clienteData.balance) + redondear(p.importe));
                 return !cond;
             });
-            if (length !== ultimosPagosCliente.length) {
-                await renderTables(ultimosPagosCliente, 1, optionsPagos);
-                showConfirmModal("Se actualizaron los pagos del cliente");
-                if (currentEditingTable !== "viajes")
-                    actualizarTotales(viajesFacturadosData);
-                renderCurrentTable();
+
+            if (vistaFacturas){
+                dataCuentaCorriente = dataCuentaCorriente.filter(p => {
+                    const cond = p.id === pago.id && p.tipo === pago.tipo;
+                    return !cond;
+                });
+                normalizeSaldo(dataCuentaCorriente);
+                renderTables(dataCuentaCorriente, 1, optionsCuentaCorriente, actualizarTotales);
             }
+
+            await renderTables(ultimosPagosCliente, 1, optionsPagos);
+            showConfirmModal("Se actualizaron los pagos del cliente");
+            if (currentEditingTable !== "viajes")
+                actualizarTotales(viajesFacturadosData);
+            renderCurrentTable();
         }
     });
 
@@ -1348,6 +1354,7 @@ export async function inicializarModaCliente(data) {
                 clienteData.balance = redondear(clienteData.balance - viajeEliminado.importe);
                 showConfirmModal("Se actualizaron los viajes del cliente");
                 renderTables(viajesFacturadosData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
+                closeModalGenerate();
                 renderCurrentTable();
             }
         } else if (!esMonotributista && currentEditingTable === "viajes") {
@@ -1355,15 +1362,13 @@ export async function inicializarModaCliente(data) {
             viajesAFacturarData = viajesAFacturarData.filter(v => v.id !== viaje.comprobante);
             if (length !== viajesAFacturarData.length) {
                 showConfirmModal("Se actualizaron los viajes del cliente");
-                if (editingRowId && editingRowId === viaje.comprobante)
-                    resetEditingState();
-                else
-                    return;
-                if (vistaFacturas){
-                    facturasFacturadosData = facturasFacturadosData.filter(v => v.comprobante !== viaje.comprobante);
-                    actualizarTotales(viajesFacturadosData);
-                    return renderTables(facturasFacturadosData, 1, optionsFacturas);
+                if (editingRowId){
+                    if (editingRowId === viaje.comprobante)
+                        resetEditingState();
+                    else
+                        return;
                 }
+                closeModalGenerate();
                 renderTables(viajesAFacturarData, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
             }
         }
@@ -1384,10 +1389,7 @@ export async function inicializarModaCliente(data) {
         }
         showConfirmModal("Se actualizaron los viajes del cliente");
         if (editingRowId) return;
-        if (vistaFacturas)
-            facturasBtn.click();
-        else
-            renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
+        refreshOrReloadFacturas();
     });
 
     socket.on('updateViajeCliente', async (viaje) => {
@@ -1400,8 +1402,6 @@ export async function inicializarModaCliente(data) {
                 console.log(`Se modifico el viaje con comprobante ${viaje.comprobanteOriginal}`);
                 let amountBefore = redondear(data[index].importe)
                 data[index] = parseViaje(viaje.updatedData, !esMonotributista, false);
-                console.log(amountBefore);
-                console.log(data[index]);
                 if (esMonotributista && amountBefore !== data[index].importe){
                     clienteData.balance = redondear(clienteData.balance + (data[index].importe - amountBefore));
                     renderCurrentTable();
@@ -1413,11 +1413,9 @@ export async function inicializarModaCliente(data) {
                     else
                         return;
                 }
+                closeModalGenerate();
                 showConfirmModal("Se actualizaron los viajes del cliente");
-                if (vistaFacturas)
-                    facturasBtn.click();
-                else
-                    renderTables(data, currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
+                refreshOrReloadFacturas(data);
             }
         }
     });
@@ -1432,11 +1430,11 @@ export async function inicializarModaCliente(data) {
         });
 
         if (vistaFacturas){
-            facturasFacturadosData.forEach(viaje => {
-                if (facturas.facturasPagadas.some(factura => factura.factura_id ===viaje.factura_id))
-                    viaje.estado = "Pagada";
+            dataCuentaCorriente.forEach(f => {
+                if (facturas.facturasPagadas.some(factura => factura.factura_id === f.factura_id))
+                    f.estado = "Pagada";
             });
-            return renderTables(facturasFacturadosData, 1, optionsFacturas);
+            return renderTables(dataCuentaCorriente, 1, optionsCuentaCorriente);
         }
         renderTables(currentData, 1, getCurrentOptions());
     });
@@ -1476,15 +1474,21 @@ export async function inicializarModaCliente(data) {
         );
         setupSearchBar("clientesFacturasSearchBar",
             (searchTerm) => {
-                return facturasFacturadosData.filter(factura =>
-                    formatFecha(factura.fecha)?.includes(searchTerm) ||
+                return dataCuentaCorriente.filter(factura =>
+                    formatFecha(factura.fecha_pago)?.includes(searchTerm) ||
+                    factura.tipo?.toLowerCase().includes(searchTerm) ||
                     factura.comprobante?.toLowerCase().includes(searchTerm) ||
-                    formatFecha(factura.fecha_vto_pago)?.includes(searchTerm) ||
-                    factura.nro_factura?.includes(searchTerm) || 
-                    factura.importe_total?.toString().includes(searchTerm)
+                    formatFecha(factura.fecha_vto)?.includes(searchTerm) ||
+                    factura.descripcion?.toLowerCase().includes(searchTerm) || 
+                    factura.importe?.toString().includes(searchTerm)
                 );
             },
-            (filteredData) => renderTables(filteredData, 1, optionsFacturas)
+            (filteredData) => {
+                if (filteredData.length > 0) normalizeSaldo(filteredData);
+                const totalBox = document.getElementById('total-cobrar');
+                renderTables(filteredData, 1, optionsCuentaCorriente);
+                totalBox.textContent = `Total Cuenta Corriente: ${filteredData.length > 0? ('$' + filteredData[filteredData.length - 1].saldo).replace('$-', '-$'): '$0.00'}`;
+            }
         )
         setupAddPagoBtn();
         setupPaymentTypeSelector(fields);
@@ -1496,8 +1500,10 @@ export async function inicializarModaCliente(data) {
         const inputCantViajes = document.getElementById('inputSelectViaje');
 
         socket.on('actualizarFacturaCliente', async (factura) => {
+            console.log(factura);
             if (factura.cuit !== clienteData.cuit) return;
             closeModalFactura();
+            closeModalGenerate();
             changeSpinnerText(mainContent, "Actualizando datos del cliente...");
             toggleSpinnerVisible(mainContent);
             clienteData.balance = parseImporte(factura.balance);
@@ -1528,7 +1534,7 @@ export async function inicializarModaCliente(data) {
                 if (!responseHistorial.ok) return showConfirmModal(errorMsg, "aviso", onError);
                 const dataHistorial = await responseHistorial.json();
                 viajesHistorialData = dataHistorial.viajes.map(c => parseViaje(c, !esMonotributista, false));
-
+                showConfirmModal("Se actualizaron las facturas del Cliente");
             } catch (error) {
                 console.error(error.message, error.stack);
                 return showConfirmModal(errorMsg, "aviso", onError);
@@ -1537,6 +1543,7 @@ export async function inicializarModaCliente(data) {
             await renderTables(getCurrentData(), currentViajesClientesPage, getCurrentOptions(), actualizarTotales);
             toggleSpinnerVisible(mainContent);
             changeSpinnerText(mainContent);
+
         });
 
         const cardPagos = document.getElementById("addPagoCard");
@@ -1575,51 +1582,49 @@ export async function inicializarModaCliente(data) {
 
         facturasBtn?.addEventListener("click", async () =>{
             vistaFacturas = true;
- 
-            const currentData = getCurrentData();
-            const facturasToGet = Array.from(
-                new Set(
-                    currentData
-                        .filter(row => row.factura_id)
-                        .map(row => row.factura_id)
-                )
-            );
+            changeSpinnerText(mainContent, "Cargando datos Cuenta Corriente...");
+            toggleSpinnerVisible(mainContent);
+            document.getElementById('content-viajes-facturados')?.classList.add("hidden");
+            document.getElementById('summaryBoxes')?.classList.add("hidden");
             try {
-                const response = await getFacturasData(facturasToGet);
-                const data = await response.json();
-                console.log(data);
-                if (response.ok){
-                    facturasFacturadosData = currentData.map( viaje => {
-                        const infoFactura = viaje.factura_id ? data.facturasData[viaje.factura_id] : null;
-                        return {
-                            id: viaje.comprobante,
-                            fecha: viaje.fecha,
-                            comprobante: viaje.comprobante,
-                            factura_id: viaje.factura_id || null,
-                            carta_porte: viaje.carta_porte,
-                            estado: viaje.estado,
-                            selected: viaje.selected,
-                            importe: viaje.importe,
-                            // Si hay infoFactura, extraemos los datos; si no, enviamos null
-                            fecha_vto_pago: infoFactura && infoFactura.fecha_vto_pago? formatFecha(infoFactura.fecha_vto_pago) : null,
-                            nro_factura: infoFactura ? infoFactura.nro_factura : null,
-                            importe_total: infoFactura && infoFactura.importe_total ? parseFloat(infoFactura.importe_total) : 0
-                        };
+                const response = await getFacturasData(null, clienteData.cuit);
+                const dataFacturas = await response.json();
+                const responsePagos = await getPagosCliente(clienteData.cuit, null);
+                const dataTotalPagos = await responsePagos.json();
+                dataCuentaCorriente = [];
+                if (response.ok && responsePagos.ok && (dataFacturas.facturasData.length > 0 || dataTotalPagos.length > 0)){
+                    dataFacturas.facturasData.forEach(factura => {
+                        const facturaParseada = parsePagos(factura, true);
+                        facturaParseada.estado = factura.estado;
+                        facturaParseada.factura_id = factura.id;
+                        facturaParseada.viaje_comprobantes = factura.viaje_comprobantes;
+                        dataCuentaCorriente.push(facturaParseada);
                     });
-                    renderTables(facturasFacturadosData, 1, optionsFacturas);
-                    actualizarTotales(viajesFacturadosData);
+
+                    dataTotalPagos.forEach(pago => {
+                        const pagoParseado = parsePagos(pago, true);
+                        pagoParseado.importe = - pagoParseado.importe;
+                        dataCuentaCorriente.push(pagoParseado);
+                    });
+
+                    await normalizeSaldo(dataCuentaCorriente);
+
+                    renderTables(dataCuentaCorriente, 1, optionsCuentaCorriente, actualizarTotales);
                     backFacturasBtn.classList.remove("hidden");
                     facturasBtn.classList.add("hidden");
                     document.getElementById("clientesViajesSearchBar")?.classList.add("hidden");
                     document.getElementById("clientesFacturasSearchBar")?.classList.remove("hidden");
                 } else {
-                    showConfirmModal(data.message);
-                    backFacturasBtn.click();
+                    renderTables(dataCuentaCorriente, 1, optionsCuentaCorriente, actualizarTotales);
                 }
             } catch (error){
-                showConfirmModal("Ocurrio un error al obtener los datos de las facturas");
+                showConfirmModal("Ocurrio un error al obtener los datos de la Cuenta Corriente del cliente");
                 console.log(error);
                 backFacturasBtn.click();
+            } finally {
+                toggleSpinnerVisible(mainContent);
+                changeSpinnerText(mainContent);
+                
             }
         });
 
@@ -1627,15 +1632,18 @@ export async function inicializarModaCliente(data) {
             backFacturasBtn.classList.add("hidden");
             facturasBtn.classList.remove("hidden");
             vistaFacturas = false;
+            document.getElementById('content-viajes-facturados')?.classList.remove("hidden");
+            document.getElementById('summaryBoxes')?.classList.remove("hidden");
             document.getElementById("clientesViajesSearchBar")?.classList.remove("hidden");
             document.getElementById("clientesFacturasSearchBar")?.classList.add("hidden");
-            renderTables(getCurrentData(), 1, getCurrentOptions());
+            renderTables(getCurrentData(), 1, getCurrentOptions(), actualizarTotales);
         })
 
         historialBtn?.addEventListener("click", async () => {
             changeSpinnerText(mainContent, "Cargando historial...");
             toggleSpinnerVisible(mainContent);
             backFacturasBtn.click();
+            facturasBtn.classList.add("hidden");
             summaryBoxes.classList.add("hidden");
             if (pagosOpen && currentEditingTable !== "historial") togglePagosArea.click();
             await setHistorial();
@@ -1656,6 +1664,7 @@ export async function inicializarModaCliente(data) {
             currentEditingTable = "viajesFacturados";
             renderTables(viajesFacturadosData, 1, esMonotributista? optionsViajesMonotributista : optionsViajesFacturados, actualizarTotales);
             summaryBoxes.classList.remove("hidden");
+            facturasBtn.classList.remove("hidden");
         });
 
     } catch (error) {

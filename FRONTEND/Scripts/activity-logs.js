@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     // Preview especial para Cerrar resumen
-                    if (log.action === 'Cerrar resumen' && log.related_resumen_data) {
+                    if (log.action.includes('Resumen Cerrado') && log.related_resumen_data) {
                         const resumenData = log.related_resumen_data;
                         const saldo = parseCurrency(resumenData.saldo);
                         const signo = saldo >= 0 ? '+' : '';
@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             // Detectar actualización de tarifas CATAC
                             const isCatacUpdate = log.action === 'Actualizar tarifas CATAC';
                             // Detectar cerrar resumen
-                            const isCerrarResumen = log.action === 'Cerrar resumen';
+                            const isCerrarResumen = log.action.includes('Resumen Cerrado');
 
                             // Detectar carga de factura proveedor
                             const isCargarFacturaProveedor = log.action === 'Cargar factura (proveedor)';

@@ -41,7 +41,7 @@ const clientesColumns = [
 const proveedoresColumns = [
     { key: 'nombre', label: 'Nombre y Apellido/Razón Social', class: [] },
     { key: 'cuit', label: 'CUIL/CUIT', class: [] },
-    { key: 'tipo_orden', label: 'Tipo de Proveedor', class: [], type: 'select', options: [{ value: 'gasoil', text: 'Gasoil' }, { value: 'otro', text: 'Otro' }] },
+    { key: 'tipo_orden', label: 'Tipo de Proveedor', class: [], type: 'select', options: [{ value: 'gasoil', text: 'Gasoil' }, { value: 'otro', text: 'Otro' }], modify: (content) => {return content.charAt(0).toUpperCase() + content.slice(1)} },
     { key: 'telefono', label: 'Teléfono', class: [] },
     { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$'); } }
 ];
@@ -180,7 +180,7 @@ const proveedoresActions = [
 const optionsProveedores = {
     containerId: 'tabla-proveedores',
     paginacionContainerId: 'paginacion-proveedores',
-    columnas: [proveedoresColumns.filter(col => !['tipo_orden'].includes(col.key)), proveedoresColumns.filter(col => !['balance'].includes(col.key))],
+    columnas: [proveedoresColumns, proveedoresColumns.filter(col => !['balance'].includes(col.key))],
     itemsPorPagina: () => 10,
     actions: proveedoresActions,
     onEdit: (id, field, value) => handleEdit(id, field, value, 'proveedores'),
@@ -524,7 +524,7 @@ function setupAddButtons() {
                 clienteData[key] = value.trim();
             }
             var valid = true;
-            ['nombre', 'cuit'].forEach(key => {
+            ['nombre', 'cuit', 'categoria'].forEach(key => {
                 if (!clienteData[key] || clienteData[key] === '')
                     valid = false;
             });
@@ -532,6 +532,7 @@ function setupAddButtons() {
             const payload = {
                 cuit: clienteData.cuit,
                 nombre: clienteData.nombre,
+                categoria: clienteData.categoria,
                 email: clienteData.email !== '' ? clienteData.email : null
             };
             const response = await insertCliente(payload);

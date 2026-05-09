@@ -35,24 +35,7 @@ exports.getChoferesAllData = async (req, res) => {
         // Usamos ILIKE para búsqueda insensible a mayúsculas/minúsculas
         // %${searchQuery}% busca el término en cualquier parte del nombre
         const result = await pool.query(`SELECT * FROM choferV`);
-        // const response = await pool.query(`SELECT * FROM factura_arca WHERE id = 193;`);
-        // const valorespdf = await extraerMetadatos(response.rows[0].factura_pdf);
-        // console.log(valorespdf);
-    
-        // console.log(response.rows);
 
-
-        // const resultFactura = await pool.query(`SELECT * FROM factura_arca WHERE valid = true`);
-        // resultFactura.rows.forEach( async factura => {
-        //         const valoresPdf = await extraerMetadatos(factura.factura_pdf);
-        //         if (valoresPdf){
-        //             await pool.query(`UPDATE factura_arca SET fecha_vto_pago = $1, nro_factura = $2, importe_total = $3, cae = $4 WHERE id = $5 AND valid = true;`,
-        //                             [valoresPdf.fechaVtoPago, valoresPdf.nroFactura, valoresPdf.importeTotal, valoresPdf.cae, factura.id]);
-        //         }
-        // });
-
-        // console.log(valoresPdf);
-        
         // const response = await pool.query(``);
         // console.log(response.rows);
         res.status(208).json({ choferes: result.rows });
@@ -72,7 +55,6 @@ exports.updateChofer = async (req, res) => {
 
     let client;
     try {
-        console.log(editingData);
         const { errors, validatedData } = userSchema(editingData);
         if (errors.length > 0) {
             return res.status(400).json({ message: `Los datos ingresados para ${errors.join(', ')} no son validos` });
@@ -188,7 +170,6 @@ exports.getChoferByCuil = async (req, res) => {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
     const cuil = req.params.cuil;
-    console.log(cuil);
     try {
         const result = await pool.query(
             `SELECT u.nombre_apellido AS nombre, c.cuil, tipo_trabajador AS trabajador, patente_chasis, patente_acoplado, telefono, email FROM usuario u 

@@ -253,6 +253,9 @@
     padding: 6px;
     text-align: left;
     white-space: normal;
+    max-width: 250px;
+    word-break: break-word;
+    text-overflow: ellipsis;
     font-size: 0.9em;
 }
 

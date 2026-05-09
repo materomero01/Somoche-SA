@@ -1,3 +1,4 @@
+const { param } = require('../app.js');
 const pool = require('../db');
 const pagoSchema = require('../models/Pago.js');
 const { getIO } = require('../socket');
@@ -665,12 +666,18 @@ exports.getPagosCliente = async (req, res) => {
 
     const { cuit, cantidad } = req.query;
 
-    if (!cuit || !cantidad || cuit === "null" || cantidad === "null" || cuit === "undefined" || cantidad === "undefined") {
+    if (!cuit || cuit === "null" || cuit === "undefined") {
         return res.status(405).json({ message: "No se reconocieron los datos para obtener los pagos del cliente" });
     }
 
     try {
-        const result = await pool.query('SELECT * FROM pagos_cliente_unified WHERE cliente_cuit = $1 ORDER BY fecha_pago DESC LIMIT $2', [cuit, cantidad]);
+        let query = 'SELECT * FROM pagos_cliente_unified WHERE cliente_cuit = $1 ORDER BY fecha_pago DESC';
+        let params = [cuit];
+        if (cantidad && !isNaN(parseInt(cantidad))){
+            query += ' LIMIT $2';
+            params.push(cantidad);
+        }
+        const result = await pool.query(query, params);
         res.status(200).json(result.rows);
     } catch (error) {
         console.error('Error en getPagosOtro:', error);
@@ -906,15 +913,15 @@ exports.deletePago = async (req, res) => {
         switch (type.toLowerCase()) {
             case 'cheque':
                 querySelect = 'SELECT nro, chofer_cuil, cliente_cuit, proveedor_cuit FROM pagos_cheque WHERE valid = true AND nro = $1';
-                queryDelete = 'UPDATE pagos_cheque SET valid = false WHERE nro = $1';
+                queryDelete = 'UPDATE pagos_cheque SET valid = false WHERE nro = $1 RETURNING importe';
                 break;
             case 'gasoil':
                 querySelect = 'SELECT comprobante, chofer_cuil, proveedor_cuit FROM pagos_gasoil WHERE valid = true AND comprobante = $1';
-                queryDelete = 'UPDATE pagos_gasoil SET valid = false WHERE comprobante = $1';
+                queryDelete = 'UPDATE pagos_gasoil SET valid = false WHERE comprobante = $1 RETURNING importe';
                 break;
             default:
                 querySelect = 'SELECT comprobante, chofer_cuil, cliente_cuit, proveedor_cuit FROM pagos_otro WHERE valid = true AND comprobante = $1';
-                queryDelete = 'UPDATE pagos_otro SET valid = false WHERE comprobante = $1';
+                queryDelete = 'UPDATE pagos_otro SET valid = false WHERE comprobante = $1 RETURNING importe';
         }
 
         const responseExists = await client.query(querySelect, [id]);
@@ -929,10 +936,14 @@ exports.deletePago = async (req, res) => {
             return res.status(405).json({ message: "El pago a eliminar no se encuentra registrado o ya fue eliminado previamente" });
         }
 
-        await client.query(queryDelete, [id]);
+        const response = await client.query(queryDelete, [id]);
+
+        if (response.rowCount === 0){
+            client.query("ROLLBACK");
+            return res.status(405).json({ message: "Ocurrio un error al eliminar el pago" });
+        }
 
         client.query("COMMIT");
-        client.release();
 
         try {
             const io = getIO();
@@ -940,7 +951,7 @@ exports.deletePago = async (req, res) => {
             io.sockets.sockets.forEach((socket) => {
                 if (socket.cuil !== req.user.cuil) {
                     socket.emit('deletePago', { id: id.trim(), tipo: type.trim(), cuil: responseExists.rows[0].chofer_cuil, cuit: type.toLowerCase() === "cheque" ? responseExists.rows[0].cliente_cuit : null, proveedor_cuit: responseExists.rows[0].proveedor_cuit });
-                    socket.emit('deletePagoCliente', { id: id.trim(), cuit: type.toLowerCase() !== "gasoil" ? responseExists.rows[0].cliente_cuit : null, tipo: type.trim() });
+                    socket.emit('deletePagoCliente', { id: id.trim(), cuit: type.toLowerCase() !== "gasoil" ? responseExists.rows[0].cliente_cuit : null, tipo: type.trim(), importe: response.rows[0].importe });
                 }
             });
         } catch (error) {
@@ -950,8 +961,9 @@ exports.deletePago = async (req, res) => {
         return res.status(200).json({ message: `El pago con comprobante ${id} fue eliminado con exito` });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
-        if (client) client.release();
         console.error('Error en deletePago: ', error.message, error.stack);
         res.status(500).json({ message: error.routine.includes('raise') ? 'Error: ' + error.message : 'Ocurrio un error al intentar eliminar el pago' });
+    } finally {
+        client.release();
     }
 };

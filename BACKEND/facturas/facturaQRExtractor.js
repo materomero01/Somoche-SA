@@ -31,6 +31,7 @@ export async function extraerMetadatos(pdfBytes, scale = 3) {
     data,
     cMapUrl: "node_modules/pdfjs-dist/cmaps/",
     cMapPacked: true,
+    standardFontDataUrl: "node_modules/pdfjs-dist/standard_fonts/"
   });
 
   const pdf = await loadingTask.promise;

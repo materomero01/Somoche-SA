@@ -99,7 +99,6 @@ const validateSinglePago = (data, partial = false) => {
                 continue; // Saltamos el resto de las validaciones (regex, etc) para este campo
             }
         }
-
         // Validar tipo y manejar valores
         if (value !== undefined && value !== null) {
             if (rules.type === 'string' && typeof value !== 'string') {
@@ -125,16 +124,18 @@ const validateSinglePago = (data, partial = false) => {
                 validatedData[key] = value === '' ? null : value;
             }
         }
+        // Aplicar valor por defecto si no está presente y no es requerido
+        if ((value === undefined || value === null) && !rules.required && rules.default !== undefined) {
+            validatedData[key] = rules.default;
+            continue;
+        }
 
         // Validar regex para comprobante
         if (rules.regex && !rules.regex.test(value)) {
             errors.push(rules.error);
         }
 
-        // Aplicar valor por defecto si no está presente y no es requerido
-        if (value === undefined && !rules.required && rules.default !== undefined) {
-            validatedData[key] = rules.default;
-        }
+        
     }
 
     return { errors, validatedData };

@@ -180,7 +180,7 @@ const setTodayDate = () => {
     const chequeDate = new Date();
     const fechaCheque = document.getElementById('fechaCheque');
     if (fechaCheque) {
-        chequeDate.setDate(chequeDate.getDate() + 40);
+        chequeDate.setDate(chequeDate.getDate() + 50);
         fechaCheque.value = chequeDate.toLocaleDateString('es-AR', {
             year: 'numeric',
             month: '2-digit',

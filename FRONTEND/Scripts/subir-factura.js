@@ -46,7 +46,7 @@ export function closeModalFactura() {
 }
 // Initialize the document upload modal
 
-export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc, deleteFunc, tableType = "viajes", selectedRows = [], iva = true) {
+export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc, deleteFunc, tableType = "viajes", selectedRows = [], iva = true, onlyFactura = false) {
     if (selectedRows.length === 0 && viaje.length === 0) {
         return showConfirmModal("Selecciona los viajes para los que desea subir los documentos");
     }
@@ -102,10 +102,10 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
 
     if (viaje.length > 0) {
         if (!cartaPorteFunc) {
-            if (tableType.includes('ordenProveedor')) {
+            if (onlyFactura) {
+                console.log("ENTRA");
                 document.getElementById('cartaPorteSection').remove();
                 document.getElementById('section-divider').remove();
-                document.getElementById('headerDocuments').textContent = "Documentos de la Orden";
             } else {
                 cartaPorteExists = viaje[0].carta_porte;
                 cartaPorteDropArea.remove();

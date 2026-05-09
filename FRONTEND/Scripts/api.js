@@ -197,6 +197,27 @@ export function logout() {
     window.location.href = "login.html";
 }
 
+export function createActionModal(id, title, buttons) {
+    const modal = document.createElement('div');
+    modal.id = id;
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <h2 style="margin-top: 0">${title}</h2>
+            <div class="modal-actions-vertical">
+                ${buttons.map(b => `
+                    <button id="${b.id}" class="btn ${b.class} ${b.hidden ? 'hidden' : ''}">
+                        ${b.label}
+                    </button>
+                `).join('')}
+            </div>
+            <button id="modalCancelBtn" class="btn btn-danger" style="margin-top: 12px;">Cancelar</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    return modal;
+}
+
 ////////////////////////////////////////////////////////////////////
 //                    API LLAMADA CHOFERES                        //
 ////////////////////////////////////////////////////////////////////
@@ -1107,17 +1128,21 @@ export async function updateTarifas(payload) {
 //                    API LLAMADA DOCUMENTOS                        //
 //////////////////////////////////////////////////////////////////////
 
-export async function getFacturasData(facturasToGet) {
+export async function getFacturasData(facturasToGet, cuit) {
     try {
         const token = getToken();
         handleAuthorization();
+        const payload = {
+            facturasToGet: facturasToGet,
+            cliente_cuit: cuit
+        }
         const response = await fetch(`${apiURL}/facturas/getFacturasData`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify(facturasToGet)
+            body: JSON.stringify(payload)
         });
 
         if (response.status === 403) {

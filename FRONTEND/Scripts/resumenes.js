@@ -233,12 +233,15 @@ export function parseViaje(viaje, iva = true, comision = true) {
     return retornar;
 }
 
-export function parsePagos(pago) {
+export function parsePagos(pago, cuentaCorriente = false) {
     let descripcion;
+    let fecha_vto = formatFecha(pago.fecha_pago);
     switch (pago.tipo.toLowerCase()) {
         case "cheque":
             const fechaCheque = formatFecha(pago.fecha_cheque);
             descripcion = `${pago.tercero} - Fecha de Cobro: ${fechaCheque} `;
+            fecha_vto = fechaCheque;
+            if (cuentaCorriente) descripcion = `Cheque ${pago.tercero}`;
             break;
         case "gasoil":
             const precio = parseImporte(pago.importe) / pago.litros;
@@ -253,6 +256,8 @@ export function parsePagos(pago) {
     }
     return {
         id: pago.id,
+        ...(cuentaCorriente && {fecha_vto: fecha_vto}),
+        ...(cuentaCorriente && {comprobante: pago.comprobante || pago.id}),
         fecha_pago: formatFecha(pago.fecha_pago),
         tipo: pago.tipo,
         descripcion: descripcion,

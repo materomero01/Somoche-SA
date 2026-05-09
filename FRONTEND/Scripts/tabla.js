@@ -159,6 +159,7 @@ export function renderTables(data, currentPage = 1, options, actualizarTotales =
         currentPage: currentPage,
         onPageChange: options.onPageChange,
         checkboxColumn: options.checkboxColumn,
+        checkboxRequired: options.checkboxRequired,
         checkboxColumnPosition: options.checkboxColumnPosition,
         checkboxHeaderAction: options.checkboxHeaderAction,
         onCheckboxChange: options.onCheckboxChange,
@@ -182,6 +183,7 @@ export function renderTabla({
     tableType = 'default',
     onPageChange = null,
     checkboxColumn = false,
+    checkboxRequired = null,
     checkboxColumnPosition = 'start',
     checkboxHeaderAction = null,
     onCheckboxChange = null,
@@ -388,6 +390,13 @@ export function renderTabla({
                     const actionContainer = document.createElement("div");
                     actionContainer.classList.add("action-icons");
                     actions.forEach(action => {
+                        if (action.required && action.required.length > 0){
+                            let cumple = true;
+                            action.required.forEach( requisito => {
+                                if (!item[requisito]) cumple = false;
+                            });
+                            if (!cumple) return;
+                        }
                         const button = document.createElement("button");
                         button.className = "btn-action";
 
@@ -415,24 +424,26 @@ export function renderTabla({
             if (!editingRowId && checkboxColumn && checkboxColumnPosition === 'end') {
                 const td = document.createElement("td");
                 td.classList.add("checkbox-cell");
-                if (uploadFactura && item.hasOwnProperty("factura_id") && item.factura_id) {
-                    const checkFactura = document.createElement("div");
-                    checkFactura.innerHTML = '<i class="bi bi-check-lg"></i>';
-                    checkFactura.title = "Factura cargada";
-                    td.appendChild(checkFactura);
-                } else {
-                    const checkbox = document.createElement("input");
-                    checkbox.type = "checkbox";
-                    checkbox.setAttribute('data-id', item.id);
-                    checkbox.checked = item.selected || false;
-                    checkbox.addEventListener('change', (e) => {
-                        item.selected = e.target.checked; // Directly update item
-                        //console.log(`End checkbox ${item.id} changed: ${item.selected}`); // Debug
-                        if (onCheckboxChange) {
-                            onCheckboxChange(item.id, e.target.checked);
-                        }
-                    });
-                    td.appendChild(checkbox);
+                if (!checkboxRequired || checkboxRequired(item)){
+                    if (uploadFactura && item.hasOwnProperty("factura_id") && item.factura_id) {
+                        const checkFactura = document.createElement("div");
+                        checkFactura.innerHTML = '<i class="bi bi-check-lg"></i>';
+                        checkFactura.title = "Factura cargada";
+                        td.appendChild(checkFactura);
+                    } else {
+                        const checkbox = document.createElement("input");
+                        checkbox.type = "checkbox";
+                        checkbox.setAttribute('data-id', item.id);
+                        checkbox.checked = item.selected || false;
+                        checkbox.addEventListener('change', (e) => {
+                            item.selected = e.target.checked; // Directly update item
+                            //console.log(`End checkbox ${item.id} changed: ${item.selected}`); // Debug
+                            if (onCheckboxChange) {
+                                onCheckboxChange(item.id, e.target.checked);
+                            }
+                        });
+                        td.appendChild(checkbox);
+                    }
                 }
                 tr.appendChild(td);
             }
@@ -474,7 +485,6 @@ export function renderTabla({
         input.addEventListener('input', (e) => {
             if (e.target.value === lastValueProcessed) return;
             lastValueProcessed = e.target.value;
-            console.log(lastValueProcessed);
             if (onEdit) {
                 onEdit(itemId, column.key, e.target.value);
             }

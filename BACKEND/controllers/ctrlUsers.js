@@ -34,7 +34,6 @@ exports.insertUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(validatedData.password, salt);
         let usuarioRecuperado = false;
         if (userExists.rows.length > 0) {
-            console.log(admin);
             if (!userExists.rows[0].valid && admin === "true") {
                 const responseRecuperar = await client.query('UPDATE usuario SET valid = true, nombre_apellido = $2, password = $3, telefono = $4, email = $5 WHERE valid = false AND cuil = $1', [validatedData.cuil, validatedData.nombre, hashedPassword, validatedData.telefono, validatedData.email]);
                 const responseRecuperarChofer = await client.query('UPDATE chofer SET valid = true, tipo_trabajador = $2, patente_chasis = $3, patente_acoplado = $4 WHERE valid = false AND cuil = $1', [validatedData.cuil, validatedData.trabajador, validatedData.patente_chasis, validatedData.patente_acoplado]);

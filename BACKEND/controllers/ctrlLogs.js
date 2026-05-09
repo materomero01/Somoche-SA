@@ -48,6 +48,8 @@ exports.getLogs = async (req, res) => {
                     WHEN main.table_name = 'pagos_cheque' AND main.operation = 'UPDATE' AND COALESCE((main.before_data->>'pagado')::boolean, false) = false AND (main.after_data->>'pagado')::boolean = true THEN 'Marcar cheque como pagado'
                     -- Orden de gasoil marcada como pagada
                     WHEN main.table_name = 'pagos_gasoil' AND main.operation = 'UPDATE' AND COALESCE((main.before_data->>'pagado')::boolean, false) = false AND (main.after_data->>'pagado')::boolean = true THEN 'Marcar orden gasoil pagada'
+                    -- Orden de otro marcada como pagada
+                    WHEN main.table_name = 'pagos_otro' AND main.operation = 'UPDATE' AND COALESCE((main.before_data->>'pagado')::boolean, false) = false AND (main.after_data->>'pagado')::boolean = true THEN 'Marcar orden otro pagada'
                     -- Pagos
                     WHEN main.table_name = 'pagos_cheque' AND main.operation = 'INSERT' THEN 'Crear pago (cheque)'
                     WHEN main.table_name = 'pagos_cheque' AND main.operation = 'UPDATE' THEN 'Editar pago (cheque)'
@@ -114,6 +116,7 @@ exports.getLogs = async (req, res) => {
                     WHEN main.table_name = 'factura' AND main.operation = 'UPDATE' THEN 'Editar factura (chofer)'
                     WHEN main.table_name = 'factura' AND main.operation = 'DELETE' THEN 'Eliminar factura (chofer)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'INSERT' THEN 'Cargar factura (cliente)'
+                    WHEN main.table_name = 'factura_arca' AND main.operation = 'UPDATE' AND COALESCE((main.before_data->>'pagada')::boolean, false) = false AND (main.after_data->>'pagada')::boolean = true THEN 'Marcar factura como pagada (cliente)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'UPDATE' THEN 'Editar factura (cliente)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'DELETE' THEN 'Eliminar factura (cliente)'
                     -- Carta de porte (soft delete)
@@ -124,8 +127,12 @@ exports.getLogs = async (req, res) => {
                     WHEN main.table_name = 'carta_porte' AND main.operation = 'DELETE' THEN 'Eliminar carta de porte'
                     -- CATAC (tarifas)
                     WHEN main.table_name = 'catac' AND main.operation = 'UPDATE' THEN 'Actualizar tarifas CATAC'
+                    -- FETRA (tarifas)
+                    WHEN main.table_name = 'fetra' AND main.operation = 'UPDATE' THEN 'Actualizar tarifas FETRA'
+                    -- Resumen (cerrar cuenta chofer)
+                    WHEN main.table_name = 'saldo_resumen' AND main.operation = 'INSERT' AND (main.after_data->>'destino')::text = 'chofer' THEN 'Resumen Cerrado (Chofer)'
                     -- Resumen (cerrar cuenta)
-                    WHEN main.table_name = 'saldo_resumen' AND main.operation = 'INSERT' THEN 'Cerrar resumen'
+                    WHEN main.table_name = 'saldo_resumen' AND main.operation = 'INSERT' THEN 'Resumen Cerrado'
                     -- Default
                     ELSE initcap(main.operation) || ' en ' || main.table_name
                 END AS action,
@@ -296,6 +303,7 @@ exports.getLogs = async (req, res) => {
                                   AND p.operation = 'UPDATE'
                                   AND p.created_at = main.created_at
                                   AND (p.before_data->>'group_r') IS DISTINCT FROM (p.after_data->>'group_r')
+                                  AND p.after_data->>'destino' = main.after_data->>'destino'
                             ), '[]'::jsonb),
                             'pago_saldo', (
                                 SELECT jsonb_build_object(
@@ -306,6 +314,7 @@ exports.getLogs = async (req, res) => {
                                 WHERE ps.table_name = 'pagos_otro' 
                                   AND ps.operation = 'INSERT'
                                   AND ps.created_at = main.created_at
+                                  AND ps.after_data->>'destino' = main.after_data->>'destino'
                                 LIMIT 1
                             )
                         )

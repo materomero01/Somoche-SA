@@ -65,7 +65,7 @@ exports.insertCliente = async (req, res) => {
         let balance = 0;
         if (clientExists.rows.length > 0) {
             if (!clientExists.rows[0].valid) {
-                const responseRecuperar = await client.query('UPDATE cliente SET valid = true, razon_social = $2, categoria = $3 email = $4 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.categoria, data.email]);
+                const responseRecuperar = await client.query('UPDATE cliente SET valid = true, razon_social = $2, categoria = $3, email = $4 WHERE valid = false AND cuit = $1 RETURNING balance', [data.cuit, data.nombre, data.categoria, data.email]);
                 if (responseRecuperar.rowCount > 0) {
                     clienteRecuperado = true;
                     balance = responseRecuperar.rows[0].balance;

@@ -13,35 +13,73 @@ exports.getFacturasData = async (req, res) => {
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
     }
 
-    const facturasToGet = req.body;
+    const {facturasToGet, cliente_cuit} = req.body;
 
-    if (!facturasToGet || facturasToGet.length === 0)
-        return res.status(400).json({message: "Los viajes no poseen facturas adjuntas a buscar"});
+    if (!cliente_cuit)
+        return res.status(400).json({message: "No se especifico el cliente"});
 
     let client;
     try {
         client = await pool.connect();
         await client.query("BEGIN");
-
-        query = `SELECT id AS factura_id, nro_factura, fecha_vto_pago, importe_total FROM factura_arca WHERE valid = true AND id = ANY($1)`;
-        const response = await client.query(query, [facturasToGet]);
-
-        if (response.rowCount === 0){
+        let query = '';
+        let params = [];
+        if (facturasToGet && facturasToGet.length > 0){
+            query = `SELECT id AS factura_id, nro_factura, fecha_vto_pago, importe_total FROM factura_arca WHERE valid = true AND id = ANY($1)`;
+            params.push(facturasToGet);
+        } else if (!facturasToGet && cliente_cuit){
+            query = `WITH facturas_agrupadas AS (
+                        -- Para cada nro_factura, recolectar todos los IDs de factura_arca y viajes asociados
+                        SELECT
+                            fa.nro_factura,
+                            MIN(fa.id)            AS id,           -- representante del grupo
+                            MIN(fa.create_at)     AS create_at,
+                            MIN(fa.fecha_vto_pago) AS fecha_vto_pago,
+                            MIN(fa.importe_total)  AS importe_total,
+                            BOOL_OR(fa.pagada)    AS pagada,
+                            STRING_AGG(vc.viaje_comprobante, ', ' ORDER BY vc.viaje_comprobante) AS viajes_str,
+                            ARRAY_AGG(vc.viaje_comprobante ORDER BY vc.viaje_comprobante)        AS viaje_comprobantes
+                        FROM factura_arca fa
+                        INNER JOIN viaje_cliente vc ON vc.factura_id = fa.id AND vc.valid = true AND vc.cliente_cuit = $1
+                        WHERE fa.valid = true
+                        GROUP BY fa.nro_factura
+                    )
+                    SELECT
+                        id,
+                        'Factura'                              AS tipo,
+                        create_at                              AS fecha_pago,
+                        nro_factura                            AS comprobante,
+                        fecha_vto_pago                         AS fecha_vto,
+                        importe_total                          AS importe,
+                        'Factura de Fletes: ' || viajes_str    AS detalle,
+                        CASE
+                            WHEN pagada                                                        THEN 'Pagada'
+                            WHEN fecha_vto_pago IS NOT NULL AND CURRENT_DATE > fecha_vto_pago THEN 'Pendiente'
+                            ELSE 'Facturada'
+                        END                                    AS estado,
+                        viaje_comprobantes
+                    FROM facturas_agrupadas`;
+            params.push(cliente_cuit);
+        }
+        const response = await client.query(query, params);
+        if (response.rowCount === 0 && facturasToGet){
             await client.query("ROLLBACK");
             return res.status(400).json({message: "No se encontraron datos de las facturas solicitadas"});
         }
 
         await client.query("COMMIT");
-
-        const facturasIndexadas = response.rows.reduce((acc, factura) => {
-            // Extraemos el id y el resto de las propiedades
-            const { factura_id, ...datos } = factura;
-            
-            // Asignamos al acumulador usando el id como clave
-            acc[factura_id] = datos;
-            
-            return acc;
-        }, {});
+        let facturasIndexadas = response.rows;
+        if (facturasToGet && facturasToGet.length > 0) {
+            facturasIndexadas = response.rows.reduce((acc, factura) => {
+                // Extraemos el id y el resto de las propiedades
+                const { factura_id, ...datos } = factura;
+                
+                // Asignamos al acumulador usando el id como clave
+                acc[factura_id] = datos;
+                
+                return acc;
+            }, {});
+        }
 
         return res.status(200).send({facturasData: facturasIndexadas});
 
@@ -75,7 +113,6 @@ exports.generarFacturaCtrl = async (req, res) => {
 
         // Validate docNro (CUIT)
         const cleanDocNro = invoiceData.docNro.replace(/[^0-9]/g, '');
-        console.log
         if (cleanDocNro.length !== 11) {
             console.error('Invalid CUIT:', invoiceData.docNro);
             return res.status(400).json({ error: 'CUIT inválido: debe tener 11 dígitos' });
@@ -256,6 +293,9 @@ exports.uploadFactura = async (req, res) => {
         // Iniciar transacción
         client = await pool.connect();
         await client.query('BEGIN');
+
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
+
         let query;
         let queryInsert;
         let queryUpdate;
@@ -418,7 +458,7 @@ exports.uploadCartaPorte = async (req, res) => {
             for (const file of cartaPorteFiles) {
                 if (file.mimetype === 'application/pdf') {
                     // Si es un PDF, copiar sus páginas
-                    const sourcePdf = await PDFDocument.load(file.buffer);
+                    const sourcePdf = await PDFDocument.load(file.buffer, {ignoreEncryption: true});
                     const copiedPages = await pdfDoc.copyPages(sourcePdf, sourcePdf.getPageIndices());
                     copiedPages.forEach(page => pdfDoc.addPage(page));
                 } else if (['image/jpeg', 'image/png'].includes(file.mimetype)) {
@@ -495,6 +535,8 @@ exports.pagarFacturas = async (req, res) => {
         // Iniciar transacción
         client = await pool.connect();
         await client.query('BEGIN');
+
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
         // 2. Buscamos todos los nro_factura asociados y luego 
         // actualizamos todas las facturas que compartan esos números.
@@ -590,83 +632,113 @@ exports.descargarFactura = async (req, res) => {
 }
 
 exports.deleteFactura = async (req, res) => {
-    if (req.user.role === 'chofer') {
+    if (req.user.role === 'chofer')
         return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
-    }
+
     const { id, comprobante, type } = req.query;
     if (!type || type === "null" || type === "undefined")
         return res.status(405).json({ message: "No se pudo reconocer los datos del viaje para el que desea eliminar documentación" });
 
+    // Configuración por tipo: qué tabla actualizar y cómo obtener el cuit para el socket
+    const CONFIG = {
+        viajes:              { table: 'viaje',       cuitQuery: 'SELECT chofer_cuil AS cuil, cliente_cuit AS cuit FROM viaje WHERE valid = true AND comprobante = $1',        socketEvent: 'deleteFactura' },
+        viajeCliente:        { table: 'viaje_cliente', cuitQuery: 'SELECT cliente_cuit AS cuit FROM viaje_cliente WHERE valid = true AND viaje_comprobante = $1',              socketEvent: 'actualizarFacturaCliente' },
+        ordenProveedorGasoil:{ table: 'pagos_gasoil', cuitQuery: 'SELECT proveedor_cuit AS cuil FROM pagos_gasoil WHERE valid = true AND comprobante = $1',                   socketEvent: 'deleteFactura' },
+        ordenProveedorOtro:  { table: 'pagos_otro',   cuitQuery: 'SELECT proveedor_cuit AS cuil FROM pagos_otro WHERE valid = true AND comprobante = $1',                     socketEvent: 'deleteFactura' },
+    };
+
     let client;
     try {
-        let query;
-        let queryCuil = 'SELECT chofer_cuil AS cuil, cliente_cuit AS cuit FROM viaje WHERE valid = true AND comprobante = $1';
-        let params = [];
-        if (id && id !== "null" & id !== "undefined") {
-            switch (type) {
-                case 'viajeCliente':
-                    query = 'UPDATE viaje_cliente SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND viaje_comprobante = $2';
-                    queryCuil = 'SELECT cliente_cuit AS cuit FROM viaje_cliente WHERE valid = true AND viaje_comprobante = $1';
-                    break;
-                case 'ordenProveedorGasoil':
-                case 'ordenProveedorOtro':
-                    let table_modify = type === 'ordenProveedorGasoil'? 'pagos_gasoil' : 'pagos_otro';
-                    query = `UPDATE ${table_modify} SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2`;
-                    queryCuil = `SELECT proveedor_cuit AS cuil FROM ${table_modify} WHERE valid = true AND comprobante = $1`;
-                    break;
-                default:
-                    query = 'UPDATE viaje SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND comprobante = $2';
-            }
-            params.push(id);
-        } else if (comprobante && comprobante !== "null" && comprobante !== "undefined") {
-            query = 'DELETE FROM carta_porte WHERE viaje_comprobante = $1'
-        } else {
+        client = await pool.connect();
+        await client.query('BEGIN');
+        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
+
+        // ── Eliminación masiva por nro_factura ───────────────────────────────
+        if (type === 'facturaCompleta') {
+            if (!id || id === "null" || id === "undefined")
+                return res.status(405).json({ message: "Se requiere el id de factura para esta operación" });
+
+            const { rows: facturaRows } = await client.query(
+                'SELECT id, cliente_cuit FROM factura_arca WHERE valid = true AND nro_factura = $1', [id]
+            );
+            const cliente_cuit = facturaRows[0].cliente_cuit;
+            const facturasIds = facturaRows.map(r => r.id);
+
+            const { rows: viajeRows } = await client.query(
+                'SELECT viaje_comprobante FROM viaje_cliente WHERE valid = true AND factura_id = ANY($1)', [facturasIds]
+            );
+            const comprobantesAfectados = viajeRows.map(r => r.viaje_comprobante);
+
+            await client.query('UPDATE viaje_cliente SET factura_id = NULL WHERE valid = true AND factura_id = ANY($1)', [facturasIds]);
+
+            const { rows: [{ balance }] } = await client.query(
+                'SELECT balance FROM cliente WHERE valid = true AND cuit = $1', [cliente_cuit]
+            );
+            await client.query('COMMIT');
+
+            emitSocket(req.user.cuil, 'actualizarFacturaCliente', { cuit: cliente_cuit, balance, facturasEliminadas: facturasIds, comprobantesAfectados });
+
+            return res.status(200).json({ message: "Factura eliminada con exito" });
+        }
+
+        // ── Eliminación individual ───────────────────────────────────────────
+        const hasId = id && id !== "null" && id !== "undefined";
+        const hasComprobante = comprobante && comprobante !== "null" && comprobante !== "undefined";
+
+        if (!hasId && !hasComprobante) {
+            await client.query('ROLLBACK');
             return res.status(405).json({ message: "No se obtuvieron los datos del documento solicitado" });
         }
 
-        params.push(comprobante);
-        // Iniciar transacción
-        client = await pool.connect();
-        await client.query('BEGIN');
-        // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
-        await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
+        const cfg = CONFIG[type] ?? CONFIG.viajes;
+
+        // Sin id → es carta de porte
+        const query = hasId
+            ? `UPDATE ${cfg.table} SET factura_id = NULL WHERE valid = true AND factura_id = $1 AND ${type === 'viajeCliente' ? 'viaje_comprobante' : 'comprobante'} = $2`
+            : 'DELETE FROM carta_porte WHERE viaje_comprobante = $1';
+        const params = hasId ? [id, comprobante] : [comprobante];
 
         await client.query(query, params);
 
-        const responseCuil = await client.query(queryCuil,
-            [comprobante]);
+        const { rows: cuitRows } = await client.query(cfg.cuitQuery, [comprobante]);
+        const cuitData = cuitRows[0] ?? {};
 
-        let responseClient;
-        if (responseCuil.rowCount > 0)
-            responseClient = await client.query('SELECT balance FROM cliente WHERE valid = true AND cuit = $1', [responseCuil.rows[0].cuit]);
-
-        await client.query('COMMIT');
-        client.release();
-
-        try {
-            const io = getIO();
-            // Avisar a todos los clientes conectados
-            io.sockets.sockets.forEach((socket) => {
-                if (socket.cuil !== req.user.cuil) {
-                    if (type !== "viajeCliente")
-                        socket.emit('deleteFactura', { cuil: responseCuil.rows[0].cuil, facturaId: id, comprobante: comprobante });
-                    else
-                        if (id && id !== "null" & id !== "undefined")
-                            socket.emit('actualizarFacturaCliente', { cuit: responseCuil.rows[0].cuit, balance: responseClient.rows[0].balance });
-                        else
-                            socket.emit('deleteCartaPorte', { cuit: responseCuil.rows[0].cuit, comprobante: comprobante });
-                }
-            });
-        } catch (error) {
-            console.error("Error al sincronizar los datos en deleteFactura", error.stack);
+        let balance;
+        if (cuitData.cuit) {
+            const { rows: [cliente] } = await client.query(
+                'SELECT balance FROM cliente WHERE valid = true AND cuit = $1', [cuitData.cuit]
+            );
+            balance = cliente?.balance;
         }
 
+        await client.query('COMMIT');
 
-        return res.status(204).json({ message: `${id ? "Factura" : "Carta de porte"} eliminada con exito` });
+        const socketPayload = type === 'viajeCliente'
+            ? (hasId ? { cuit: cuitData.cuit, balance } : { cuit: cuitData.cuit, comprobante })
+            : { cuil: cuitData.cuil, facturaId: id, comprobante };
+        const socketEvent = type === 'viajeCliente' && !hasId ? 'deleteCartaPorte' : cfg.socketEvent;
+
+        emitSocket(req.user.cuil, socketEvent, socketPayload);
+
+        return res.status(204).send();
 
     } catch (error) {
-        if (client) client.release();
-        console.error('Error en deleteFactura ', error.message, error.stack);
+        if (client) { await client.query('ROLLBACK'); client.release(); }
+        console.error('Error en deleteFactura:', error.message, error.stack);
         return res.status(500).json({ error: `Error al eliminar el documento: ${error.message}` });
+    } finally {
+        client?.release();
+    }
+};
+
+// Helper para no repetir el try/catch del socket en cada rama
+function emitSocket(userCuil, event, payload) {
+    try {
+        const io = getIO();
+        io.sockets.sockets.forEach(socket => {
+            if (socket.cuil !== userCuil) socket.emit(event, payload);
+        });
+    } catch (err) {
+        console.error(`Error al emitir socket '${event}':`, err.stack);
     }
 }
