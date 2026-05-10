@@ -475,8 +475,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                                     <tbody>
                                                         ${viajes.map(v => {
                                         const tarifa = parseCurrency(v.tarifa);
+                                        const toneladas = parseCurrency(v.toneladas);
                                         const variacion = parseFloat(v.variacion || 1);
-                                        const importe = tarifa * variacion;
+                                        let importe = ((tarifa - (tarifa * variacion))*toneladas)*0.9;
+                                        if (resumen.destino ==='chofer') importe = importe * 0.2;
                                         return `
                                                             <tr>
                                                                 <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${v.comprobante || 'N/A'}</td>

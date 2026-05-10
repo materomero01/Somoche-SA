@@ -277,11 +277,13 @@ exports.getLogs = async (req, res) => {
                             'chofer_cuil', main.after_data->>'chofer_cuil',
                             'saldo', COALESCE(main.after_data->>'saldo', '0'),
                             'group_r', main.after_data->>'group_r',
+                            'destino', main.after_data->>'destino',
                             'viajes', COALESCE((
                                 SELECT jsonb_agg(
                                     jsonb_build_object(
                                         'comprobante', v.after_data->>'comprobante',
                                         'tarifa', v.after_data->>'tarifa',
+                                        'toneladas', v.after_data->>'toneladas',
                                         'variacion', v.after_data->>'variacion'
                                     )
                                 )
@@ -303,7 +305,16 @@ exports.getLogs = async (req, res) => {
                                   AND p.operation = 'UPDATE'
                                   AND p.created_at = main.created_at
                                   AND (p.before_data->>'group_r') IS DISTINCT FROM (p.after_data->>'group_r')
-                                  AND p.after_data->>'destino' = main.after_data->>'destino'
+                                  AND (
+                                        (
+                                            main.after_data->>'destino' = 'general' 
+                                            AND NOT (p.after_data->>'tipo' IS DISTINCT FROM 'Resumen' AND p.after_data->>'destino' IS DISTINCT FROM 'chofer')
+                                        )
+                                        OR (
+                                            main.after_data->>'destino' = 'chofer'
+                                            AND p.after_data->>'destino' = 'chofer'
+                                        )
+                                    )
                             ), '[]'::jsonb),
                             'pago_saldo', (
                                 SELECT jsonb_build_object(
