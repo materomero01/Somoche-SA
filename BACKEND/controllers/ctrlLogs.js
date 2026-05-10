@@ -278,6 +278,7 @@ exports.getLogs = async (req, res) => {
                             'saldo', COALESCE(main.after_data->>'saldo', '0'),
                             'group_r', main.after_data->>'group_r',
                             'destino', main.after_data->>'destino',
+                            'iva', main.after_data->>'iva',
                             'viajes', COALESCE((
                                 SELECT jsonb_agg(
                                     jsonb_build_object(
@@ -297,7 +298,11 @@ exports.getLogs = async (req, res) => {
                                 SELECT jsonb_agg(
                                     jsonb_build_object(
                                         'comprobante', COALESCE(p.after_data->>'comprobante', p.after_data->>'nro', p.after_data->>'id'),
-                                        'importe', COALESCE(p.after_data->>'importe', p.after_data->>'monto', '0')
+                                        'importe', CASE 
+                                            WHEN p.table_name = 'pagos_gasoil' 
+                                            THEN ((p.after_data->>'litros')::money::numeric * (p.after_data->>'precio')::money::numeric)::text
+                                            ELSE COALESCE(p.after_data->>'importe', p.after_data->>'monto', '0')
+                                        END
                                     )
                                 )
                                 FROM audit_logs p
@@ -307,8 +312,11 @@ exports.getLogs = async (req, res) => {
                                   AND (p.before_data->>'group_r') IS DISTINCT FROM (p.after_data->>'group_r')
                                   AND (
                                         (
-                                            main.after_data->>'destino' = 'general' 
-                                            AND NOT (p.after_data->>'tipo' IS DISTINCT FROM 'Resumen' AND p.after_data->>'destino' IS DISTINCT FROM 'chofer')
+                                            main.after_data->>'destino' = 'general'
+                                            AND NOT (
+                                                COALESCE(p.after_data->>'tipo', '') = 'Resumen'
+                                                AND p.after_data->>'destino' = 'chofer'
+                                            )
                                         )
                                         OR (
                                             main.after_data->>'destino' = 'chofer'
