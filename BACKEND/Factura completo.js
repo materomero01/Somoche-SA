@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const { execSync } = require('child_process');
 const { promisify } = require('util');
 const fetch = require('node-fetch');
@@ -8,6 +9,15 @@ const xml2js = require('xml2js');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const { Writable } = require('stream');
+
+// Los servidores de AFIP/ARCA (servicios1.afip.gov.ar) usan una clave DH
+// "chica" para el handshake TLS, lo cual OpenSSL 3.x (Node 18+) rechaza por
+// default con el error "dh key too small". Bajamos el SECLEVEL solo para
+// este agente, sin afectar la seguridad TLS del resto de la app.
+const afipHttpsAgent = new https.Agent({
+  ciphers: 'DEFAULT@SECLEVEL=1',
+  rejectUnauthorized: true
+});
 
 // Configuración para parsear XML
 const parser = new xml2js.Parser({ explicitArray: false, trim: true });
@@ -31,6 +41,13 @@ function formatDate(dateString) {
   const month = dateString.slice(4, 6);
   const day = dateString.slice(6, 8);
   return `${day}/${month}/${year}`;
+}
+
+function parseFechaAFIP(dateString) {
+  const year = dateString.slice(0, 4);
+  const month = dateString.slice(4, 6);
+  const day = dateString.slice(6, 8);
+  return new Date(`${year}-${month}-${day}`); // ISO válido
 }
 
 async function generarTA(servicioId) {
@@ -161,7 +178,8 @@ async function getLastCbteNro(token, sign, cuit, ptoVta, cbteTipo) {
         'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': 'http://ar.gov.afip.dif.FEV1/FECompUltimoAutorizado'
       },
-      body: soapRequest
+      body: soapRequest,
+      agent: afipHttpsAgent
     });
 
     if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
@@ -293,7 +311,8 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [], fechaE
         'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': 'http://ar.gov.afip.dif.FEV1/FECAESolicitar'
       },
-      body: xml
+      body: xml,
+      agent: afipHttpsAgent
     });
     if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
@@ -359,11 +378,16 @@ async function consultarCUIT(cuit) {
     
     if (!personaReturn) throw new Error('Respuesta vacía del padrón');
 
-    const persona = personaReturn.datosGenerales;
+    // La respuesta A13 trae los datos directamente en "persona", no en "datosGenerales"
+    const persona = personaReturn.persona;
     if (!persona) throw new Error('CUIT no encontrado o inactivo');
 
-    const datosRegimenGeneral = personaReturn.datosRegimenGeneral;
+    if (persona.estadoClave && persona.estadoClave !== 'ACTIVO') {
+      throw new Error(`CUIT inactivo (estado: ${persona.estadoClave})`);
+    }
+
     let condicionIVA = 'No Informado';
+    const datosRegimenGeneral = personaReturn.datosRegimenGeneral;
     if (datosRegimenGeneral?.impuesto) {
       const impuesto = Array.isArray(datosRegimenGeneral.impuesto)
         ? datosRegimenGeneral.impuesto
@@ -379,10 +403,15 @@ async function consultarCUIT(cuit) {
       }[ivaImpuesto.estadoImpuesto] || 'No Informado' : 'No Informado';
     }
 
+    // domicilio puede venir como objeto único o array; preferimos el FISCAL si existe
+    let domicilios = persona.domicilio;
+    if (domicilios && !Array.isArray(domicilios)) domicilios = [domicilios];
+    const domicilioFiscal = (domicilios || []).find(d => d.tipoDomicilio === 'FISCAL') || (domicilios || [])[0] || {};
+
     return {
       cuitCliente: cuit,
       razonSocialCliente: persona.razonSocial || `${persona.apellido || ''} ${persona.nombre || ''}`.trim(),
-      domicilioCliente: `${persona.domicilioFiscal?.direccion || ''} - ${persona.domicilioFiscal?.localidad || ''}, ${persona.domicilioFiscal?.descripcionProvincia || ''} (${persona.domicilioFiscal?.codPostal || ''})`.trim(),
+      domicilioCliente: `${domicilioFiscal.direccion || ''}, ${domicilioFiscal.descripcionProvincia || ''} (${domicilioFiscal.codigoPostal || ''})`.trim(),
       condicionIVACliente: condicionIVA
     };
 
@@ -415,7 +444,7 @@ async function generarEnlaceQR(datos, impTotal) {
   };
   const qrJson = JSON.stringify(qrData);
   const qrBase64 = Buffer.from(qrJson).toString('base64');
-  const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${qrBase64}`;
+  const qrUrl = `https://www.arca.gob.ar/fe/qr/?p=${qrBase64}`;
 
   // Imprimir datos decodificados para facilitar la constatación
   console.log('Datos del QR (decodificados):');
@@ -585,45 +614,62 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   doc.font('Helvetica-Bold').text(`Fecha de Vto. para el pago: `, { continued: true }).font('Helvetica').text(formatDate(datosFactura.fechaVtoPago));
   currentY += periodosHeight + 1;
 
-  // Datos del Cliente
-  const clientBoxHeight = 65;
-  doc.rect(PADDING_X, currentY, PAGE_WIDTH - (2 * PADDING_X), clientBoxHeight).stroke();
-  doc.font('Helvetica').fontSize(10);
-  let clientTextY = currentY + 5;
-  const clientBoxInnerWidth = PAGE_WIDTH - (2 * PADDING_X) - 10;
+       // Datos del Cliente
+     doc.font('Helvetica').fontSize(9);
+    const clientBoxInnerWidth = PAGE_WIDTH - (2 * PADDING_X) - 10;
+     // Columna izquierda fija y angosta (como en el original AFIP)
+    const leftColWidth = 230;  // ancho fijo para "CUIT:" / "Condición frente al IVA:"
+    const rightColX = PADDING_X + 5 + leftColWidth;
+    const rightColWidth = clientBoxInnerWidth - leftColWidth;
 
-  const cuitSectionWidth = clientBoxInnerWidth * 0.3;
-  const razonSocialSectionWidth = clientBoxInnerWidth * 0.7;
+    // --- Medimos ANTES de dibujar para saber si la razón social entra en una línea ---
+    doc.font('Helvetica-Bold').fontSize(9);
+    const razonSocialLabel = 'Apellido y Nombre / Razón Social: ';
+    const razonSocialLabelWidth = doc.widthOfString(razonSocialLabel);
+    const availWidthRazonSocial = rightColWidth - razonSocialLabelWidth - 5;
 
-  doc.font('Helvetica-Bold').text(`CUIT: `, PADDING_X + 5, clientTextY, { continued: true });
-  let currentTextX = doc.x;
-  doc.font('Helvetica').text(`${datosFactura.cuitCliente}`, currentTextX, clientTextY, { width: cuitSectionWidth - (currentTextX - (PADDING_X + 5)), align: 'left' });
+    doc.font('Helvetica').fontSize(9);
+    const razonSocialHeight = doc.heightOfString(datosFactura.razonSocialCliente, {
+      width: availWidthRazonSocial,
+      align: 'left'
+    });
+    const row1Height = Math.max(14, razonSocialHeight + 2);
 
-  const razonSocialLabelX = PADDING_X + 5 + cuitSectionWidth;
-  doc.font('Helvetica-Bold').text(`Apellido y Nombre / Razón Social: `, razonSocialLabelX, clientTextY, { continued: true });
-  currentTextX = doc.x;
-  doc.font('Helvetica').text(`${datosFactura.razonSocialCliente}`, currentTextX, clientTextY, { width: razonSocialSectionWidth - (currentTextX - razonSocialLabelX), align: 'left' });
+    // Altura total del box en base a la fila dinámica (fallback para nombres muy largos)
+    const clientBoxHeight = row1Height + 14 + 14 + 10;
 
-  clientTextY += 14;
+    doc.rect(PADDING_X, currentY, PAGE_WIDTH - (2 * PADDING_X), clientBoxHeight).stroke();
 
-  const condicionIvaSectionWidth = clientBoxInnerWidth * 0.7;
-  const domicilioSectionWidth = clientBoxInnerWidth * 0.3;
-  const domicilioLabelX = PADDING_X + 5 + condicionIvaSectionWidth - 30;
+    let clientTextY = currentY + 5;
 
-  doc.font('Helvetica-Bold').text(`Condición frente al IVA: `, PADDING_X + 5, clientTextY, { continued: true });
-  currentTextX = doc.x;
-  doc.font('Helvetica').text(`${datosFactura.condicionIVACliente}`, currentTextX, clientTextY, { width: condicionIvaSectionWidth - (currentTextX - (PADDING_X + 5)), align: 'left' });
+    // --- Fila 1: CUIT / Razón Social ---
+    doc.font('Helvetica-Bold').fontSize(9).text(`CUIT: `, PADDING_X + 5, clientTextY, { continued: true });
+    doc.font('Helvetica').text(`${datosFactura.cuitCliente}`, { width: leftColWidth - 30 });
 
-  doc.font('Helvetica-Bold').text(`Domicilio: `, domicilioLabelX, clientTextY, { continued: true });
-  currentTextX = doc.x;
-  const formattedDomicilio = datosFactura.domicilioCliente.replace(/ - /, ' -\n');
-  doc.font('Helvetica').text(formattedDomicilio, currentTextX, clientTextY, { width: domicilioSectionWidth - (currentTextX - domicilioLabelX), align: 'left' });
+    doc.font('Helvetica-Bold').text(razonSocialLabel, rightColX, clientTextY, { continued: true });
+    doc.font('Helvetica').text(`${datosFactura.razonSocialCliente}`, { width: availWidthRazonSocial, align: 'left' });
 
-  clientTextY += 14;
+    clientTextY += row1Height;
 
-  doc.font('Helvetica-Bold').text(`Condición de venta: `, PADDING_X + 5, clientTextY, { continued: true }).font('Helvetica').text(`${datosFactura.condicionVenta}`);
-  clientTextY += 14;
-  currentY += clientBoxHeight + 5;
+    // --- Fila 2: Condición IVA / Domicilio Comercial ---
+    doc.font('Helvetica-Bold').text(`Condición frente al IVA: `, PADDING_X + 5, clientTextY, { continued: true, width: leftColWidth - 10 });
+    doc.font('Helvetica').text(`${datosFactura.condicionIVACliente}`);
+
+    const domicilioLabel = 'Domicilio Comercial: ';
+    doc.font('Helvetica-Bold').text(domicilioLabel, rightColX, clientTextY, { continued: true });
+    const domicilioLabelWidth = doc.widthOfString(domicilioLabel);
+    doc.font('Helvetica').text(`${datosFactura.domicilioCliente}`, {
+      width: rightColWidth - domicilioLabelWidth - 5,
+      align: 'left'
+    });
+
+    clientTextY += 14;
+
+    // --- Fila 3: Condición de venta ---
+    doc.font('Helvetica-Bold').text(`Condición de venta: `, PADDING_X + 5, clientTextY, { continued: true })
+      .font('Helvetica').text(`${datosFactura.condicionVenta}`);
+
+    currentY += clientBoxHeight + 5;
 
   // Tabla de servicios con salto automático de página
   const tableHeaders = ['Código', 'Producto / Servicio', 'Cantidad', 'U. Medida', 'Precio Unit.', '% Bonif', 'Subtotal', 'Alícuota IVA', 'Subtotal c/IVA'];
@@ -817,7 +863,7 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
   try {
     const { qrUrl, constatacionUrl } = await generarEnlaceQR(datosFactura, impTotal);
     console.log('QR generado para el PDF');
-    const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 120, margin: 6, errorCorrectionLevel: 'M', scale: 8 });
+    const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 300, margin: 4, errorCorrectionLevel: 'M' });
     doc.image(qrBuffer, PADDING_X + 5, bottomSectionStartY + 25, { width: 120 });
 
   } catch (e) {
@@ -857,7 +903,14 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
 
   console.log(`✅ PDF generado en memoria, tamaño: ${pdfBuffer.length} bytes`);
 
-  return { ...facturaResult, ...clienteDatos, pdfBuffer };
+  return { ...facturaResult, ...clienteDatos, pdfBuffer,
+    metadatosQR: {
+      fechaVtoPago: parseFechaAFIP(datosFactura.fechaVtoPago), // o calcular como en el extractor
+      nroFactura: `${String(datosFactura.ptoVta).padStart(5, "0")}-${String(datosFactura.cbteNro).padStart(8, "0")}`,
+      importeTotal: parseFloat(impTotal),
+      cae: datosFactura.cae
+    }
+  };
 }
 
 module.exports = { generarFactura, emitirFacturaA, consultarCUIT };

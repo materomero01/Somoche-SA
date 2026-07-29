@@ -39,7 +39,7 @@ const pagoOtroSchema = {
     tipo: { type: 'string', required: false, default: null, error: 'El tipo ingresado no es valido'},
     comprobante: { type: 'string', required: true, error: 'El comprobante del pago no fue ingresado o no es válido'},
     detalle: { type: 'string', required: true, error: 'El detalle es obligatorio.' },
-    importe: { type: 'number', required: true, min: 0, error: 'El importe debe ser un número mayor o igual a 0.' }
+    importe: { type: 'number', required: true, error: 'El importe debe ser un número mayor o igual a 0.' }
 };
 
 const validatePago = (data, partial = false) => {

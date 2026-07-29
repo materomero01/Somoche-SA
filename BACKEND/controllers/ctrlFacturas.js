@@ -104,7 +104,7 @@ exports.generarFacturaCtrl = async (req, res) => {
         console.log('Received invoice data:', JSON.stringify(invoiceData, null, 2));
 
         // Validate required fields
-        const requiredFields = ['ptoVta', 'docNro', 'servicios', 'fechaEmision', 'periodoDesde', 'periodoHasta', 'fechaVtoPago', 'condicionVenta'];
+        const requiredFields = ['ptoVta', 'docNro', 'servicios', 'fechaEmision', 'periodoDesde', 'periodoHasta', 'fechaVtoPago', 'condicionVenta', 'comprobante'];
         const missingFields = requiredFields.filter(field => !invoiceData[field] || (typeof invoiceData[field] === 'string' && invoiceData[field].trim() === ''));
         if (missingFields.length > 0) {
             console.error('Missing required fields:', missingFields);
@@ -175,7 +175,13 @@ exports.generarFacturaCtrl = async (req, res) => {
         // Setear el usuario de la app en la sesión de PostgreSQL para auditoría
         await client.query(`SELECT set_config('app.user_cuil', $1, true)`, [req.user.cuil]);
 
-        const valoresPdf = await extraerMetadatos(pdfBuffer);
+        let valoresPdf;
+        if (result.metadatosQR) {
+            valoresPdf = result.metadatosQR;
+        } else {
+            // fallback por si hay facturas antiguas
+            valoresPdf = await extraerMetadatos(pdfBuffer);
+        }
         
         const response = await client.query(`INSERT INTO factura_arca(cliente_cuit, factura_pdf, fecha_vto_pago, nro_factura, importe_total, cae) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
             [cuit, pdfBuffer, valoresPdf.fechaVtoPago, valoresPdf.nroFactura, valoresPdf.importeTotal, valoresPdf.cae]

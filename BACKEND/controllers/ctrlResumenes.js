@@ -101,18 +101,28 @@ exports.insertResumen = async (req, res) => {
 
                 idPagoAdicional.push({destino: pago.destino, id: response.rows[0].id});
             };
-        } else {
-            const responseResumen = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva) VALUES ($1, $2, $3, $4)', [groupStamp, choferCuil, 0, iva]);
-            let responseResumenChofer = null;
-            if (userExists.rows[0].tipo_trabajador === 'Chofer')
-                responseResumenChofer = await client.query('INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva, destino) VALUES ($1, $2, $3, $4, $5)', [groupStamp, choferCuil, 0, iva, 'chofer']);
-            if (responseResumen.rowCount === 0 || (responseResumenChofer && responseResumenChofer.rowCount === 0)) {
-                await client.query('ROLLBACK');
-                client.release();
-                return res.status(405).json({ message: `No se pudo cerrar el resumen del chofer` });
-            }
         }
 
+        const destinosEsperados = ['general'];
+        if (userExists.rows[0].tipo_trabajador === 'Chofer') destinosEsperados.push('chofer');
+
+        const destinosCubiertos = new Set((pagoAdicional ?? []).map(p => p.destino ?? 'general'));
+
+        for (const destino of destinosEsperados) {
+            if (!destinosCubiertos.has(destino)) {
+                const esGeneral = destino === 'general';
+                const response = await client.query(
+                    `INSERT INTO saldo_resumen(group_r, chofer_cuil, saldo, iva${esGeneral ? '' : ', destino'}) 
+                     VALUES ($1, $2, $3, $4${esGeneral ? '' : ', $5'})`,
+                    esGeneral ? [groupStamp, choferCuil, 0, iva] : [groupStamp, choferCuil, 0, iva, destino]
+                );
+                if (response.rowCount === 0) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    return res.status(405).json({ message: `No se pudo cerrar el resumen del chofer` });
+                }
+            }
+        }
 
         await client.query('COMMIT');
         client.release();

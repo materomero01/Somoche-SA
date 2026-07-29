@@ -672,7 +672,7 @@ async function cargarPagos(){
         }
         );
     }
-
+    pagoResumenChofer = null;
     if (esChofer){
         dataPagos = dataPagos.filter(p => {
             let cond = p.tipo === "Resumen" && p.destino === "chofer";
@@ -831,6 +831,7 @@ async function cerrarCuenta() {
             
             pagosData = [];
             viajesData = [];
+            pagoResumenChofer = null;
 
             if (dataId.idPagoAdicional && dataId.idPagoAdicional.length > 0){
                 for (let i = 0; i < dataId.idPagoAdicional.length ;i++){
