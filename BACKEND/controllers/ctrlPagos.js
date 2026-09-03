@@ -917,7 +917,7 @@ exports.deletePago = async (req, res) => {
                 break;
             case 'gasoil':
                 querySelect = 'SELECT comprobante, chofer_cuil, proveedor_cuit FROM pagos_gasoil WHERE valid = true AND comprobante = $1';
-                queryDelete = 'UPDATE pagos_gasoil SET valid = false WHERE comprobante = $1 RETURNING importe';
+                queryDelete = 'UPDATE pagos_gasoil SET valid = false WHERE comprobante = $1 RETURNING (precio * litros) AS importe';
                 break;
             default:
                 querySelect = 'SELECT comprobante, chofer_cuil, cliente_cuit, proveedor_cuit FROM pagos_otro WHERE valid = true AND comprobante = $1';

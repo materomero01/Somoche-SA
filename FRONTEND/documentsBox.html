@@ -40,6 +40,26 @@
         </div>
     </div>
 
+    <hr class="section-divider" id="section-divider-otros">
+
+    <!-- Sección Otros Archivos -->
+    <div class="document-section" id="otrosArchivosSection">
+        <div class="section-header">
+            <h3>Otros Archivos</h3>
+            <i class="bi bi-chevron-down toggle-dropbox active" id="toggleOtrosArchivosDropbox"></i>
+        </div>
+
+        <div class="drop-area active" id="otrosArchivosDropArea">
+            <p>Arrastra y suelta el archivo aquí o</p>
+            <input type="text" id="otrosArchivosDescripcion" class="archivo-descripcion-input" placeholder="Descripción del archivo">
+            <label for="otrosArchivosInput" class="file-label">Seleccionar archivo</label>
+            <input type="file" id="otrosArchivosInput" accept=".pdf,.jpg,.jpeg,.png">
+            <p class="upload-status" id="otrosArchivosUploadStatus"></p>
+        </div>
+
+        <div class="archivos-scroll hidden" id="otrosArchivosContainer"></div>
+    </div>
+
     <div class="modal-actions">
         <button id="uploadDocumentsBtn" class="btn btn-success" disabled>Subir</button>
         <button id="cancelDocumentsBtn" class="btn btn-danger">Cancelar</button>

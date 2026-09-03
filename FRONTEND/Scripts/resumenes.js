@@ -18,6 +18,8 @@ let choferIva = true;
 
 let cartaPorteFunc;
 let deleteFactura;
+let uploadArchivoViajeFunc;
+let eliminarArchivoViajeFunc;
 
 const accionesViajes = [
     {
@@ -31,7 +33,7 @@ const accionesViajes = [
                 handleFacturaActualization,
                 cartaPorteFunc ? (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, changeDataDocuments) : null,
                 deleteFactura ? (facturaId) => deleteFactura(facturaId, changeDataDocuments) : null,
-                "resumenes"
+                "resumenes", [], true, false, true, null, uploadArchivoViajeFunc, eliminarArchivoViajeFunc
             );
         }
     }
@@ -81,7 +83,6 @@ const checkboxHeaderActionUpload = {
 }
 
 function columnasViajesResumenes() {
-    console.log(choferIva);
     if (choferIva)
         return columnasViajes.filter(col => !["cargado", "descargado"].includes(col.key));
     else
@@ -173,7 +174,6 @@ function actualizarValores(resumenViajes, resumenPagos, resumenSaldo) {
 
 function changeDataDocuments() {
     if (viajesResumenes.length > 0) {
-        //console.log(viajesResumenes);
         viajesResumenes[currentResumenesPage - 1].viajes.forEach(v => {
             if (v.comprobante === viaje[0].comprobante) {
                 v.carta_porte = viaje[0].carta_porte;
@@ -266,7 +266,7 @@ export function parsePagos(pago, cuentaCorriente = false) {
     };
 }
 
-export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null) {
+export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null, uploadArchivoViaje = null, eliminarArchivoViaje = null) {
     choferData = chofer;
     if (choferData.trabajador !== "Responsable Inscripto")
         choferIva = false;
@@ -281,6 +281,8 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null)
 
     cartaPorteFunc = cartaPorte;
     deleteFactura = deleteFunc;
+    uploadArchivoViajeFunc = uploadArchivoViaje;
+    eliminarArchivoViajeFunc = eliminarArchivoViaje;
     const selectCantidad = document.getElementById("selectResumenes");
     const cantidad = selectCantidad.value !== "Otro" ? selectCantidad.value : document.getElementById("inputSelectResumenes").value;
     if (!cantidad) {

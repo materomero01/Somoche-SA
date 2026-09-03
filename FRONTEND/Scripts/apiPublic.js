@@ -263,7 +263,6 @@ export async function getCheques(pagados, choferCuil, cantidad = null, tipo = nu
         if (!response.ok) {
             showConfirmModal(data.messae);
         }
-        console.log(data);
         return data;
     } catch (error) {
         console.log(error.message);
@@ -340,10 +339,10 @@ export async function getResumenCuil(cuil, cantidad) {
     }
 }
 
-export async function getFactura(cuil, id) {
+export async function getFactura(cuil, id, validos = true) {
     try {
         const token = getToken();
-        const response = await fetch(`${apiURL}/facturas/descargar-factura?cuil=${encodeURIComponent(cuil)}&id=${encodeURIComponent(id)}`, {
+        const response = await fetch(`${apiURL}/facturas/descargar-factura?cuil=${encodeURIComponent(cuil)}&id=${encodeURIComponent(id)}&validos=${encodeURIComponent(validos)}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -363,10 +362,56 @@ export async function getFactura(cuil, id) {
     }
 }
 
-export async function getCartaPorte(cuil, comprobante) {
+export async function getCartaPorte(cuil, comprobante, validos = true) {
     try {
         const token = getToken();
-        const response = await fetch(`${apiURL}/facturas/descargar-factura?cuil=${encodeURIComponent(cuil)}&comprobante=${encodeURIComponent(comprobante)}`, {
+        const response = await fetch(`${apiURL}/facturas/descargar-factura?cuil=${encodeURIComponent(cuil)}&comprobante=${encodeURIComponent(comprobante)}&validos=${encodeURIComponent(validos)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+export async function getArchivosViaje(comprobante, clienteCuit = null) {
+    try {
+        const token = getToken();
+        const response = await fetch(`${apiURL}/facturas/archivos-viaje?comprobante=${encodeURIComponent(comprobante)}&clienteCuit=${encodeURIComponent(clienteCuit)}&cuil=${encodeURIComponent(localStorage.getItem('userCuil'))}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+export async function getArchivoViaje(id, validos = true) {
+    try {
+        const token = getToken();
+        const response = await fetch(`${apiURL}/facturas/descargar-archivo?id=${encodeURIComponent(id)}&validos=${encodeURIComponent(validos)}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,

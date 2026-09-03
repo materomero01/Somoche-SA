@@ -74,11 +74,16 @@ function buildFacturaQR(qr) {
   const nroCmp = parseInt(qr.nroCmp);
   const fechaEmision = new Date(qr.fecha + "T00:00:00");
   const fechaVtoPago = new Date(fechaEmision);
+  const impNeto = parseFloat((qr.importe / 1.21).toFixed(2));
+  const impIVA = parseFloat((qr.importe - impNeto).toFixed(2));
+  console.log(impNeto, impIVA, qr.importe);
   fechaVtoPago.setMonth(fechaVtoPago.getMonth() + 1);
   return {
     fechaVtoPago: fechaVtoPago,
     nroFactura: `${String(ptoVta).padStart(5, "0")}-${String(nroCmp).padStart(8, "0")}`,
     importeTotal: qr.importe,
+    impNeto: impNeto,
+    impIVA: impIVA,
     cae: String(qr.codAut),
   };
 }

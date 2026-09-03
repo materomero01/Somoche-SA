@@ -1,6 +1,6 @@
 import { renderTables, enterEditMode, handleEdit, editingRowId, originalEditingData, stagedEditingData, resetEditingState, currentEditingTableType } from './tabla.js';
 import { getViajes, getPagosCuil, showConfirmModal, toggleSpinnerVisible, changeSpinnerText, createLoadingSpinner } from './apiPublic.js';
-import { addViaje, addPagos, updateViaje, setupTarifaAutocomplete, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje, socket, tarifasCatac, tarifasFetra, redondear} from './api.js';
+import { addViaje, addPagos, updateViaje, setupTarifaAutocomplete, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje, socket, tarifasCatac, tarifasFetra, redondear, uploadArchivoViaje, eliminarArchivoViaje} from './api.js';
 import { mockClientes, mockProveedores } from './choferes-clientes.js';
 import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos} from './resumenes.js';
 import { viaje, initializeFacturaUpload, updateViajeStatus, closeModalFactura } from './subir-factura.js';
@@ -51,7 +51,7 @@ const accionesViajes = [
                 changeDataFactura,
                 (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, changeDataDocuments),
                 (facturaId) => deleteFactura(facturaId, changeDataDocuments),
-                "viajes"
+                "viajes", [], true, false, true, null, uploadArchivoViaje, eliminarArchivoViaje
             );
         }
     },
@@ -227,16 +227,17 @@ export async function cartaPorteFunc(cartaPorteFiles , changeDataDocuments) {
     await changeDataDocuments?.();
 }
 
-export async function deleteFactura(facturaId = null, changeDataDocuments, tableType = "viajes") {
+export async function deleteFactura(facturaId = null, changeDataDocuments, tableType = "viajes", message = null) {
     const response = await deleteDocument(facturaId, viaje[0].comprobante, tableType);
     if (!response.ok) {
         showConfirmModal(`Ocurrió un error al eliminar la ${facturaId ? "factura" : "carta de porte"}`);
-        return;
+        return false;
     }
     viaje[0][facturaId ? "factura_id" : "carta_porte"] = facturaId ? null : false;
 
     await changeDataDocuments?.();
-    showConfirmModal(`${facturaId ? "Factura" : "Carta de porte"} eliminada con éxito`);
+    showConfirmModal(message || `${facturaId ? "Factura" : "Carta de porte"} eliminada con éxito`);
+    return true;
 }
 
 // Función para actualizar los totales
@@ -919,6 +920,7 @@ export async function inicializarModal(data) {
                 socket.off('nuevoPago');
                 socket.off('nuevoFactura');
                 socket.off('nuevoCartaPorte');
+                socket.off('actualizarArchivoViaje');
                 socket.off('updateViaje');
                 socket.off('updatePagos');
                 socket.off('updateUsuario', manejarUpdateUsuario);
@@ -1165,7 +1167,7 @@ export async function inicializarModal(data) {
         historialBtn?.addEventListener("click", async () =>{
             changeSpinnerText(mainContent, "Cargando resumenes...");
             toggleSpinnerVisible(mainContent);
-            await setHistorial(choferData, cartaPorteFunc, deleteFactura);
+            await setHistorial(choferData, cartaPorteFunc, deleteFactura, uploadArchivoViaje, eliminarArchivoViaje);
             toggleSpinnerVisible(mainContent);
             changeSpinnerText(mainContent);
             document.getElementById("back-historial").classList.remove("hidden");
@@ -1195,6 +1197,13 @@ export async function inicializarModal(data) {
                 if (historialBtn.classList.contains("hidden") && !viajesEditados){
                     historialBtn.click()
                 }
+            }
+        });
+
+        socket.on('actualizarArchivoViaje', (payload) => {
+            if (payload.cuil === choferData.cuil && payload.comprobantes?.includes(viaje[0].comprobante)) {
+                closeModalFactura();
+                showConfirmModal("Se actualizaron los archivos del viaje");
             }
         });
 

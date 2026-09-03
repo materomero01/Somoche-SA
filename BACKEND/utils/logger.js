@@ -89,6 +89,13 @@ const createLogsTable = async () => {
                 ELSE
                     v_entity_id := NEW.viaje_comprobante::text;
                 END IF;
+
+            ELSIF TG_TABLE_NAME = 'archivo' THEN
+                IF TG_OP = 'DELETE' THEN
+                    v_entity_id := OLD.id::text;
+                ELSE
+                    v_entity_id := NEW.id::text;
+                END IF;
             END IF;
 
             -- INSERT
@@ -156,8 +163,8 @@ const createLogsTable = async () => {
             DO $$
             BEGIN
                 IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.triggers 
-                    WHERE trigger_name = 'audit_trigger_proveedor' 
+                    SELECT 1 FROM information_schema.triggers
+                    WHERE trigger_name = 'audit_trigger_proveedor'
                     AND event_object_table = 'proveedor'
                 ) THEN
                     CREATE TRIGGER audit_trigger_proveedor
@@ -168,6 +175,43 @@ const createLogsTable = async () => {
             END $$;
         `);
         console.log('[Logger] Trigger de proveedor verificado/creado');
+
+        // Crear trigger para la tabla archivo si no existe. El contenido del archivo vive en
+        // "archivo" (una fila por documento único); "archivo_viaje" es solo el vínculo con cada
+        // viaje, así que el trigger va en "archivo" para tener un único log por archivo en vez
+        // de uno por cada viaje al que esté vinculado.
+        await pool.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.triggers
+                    WHERE trigger_name = 'audit_trigger_archivo'
+                    AND event_object_table = 'archivo'
+                ) THEN
+                    CREATE TRIGGER audit_trigger_archivo
+                    AFTER INSERT OR UPDATE OR DELETE ON archivo
+                    FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+                    RAISE NOTICE 'Trigger audit_trigger_archivo creado';
+                END IF;
+            END $$;
+        `);
+        console.log('[Logger] Trigger de archivo verificado/creado');
+
+        // Asegurar que no quede el trigger viejo en archivo_viaje (reemplazado por el de arriba)
+        await pool.query(`
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.triggers
+                    WHERE trigger_name = 'audit_trigger_archivo_viaje'
+                    AND event_object_table = 'archivo_viaje'
+                ) THEN
+                    DROP TRIGGER audit_trigger_archivo_viaje ON archivo_viaje;
+                    RAISE NOTICE 'Trigger audit_trigger_archivo_viaje eliminado (obsoleto)';
+                END IF;
+            END $$;
+        `);
+        console.log('[Logger] Trigger obsoleto de archivo_viaje verificado');
 
     } catch (error) {
         console.error("Error al actualizar trigger de auditoría:", error);

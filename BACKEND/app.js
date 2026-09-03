@@ -72,7 +72,7 @@ app.use(cors({
     // origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:3000'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['X-Factura-Id', 'Content-Disposition', 'X-New-Token']
+    exposedHeaders: ['X-Factura-Id', 'Content-Disposition', 'X-New-Token', 'X-Archivos-Nota']
 }));
 
 
@@ -146,7 +146,7 @@ app.use('/api/clientes', clientesRouter);
 app.use('/api/proveedores', proveedoresRouter);
 app.use('/api/resumenes', resumenesRouter);
 app.use('/api/logs', logsRouter);
-app.use('/api/facturas', upload.fields([{ name: 'factura', maxCount: 1 }, { name: 'cartaPorte', maxCount: 5 }]), facturasRouter);
+app.use('/api/facturas', upload.fields([{ name: 'factura', maxCount: 1 }, { name: 'cartaPorte', maxCount: 5 }, { name: 'archivo', maxCount: 1 }]), facturasRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

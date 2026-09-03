@@ -1,4 +1,4 @@
-import { createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText, getFactura, getCartaPorte } from "./apiPublic.js";
+import { createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText, getFactura, getCartaPorte, getArchivoViaje, showConfirmModal } from "./apiPublic.js";
 import { fetchLogs } from "./api.js";
 
 // Función para parsear valores con formato de moneda ($376,529.16) a número
@@ -13,6 +13,79 @@ const parseCurrency = (value) => {
     const result = parseFloat(cleanValue) || 0;
     return isNegative ? -result : result;
 };
+
+// Sección "N viaje(s) vinculado(s) a X" con un botón "Ver detalle" por viaje — usada por
+// carta de porte, archivos de viaje (nota de crédito/débito, otros archivos) y facturas, que
+// solo difieren en cuántos viajes traen, el texto de la entidad vinculada, y cómo identificar
+// (getComprobante) cada viaje en la lista.
+function renderViajesVinculadosSection(viajes, { tituloEntidad, isDesvinculado, btnClass, getComprobante }) {
+    const numViajes = viajes.length;
+    const viajeWord = numViajes === 1 ? 'viaje' : 'viajes';
+    const plural = numViajes > 1 ? 's' : '';
+    const actionText = isDesvinculado ? `desvinculado${plural} de` : `vinculado${plural} a`;
+    const bgColor = isDesvinculado ? '#ffebee' : '#e3f2fd';
+    const borderColor = isDesvinculado ? '#f44336' : '#2196f3';
+    const textColor = isDesvinculado ? '#c62828' : '#1565c0';
+
+    return `
+        <div style="margin-top: 20px; padding: 15px; background: ${bgColor}; border-radius: 8px; border-left: 4px solid ${borderColor};">
+            <h4 style="margin: 0 0 10px; color: ${textColor}; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-link-45deg"></i>
+                ${numViajes} ${viajeWord} ${actionText} ${tituloEntidad}
+            </h4>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                ${viajes.map((v, idx) => `
+                    <li style="padding: 8px 12px; background: white; border-radius: 4px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <strong>Comprobante:</strong> ${getComprobante(v) || 'N/A'}
+                        </span>
+                        <button class="btn btn-primary btn-sm ${btnClass}" data-viaje-index="${idx}" style="padding: 4px 10px; font-size: 0.85em; flex-shrink: 0; margin-left: auto;">
+                            Ver detalle
+                        </button>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+    `;
+}
+
+// Wirea (y re-wirea recursivamente tras volver) los botones "Ver detalle" de una sección
+// armada con renderViajesVinculadosSection. Antes cada tabla reimplementaba esto a mano, y
+// carta de porte / archivo lo hacían mal: al volver del detalle, jsonContent.innerHTML se
+// reemplaza y los listeners viejos se pierden, así que el mismo botón dejaba de responder en
+// el segundo click. onRestore (opcional) permite re-enganchar otros botones de la vista
+// principal que también hayan quedado sin listener (p. ej. el de descargar el PDF).
+function attachViajesVinculadosListeners(jsonContent, btnClass, viajes, getDetailData, formatDataToHTML, onRestore) {
+    const mainContent = jsonContent.innerHTML;
+    const attach = () => {
+        jsonContent.querySelectorAll(`.${btnClass}`).forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.getAttribute('data-viaje-index'), 10);
+                const viaje = viajes[idx];
+                if (!viaje) return;
+
+                let viajeContent = '<h4 style="margin: 15px 0 5px; color: #333;">Detalle del viaje vinculado</h4>';
+                viajeContent += formatDataToHTML(getDetailData(viaje));
+                viajeContent += `
+                    <button class="btn btn-secondary btn-sm btn-back-to-main" style="margin-top: 15px;">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </button>
+                `;
+                jsonContent.innerHTML = viajeContent;
+
+                const backBtn = jsonContent.querySelector('.btn-back-to-main');
+                if (backBtn) {
+                    backBtn.addEventListener('click', () => {
+                        jsonContent.innerHTML = mainContent;
+                        attach();
+                        onRestore?.();
+                    });
+                }
+            });
+        });
+    };
+    attach();
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (typeof loadHeader === 'function') await loadHeader();
@@ -80,7 +153,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         chofer: ['valid', 'create_at', 'update_at'],
         factura: ['valid', 'create_at', 'update_at', 'factura_pdf', 'id', 'cuil'],
         factura_arca: ['valid', 'create_at', 'update_at', 'factura_pdf', 'id'],
-        carta_porte: ['valid', 'create_at', 'update_at', 'carta_porte_pdf']
+        carta_porte: ['valid', 'create_at', 'update_at', 'carta_porte_pdf'],
+        archivo: ['valid', 'create_at', 'update_at', 'archivo_pdf']
     };
 
     // Filtrar campos ocultos y nulls
@@ -212,6 +286,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         } else {
                             previewText = isDeleteForPreview ? 'Factura eliminada' : 'Factura cargada';
                         }
+                    } else if (tabla === 'archivo' && log.related_viaje_archivo && log.related_viaje_archivo.length > 0) {
+                        const viaje = log.related_viaje_archivo[0];
+                        const identificador = viaje.chofer_cuil || viaje.cliente_cuit || '';
+                        if (identificador) {
+                            previewText = viaje.cliente_cuit ? `Cliente: ${identificador}` : `Chofer: ${identificador}`;
+                        } else {
+                            previewText = isDeleteForPreview ? 'Archivo eliminado' : 'Archivo cargado';
+                        }
                     } else {
                         let mainData = filtrarDatos(isDeleteForPreview ? detailsObj.before : (detailsObj.after || detailsObj.before || {}), tabla);
 
@@ -233,7 +315,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                             const campos = prioridades[tabla] || ['comprobante', 'importe', 'cuil', 'detalle'];
                             const maxCampos = tabla === 'pagos_cheque' || tabla === 'pagos_gasoil' ? 3 : 2;
-
                             const encontrados = [];
                             for (const campo of campos) {
                                 if (mainData[campo] !== undefined && mainData[campo] !== null) {
@@ -326,6 +407,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                             const facturaData = isFacturaTabla ? (detailsObj.after && detailsObj.after.factura_pdf ? detailsObj.after : detailsObj.before) : null;
                             const isFacturaConPdf = facturaData && facturaData.factura_pdf;
                             const isFacturaCliente = tabla === 'factura_arca';
+
+                            // Detectar si es un archivo con PDF (en after para crear, en before para eliminar).
+                            // El trigger de auditoría vive en "archivo" (no "archivo_viaje"), y la
+                            // eliminación es un soft delete (UPDATE valid true->false), no un DELETE real.
+                            const isArchivoTabla = tabla === 'archivo';
+                            const archivoData = isArchivoTabla ? (isDeleteOperation ? detailsObj.before : detailsObj.after) : null;
+                            const isArchivoConPdf = archivoData && archivoData.id;
 
                             // Detectar si es carta de porte con PDF
                             const isCartaPorte = tabla === 'carta_porte';
@@ -659,16 +747,56 @@ document.addEventListener('DOMContentLoaded', async () => {
                                             ${isDeleteOperation ? 'Factura eliminada' : tipoFactura}
                                         </h4>
                                         <p style="margin: 5px 0;"><strong>${isFacturaCliente ? 'Cliente CUIT:' : 'Chofer CUIL:'}</strong> ${clienteCuit}</p>
-                                        ${!isDeleteOperation && facturaId ? `
+                                        ${facturaId ? `
                                             <button class="btn-view-factura" data-factura-id="${facturaId}" data-cuil="${clienteCuit}" data-type="${isFacturaCliente ? 'viajeCliente' : 'viaje'}" 
                                                 style="margin-top: 10px; padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                                                 <i class="bi bi-eye"></i> Ver factura
                                             </button>
                                         ` : ''}
-                                        ${isDeleteOperation ? '<p style="margin-top: 10px; color: #856404; font-style: italic;">El documento fue eliminado y ya no está disponible.</p>' : ''}
                                     </div>
                                 `;
-                            } else if (isCartaPorteConPdf) {
+                            } else if (isArchivoConPdf) {
+                                // Archivo con PDF: mostrar info y botón para ver.
+                                // La tabla "archivo" no tiene cliente_cuit/chofer_cuil propios (eso
+                                // vive en archivo_viaje); se infieren del primer viaje vinculado.
+                                const archivoId = archivoData.id || 'N/A';
+                                const descripcion = archivoData.descripcion || '';
+                                const viajesArchivo = log.related_viaje_archivo || [];
+                                const primerViaje = viajesArchivo[0];
+                                const clienteCuit = primerViaje?.cliente_cuit || null;
+                                const choferCuil = primerViaje?.chofer_cuil || null;
+                                const bgColor = isDeleteOperation ? '#f8d7da' : '#e3f2fd';
+                                const borderColor = isDeleteOperation ? '#dc3545' : '#2196f3';
+                                const titleColor = isDeleteOperation ? '#721c24' : '#1565c0';
+                                const iconClass = isDeleteOperation ? 'bi-file-earmark-x' : 'bi-file-earmark-text';
+
+                                modalContent += `
+                                    <div style="padding: 15px; background: ${bgColor}; border-radius: 8px; border-left: 4px solid ${borderColor};">
+                                        <h4 style="margin: 0 0 15px; color: ${titleColor}; display: flex; align-items: center; gap: 8px;">
+                                            <i class="bi ${iconClass}"></i>
+                                            ${isDeleteOperation ? 'Archivo eliminado' : 'Archivo cargado'}
+                                        </h4>
+                                        ${descripcion ? `<p style="margin: 5px 0;"><strong>Descripción:</strong> ${descripcion}</p>` : ''}
+                                        <p style="margin: 5px 0;"><strong>${clienteCuit ? 'Cliente CUIT:' : 'Chofer CUIL:'}</strong> ${clienteCuit || choferCuil || 'N/A'}</p>
+                                        <button class="btn-view-archivo" data-archivo-id="${archivoId}"
+                                            style="margin-top: 10px; padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-eye"></i> Ver archivo
+                                        </button>
+                                    </div>
+                                `;
+
+                                // Agregar los viajes vinculados a este archivo (puede ser más de uno:
+                                // una nota de crédito/débito de una factura con varios viajes)
+                                if (viajesArchivo.length > 0) {
+                                    modalContent += renderViajesVinculadosSection(viajesArchivo, {
+                                        isDesvinculado: isDeleteOperation,
+                                        tituloEntidad: 'este archivo',
+                                        btnClass: 'btn-view-viaje-archivo',
+                                        getComprobante: (v) => v.viaje_comprobante || v.comprobante
+                                    });
+                                }
+
+                            }else if (isCartaPorteConPdf) {
                                 // Carta de porte con PDF: mostrar info y botón para ver
                                 const viajeComprobante = cartaPorteData.viaje_comprobante || 'N/A';
                                 const viajeData = log.related_viaje_data;
@@ -686,42 +814,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         </h4>
                                         <p style="margin: 5px 0;"><strong>Viaje:</strong> ${viajeComprobante}</p>
                                         <p style="margin: 5px 0;"><strong>CUIT:</strong> ${clienteCuit}</p>
-                                        ${!isDeleteOperation ? `
-                                            <button class="btn-view-carta-porte" data-viaje-comprobante="${viajeComprobante}" 
-                                                style="margin-top: 10px; padding: 8px 16px; background: #388e3c; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                                                <i class="bi bi-eye"></i> Ver carta de porte
-                                            </button>
-                                        ` : '<p style="margin-top: 10px; color: #856404; font-style: italic;">El documento fue eliminado y ya no está disponible.</p>'}
-                                    </div>
+                                        <button class="btn-view-carta-porte" data-viaje-comprobante="${viajeComprobante}" 
+                                            style="margin-top: 10px; padding: 8px 16px; background: #388e3c; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-eye"></i> Ver carta de porte
+                                        </button>
                                 `;
 
                                 // Agregar viaje vinculado (mismo formato que facturas)
                                 // viajeData ya está declarado arriba
-                                if (viajeComprobante && viajeComprobante !== 'N/A') {
-                                    const isCartaPorteEliminada = isDeleteOperation;
-                                    const bgColorViaje = isCartaPorteEliminada ? '#ffebee' : '#e3f2fd';
-                                    const borderColorViaje = isCartaPorteEliminada ? '#f44336' : '#2196f3';
-                                    const textColorViaje = isCartaPorteEliminada ? '#c62828' : '#1565c0';
-                                    const actionTextViaje = isCartaPorteEliminada ? 'desvinculado de' : 'vinculado a';
-
-                                    modalContent += `
-                                        <div style="margin-top: 20px; padding: 15px; background: ${bgColorViaje}; border-radius: 8px; border-left: 4px solid ${borderColorViaje};">
-                                            <h4 style="margin: 0 0 10px; color: ${textColorViaje}; display: flex; align-items: center; gap: 8px;">
-                                                <i class="bi bi-link-45deg"></i>
-                                                1 viaje ${actionTextViaje} esta carta de porte
-                                            </h4>
-                                            <ul style="list-style: none; padding: 0; margin: 0;" id="related-viajes-carta-porte">
-                                                <li style="padding: 8px 12px; background: white; border-radius: 4px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-                                                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                                        <strong>Comprobante:</strong> ${viajeComprobante}
-                                                    </span>
-                                                    <button class="btn btn-primary btn-sm btn-view-viaje-carta-porte" data-viaje-comprobante="${viajeComprobante}" style="padding: 4px 10px; font-size: 0.85em; flex-shrink: 0; margin-left: auto;">
-                                                        Ver detalle
-                                                    </button>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    `;
+                                if (viajeComprobante && viajeComprobante !== 'N/A' && viajeData) {
+                                    modalContent += renderViajesVinculadosSection([viajeData], {
+                                        isDesvinculado: isDeleteOperation,
+                                        tituloEntidad: 'esta carta de porte',
+                                        btnClass: 'btn-view-viaje-carta-porte',
+                                        getComprobante: (v) => v.comprobante || viajeComprobante
+                                    });
                                 }
                             } else if ((isSoftDelete || isHardDelete) && hasBefore) {
                                 // Delete: mostrar datos eliminados solo si hay datos después de filtrar
@@ -901,34 +1008,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                             // Mostrar viajes vinculados para facturas si existen
                             const relatedViajes = log.related_viajes;
                             if (relatedViajes && Array.isArray(relatedViajes) && relatedViajes.length > 0) {
-                                const numViajes = relatedViajes.length;
-                                const viajeWord = numViajes === 1 ? 'viaje' : 'viajes';
-                                const isFacturaEliminada = isDeleteOperation;
-                                const bgColor = isFacturaEliminada ? '#ffebee' : '#e3f2fd';
-                                const borderColor = isFacturaEliminada ? '#f44336' : '#2196f3';
-                                const textColor = isFacturaEliminada ? '#c62828' : '#1565c0';
-                                const actionText = isFacturaEliminada ? 'desvinculado' : 'vinculado';
-
-                                modalContent += `
-                                    <div style="margin-top: 20px; padding: 15px; background: ${bgColor}; border-radius: 8px; border-left: 4px solid ${borderColor};">
-                                        <h4 style="margin: 0 0 10px; color: ${textColor}; display: flex; align-items: center; gap: 8px;">
-                                            <i class="bi bi-link-45deg"></i>
-                                            ${numViajes} ${viajeWord} ${actionText}${numViajes > 1 ? 's' : ''} ${isFacturaEliminada ? 'de' : 'a'} esta factura
-                                        </h4>
-                                        <ul style="list-style: none; padding: 0; margin: 0;" id="related-viajes-list">
-                                            ${relatedViajes.map((v, idx) => `
-                                                <li style="padding: 8px 12px; background: white; border-radius: 4px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-                                                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                                        <strong>Comprobante:</strong> ${v.comprobante || 'N/A'}
-                                                    </span>
-                                                    <button class="btn btn-primary btn-sm btn-view-viaje" data-viaje-index="${idx}" style="padding: 4px 10px; font-size: 0.85em; flex-shrink: 0; margin-left: auto;">
-                                                        Ver detalle
-                                                    </button>
-                                                </li>
-                                            `).join('')}
-                                        </ul>
-                                    </div>
-                                `;
+                                modalContent += renderViajesVinculadosSection(relatedViajes, {
+                                    isDesvinculado: isDeleteOperation,
+                                    tituloEntidad: 'esta factura',
+                                    btnClass: 'btn-view-viaje',
+                                    getComprobante: (v) => v.comprobante
+                                });
                             }
                             jsonContent.innerHTML = modalContent;
 
@@ -1075,37 +1160,45 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                             // Agregar event listeners para los botones de ver detalle de viajes vinculados a facturas
                             if (relatedViajes && relatedViajes.length > 0) {
-                                // Función para adjuntar event listeners a los botones de viaje
-                                const attachViajeListeners = (mainContent) => {
-                                    const viajeBtns = jsonContent.querySelectorAll('.btn-view-viaje');
-                                    viajeBtns.forEach(btn => {
-                                        btn.addEventListener('click', () => {
-                                            const idx = parseInt(btn.getAttribute('data-viaje-index'));
-                                            const viaje = relatedViajes[idx];
-                                            if (viaje && viaje.data) {
-                                                let viajeContent = '<h4 style="margin: 15px 0 5px; color: #333;">Detalle del viaje vinculado</h4>';
-                                                viajeContent += formatDataToHTML(filtrarDatos(viaje.data, 'viaje'));
-                                                viajeContent += `
-                                                    <button class="btn btn-secondary btn-sm btn-back-to-main" style="margin-top: 15px;">
-                                                        <i class="bi bi-arrow-left"></i> Volver
-                                                    </button>
-                                                `;
-                                                jsonContent.innerHTML = viajeContent;
-                                                const backBtn = jsonContent.querySelector('.btn-back-to-main');
-                                                if (backBtn) {
-                                                    backBtn.addEventListener('click', () => {
-                                                        jsonContent.innerHTML = mainContent;
-                                                        // Re-attach event listeners recursivamente
-                                                        attachViajeListeners(mainContent);
-                                                    });
+                                attachViajesVinculadosListeners(
+                                    jsonContent,
+                                    'btn-view-viaje',
+                                    relatedViajes,
+                                    (v) => filtrarDatos(v.data, 'viaje'),
+                                    formatDataToHTML,
+                                    () => {
+                                        // Al volver, los botones de ver la factura también quedaron
+                                        // sin listener (se perdieron al reemplazar el innerHTML).
+                                        const newPdfBtn = jsonContent.querySelector('.btn-view-pdf');
+                                        if (newPdfBtn) {
+                                            newPdfBtn.addEventListener('click', async () => {
+                                                const response = await getFactura(facturaData.cuil, facturaData.id, false);
+                                                if (response && response.ok) {
+                                                    const blob = await response.blob();
+                                                    window.open(window.URL.createObjectURL(blob), '_blank');
                                                 }
-                                            }
-                                        });
-                                    });
-                                };
-                                // Guardar el contenido principal y adjuntar listeners
-                                const mainModalContent = jsonContent.innerHTML;
-                                attachViajeListeners(mainModalContent);
+                                            });
+                                        }
+                                        const newFacturaBtn = jsonContent.querySelector('.btn-view-factura');
+                                        if (newFacturaBtn) {
+                                            newFacturaBtn.addEventListener('click', async () => {
+                                                const id = newFacturaBtn.getAttribute('data-factura-id');
+                                                const cuil = newFacturaBtn.getAttribute('data-cuil');
+                                                const type = newFacturaBtn.getAttribute('data-type');
+                                                if (id && cuil) {
+                                                    const response = await getFactura(cuil, id, false);
+                                                    if (response && response.ok) {
+                                                        const blob = await response.blob();
+                                                        window.open(window.URL.createObjectURL(blob), '_blank');
+                                                    } else {
+                                                        const data = await response.json();
+                                                        showConfirmModal(data.message || 'No se pudo cargar la factura (puede haber sido eliminada)');
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    }
+                                );
                             }
 
                             // Listener para botón de ver carta de porte
@@ -1115,60 +1208,99 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     const viajeComprobante = cartaPorteBtn.getAttribute('data-viaje-comprobante');
                                     if (viajeComprobante) {
                                         try {
-                                            const response = await getCartaPorte(null, viajeComprobante);
+                                            const response = await getCartaPorte(null, viajeComprobante, false);
                                             if (response && response.ok) {
                                                 const blob = await response.blob();
                                                 const url = window.URL.createObjectURL(blob);
                                                 window.open(url, '_blank');
                                             } else {
-                                                alert('No se pudo cargar la carta de porte (puede haber sido eliminada)');
+                                                showConfirmModal('No se pudo cargar la carta de porte (puede haber sido eliminada)');
                                             }
                                         } catch (error) {
                                             console.error('Error al obtener carta de porte:', error);
-                                            alert('Error al obtener la carta de porte');
+                                            showConfirmModal('Error al obtener la carta de porte');
                                         }
                                     }
                                 });
                             }
 
                             // Listener para botón de ver viaje vinculado desde carta de porte
-                            const viajeCartaPorteBtn = jsonContent.querySelector('.btn-view-viaje-carta-porte');
-                            if (viajeCartaPorteBtn) {
-                                viajeCartaPorteBtn.addEventListener('click', () => {
-                                    const viajeData = log.related_viaje_data;
-                                    if (viajeData) {
-                                        // Mostrar info del viaje en el modal (igual que facturas)
-                                        const previousContent = jsonContent.innerHTML;
-                                        let viajeContent = '<h4 style="margin: 15px 0 5px; color: #333;">Detalle del viaje vinculado</h4>';
-                                        viajeContent += formatDataToHTML(viajeData);
-                                        viajeContent += `
-                                            <button class="btn btn-secondary btn-sm btn-back-to-main" style="margin-top: 15px;">
-                                                <i class="bi bi-arrow-left"></i> Volver
-                                            </button>
-                                        `;
-                                        jsonContent.innerHTML = viajeContent;
-                                        const backBtn = jsonContent.querySelector('.btn-back-to-main');
-                                        if (backBtn) {
-                                            backBtn.addEventListener('click', () => {
-                                                jsonContent.innerHTML = previousContent;
-                                                // Re-attach listeners
-                                                const newCartaPorteBtn = jsonContent.querySelector('.btn-view-carta-porte');
-                                                if (newCartaPorteBtn) {
-                                                    newCartaPorteBtn.addEventListener('click', async () => {
-                                                        const vc = newCartaPorteBtn.getAttribute('data-viaje-comprobante');
-                                                        if (vc) {
-                                                            const response = await getCartaPorte(null, vc);
-                                                            if (response && response.ok) {
-                                                                const blob = await response.blob();
-                                                                window.open(window.URL.createObjectURL(blob), '_blank');
-                                                            }
-                                                        }
-                                                    });
+                            if (log.related_viaje_data) {
+                                attachViajesVinculadosListeners(
+                                    jsonContent,
+                                    'btn-view-viaje-carta-porte',
+                                    [log.related_viaje_data],
+                                    (v) => v,
+                                    formatDataToHTML,
+                                    () => {
+                                        // Al volver, el botón "Ver carta de porte" también quedó sin
+                                        // listener (se perdió al reemplazar el innerHTML): re-engancharlo.
+                                        const newCartaPorteBtn = jsonContent.querySelector('.btn-view-carta-porte');
+                                        if (newCartaPorteBtn) {
+                                            newCartaPorteBtn.addEventListener('click', async () => {
+                                                const vc = newCartaPorteBtn.getAttribute('data-viaje-comprobante');
+                                                if (vc) {
+                                                    const response = await getCartaPorte(null, vc, false);
+                                                    if (response && response.ok) {
+                                                        const blob = await response.blob();
+                                                        window.open(window.URL.createObjectURL(blob), '_blank');
+                                                    }
                                                 }
                                             });
                                         }
                                     }
+                                );
+                            }
+
+                            // Listener para botón de ver el PDF de un "otro archivo" (nota de
+                            // crédito/débito, archivo cargado manualmente, etc.)
+                            const archivoBtn = jsonContent.querySelector('.btn-view-archivo');
+                            if (archivoBtn) {
+                                archivoBtn.addEventListener('click', async () => {
+                                    const archivoId = archivoBtn.getAttribute('data-archivo-id');
+                                    if (archivoId && archivoId !== 'N/A') {
+                                        try {
+                                            const response = await getArchivoViaje(archivoId, false);
+                                            if (response && response.ok) {
+                                                const blob = await response.blob();
+                                                window.open(window.URL.createObjectURL(blob), '_blank');
+                                            } else {
+                                                showConfirmModal('No se pudo cargar el archivo (puede haber sido eliminado)');
+                                            }
+                                        } catch (error) {
+                                            console.error('Error al obtener el archivo:', error);
+                                            showConfirmModal('Error al obtener el archivo');
+                                        }
+                                    }
                                 });
+                            }
+
+                            // Listener para botón de ver viaje vinculado desde un archivo
+                            if (log.related_viaje_archivo && log.related_viaje_archivo.length > 0) {
+                                attachViajesVinculadosListeners(
+                                    jsonContent,
+                                    'btn-view-viaje-archivo',
+                                    log.related_viaje_archivo,
+                                    (v) => v,
+                                    formatDataToHTML,
+                                    () => {
+                                        // Al volver, el botón "Ver archivo" también quedó sin listener
+                                        // (se perdió al reemplazar el innerHTML): re-engancharlo.
+                                        const newArchivoBtn = jsonContent.querySelector('.btn-view-archivo');
+                                        if (newArchivoBtn) {
+                                            newArchivoBtn.addEventListener('click', async () => {
+                                                const id = newArchivoBtn.getAttribute('data-archivo-id');
+                                                if (id && id !== 'N/A') {
+                                                    const response = await getArchivoViaje(id, false);
+                                                    if (response && response.ok) {
+                                                        const blob = await response.blob();
+                                                        window.open(window.URL.createObjectURL(blob), '_blank');
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    }
+                                );
                             }
                             // Agregar event listener para ver factura PDF
                             if (isFacturaConPdf) {
@@ -1179,17 +1311,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         const cuil = facturaData.cuil;
                                         if (facturaId && cuil) {
                                             try {
-                                                const response = await getFactura(cuil, facturaId);
+                                                const response = await getFactura(cuil, facturaId, false);
                                                 if (response && response.ok) {
                                                     const blob = await response.blob();
                                                     const url = window.URL.createObjectURL(blob);
                                                     window.open(url, '_blank');
                                                 } else {
-                                                    alert('No se pudo cargar la factura (puede haber sido eliminada)');
+                                                    showConfirmModal('No se pudo cargar la factura (puede haber sido eliminada)');
                                                 }
                                             } catch (error) {
                                                 console.error('Error al obtener factura:', error);
-                                                alert('Error al obtener la factura');
+                                                showConfirmModal('Error al obtener la factura');
                                             }
                                         }
                                     });
@@ -1204,17 +1336,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         const type = facturaBtn.getAttribute('data-type');
                                         if (id && cuil) {
                                             try {
-                                                const response = await getFactura(cuil, id, null, type);
+                                                const response = await getFactura(cuil, id, false);
                                                 if (response && response.ok) {
                                                     const blob = await response.blob();
                                                     const url = window.URL.createObjectURL(blob);
                                                     window.open(url, '_blank');
                                                 } else {
-                                                    alert('No se pudo cargar la factura (puede haber sido eliminada)');
+                                                    showConfirmModal('No se pudo cargar la factura (puede haber sido eliminada)');
                                                 }
                                             } catch (error) {
                                                 console.error('Error al obtener factura:', error);
-                                                alert('Error al obtener la factura');
+                                                showConfirmModal('Error al obtener la factura');
                                             }
                                         }
                                     });
@@ -1264,7 +1396,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof data !== 'object') {
             return `<span style="color: #d14;">"${String(data)}"</span>`;
         }
-
         let html = '<ul style="list-style: none; padding-left: 0; margin: 8px 0; text-align: left;">';
         Object.entries(data).forEach(([key, value]) => {
             const niceKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());

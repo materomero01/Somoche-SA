@@ -1113,7 +1113,6 @@ export async function updateTarifas(payload) {
         if (!response.ok) {
             console.log(data.message);
         }
-        console.log(data);
         tarifasCatac = data.tarifas.catac;
         tarifasFetra = data.tarifas.fetra;
 
@@ -1184,6 +1183,32 @@ export async function generarFactura(payload) {
     }
 }
 
+export async function generarNotaCredito(payload) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/facturas/generar-nota-credito`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
 export async function uploadCartaPorte(viajeId, files) {
     try {
         const token = getToken();
@@ -1230,6 +1255,61 @@ export async function pagarFacturaCliente(facturasToMark, cuit){
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload)
+        });
+
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+export async function uploadArchivoViaje(comprobante, clienteCuit, descripcion, file) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const formData = new FormData();
+        formData.append('comprobante', comprobante);
+        if (clienteCuit) formData.append('clienteCuit', clienteCuit);
+        formData.append('descripcion', descripcion);
+        formData.append('archivo', file);
+
+        const response = await fetch(`${apiURL}/facturas/upload-archivo`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            body: formData
+        });
+
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.log(error.message);
+    }
+}
+
+export async function eliminarArchivoViaje(id) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/facturas/delete-documents?id=${encodeURIComponent(id)}&type=archivoViaje`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
         });
 
         if (response.status === 403) {

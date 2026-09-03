@@ -1,4 +1,8 @@
-import { getCartaPorte, getFactura, showConfirmModal, uploadFactura } from './apiPublic.js';
+import { getCartaPorte, getFactura, showConfirmModal, uploadFactura, getArchivosViaje, getArchivoViaje } from './apiPublic.js';
+
+// tableTypes para los que tiene sentido la sección "Otros Archivos" (ligada a la tabla
+// viaje o viaje_cliente); no aplica a órdenes de proveedor, que usan otras tablas.
+const TIPOS_CON_OTROS_ARCHIVOS = ['viajes', 'viajesChofer', 'viajeCliente', 'resumenes'];
 
 export let viajesFactura = [];
 export let viaje = [];
@@ -17,6 +21,12 @@ let facturaExists = false;
 let cartaPorteExists = false;
 
 let modal;
+
+// Funciones para subir/eliminar "otros archivos", inyectadas por quien abre el modal
+// (viajes-clientes.js / viajes-pagos.js) porque son operaciones exclusivas de administradores;
+// este módulo no debe llamar a la API directamente para no exponer esas acciones a choferes.
+let uploadArchivoFuncActual = null;
+let deleteArchivoFuncActual = null;
 
 export function updateViajeStatus() {
     if (viaje.length !== 0) {
@@ -38,6 +48,8 @@ export function closeModalFactura() {
     cartaPorteFiles = [];
     viaje = [];
     facturaFile = null;
+    uploadArchivoFuncActual = null;
+    deleteArchivoFuncActual = null;
     generatedUrls.forEach(url => {
         window.URL.revokeObjectURL(url);
         //console.log('URL liberada:', url);
@@ -46,15 +58,18 @@ export function closeModalFactura() {
 }
 // Initialize the document upload modal
 
-export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc, deleteFunc, tableType = "viajes", selectedRows = [], iva = true, onlyFactura = false) {
+export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc, deleteFunc, tableType = "viajes", selectedRows = [], iva = true, onlyFactura = false, confirmarEliminarFactura = true, clienteCuit = null, uploadArchivoFunc = null, deleteArchivoFunc = null) {
     if (selectedRows.length === 0 && viaje.length === 0) {
         return showConfirmModal("Selecciona los viajes para los que desea subir los documentos");
     }
 
+    uploadArchivoFuncActual = uploadArchivoFunc;
+    deleteArchivoFuncActual = deleteArchivoFunc;
+    let otroArchivoFile = null;
+
     modal = document.createElement('div');
     modal.id = viaje.length > 0 ? 'documentUploadModal' : 'documentUploadBoxModal';
     modal.className = 'modal';
-    modal.classList.add('active');
 
     try {
         let urlFetch = viaje.length > 0 ? './documentsBox.html' : './facturaBox.html';
@@ -103,7 +118,6 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     if (viaje.length > 0) {
         if (!cartaPorteFunc) {
             if (onlyFactura) {
-                console.log("ENTRA");
                 document.getElementById('cartaPorteSection').remove();
                 document.getElementById('section-divider').remove();
             } else {
@@ -122,16 +136,112 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
         }
     }
 
+    // Sección "Otros Archivos": solo tiene sentido para viajes/viaje_cliente (Notas de
+    // Crédito/Débito y demás archivos sueltos), no para órdenes de proveedor.
+    const otrosArchivosAplica = viaje.length > 0 && TIPOS_CON_OTROS_ARCHIVOS.includes(tableType);
+    const otrosArchivosSection = document.getElementById('otrosArchivosSection');
+    const otrosArchivosDivider = document.getElementById('section-divider-otros');
+    const otrosArchivosInput = document.getElementById('otrosArchivosInput');
+    const otrosArchivosDescripcionInput = document.getElementById('otrosArchivosDescripcion');
+    const otrosArchivosUploadStatus = document.getElementById('otrosArchivosUploadStatus');
+    const otrosArchivosDropArea = document.getElementById('otrosArchivosDropArea');
+    const toggleOtrosArchivosDropbox = document.getElementById('toggleOtrosArchivosDropbox');
+
+    if (!otrosArchivosAplica) {
+        otrosArchivosSection?.remove();
+        otrosArchivosDivider?.remove();
+    } else {
+        try {
+            // Si el ítem representa una factura agrupada (varios viajes bajo el mismo
+            // comprobante), se buscan los archivos de todos esos viajes en conjunto.
+            const esVistaAgrupada = Array.isArray(viaje[0].viaje_comprobantes);
+            const comprobantesArchivos = Array.isArray(viaje[0].viaje_comprobantes) && viaje[0].viaje_comprobantes.length > 0
+                ? viaje[0].viaje_comprobantes.join(',')
+                : viaje[0].comprobante;
+
+            const archivosResponse = await getArchivosViaje(comprobantesArchivos, tableType === 'viajeCliente' ? clienteCuit : null);
+            if (archivosResponse?.ok) {
+                const archivosData = await archivosResponse.json();
+                viaje[0].archivos = archivosData.archivos || [];
+            } else {
+                viaje[0].archivos = viaje[0].archivos || [];
+            }
+
+            if (!uploadArchivoFuncActual || esVistaAgrupada) {
+                // Sin función de subida inyectada (p. ej. vista de chofer), o vista de factura
+                // agrupada (varios viajes bajo el mismo comprobante): no hay un único viaje al
+                // que asociar un archivo nuevo, así que solo se puede ver y descargar lo ya
+                // existente, no cargar archivos nuevos.
+                otrosArchivosDropArea?.remove();
+            } else {
+                const seleccionarOtroArchivo = (file) => {
+                    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
+                        otroArchivoFile = null;
+                        otrosArchivosUploadStatus.textContent = 'Por favor, selecciona un archivo PDF, JPG o PNG.';
+                    } else {
+                        otroArchivoFile = file;
+                        otrosArchivosUploadStatus.textContent = `Archivo seleccionado: ${file.name}`;
+                    }
+                    actualizarEstadoUploadBtn();
+                };
+
+                toggleOtrosArchivosDropbox?.addEventListener('click', () => {
+                    otrosArchivosDropArea.classList.toggle('active');
+                    toggleOtrosArchivosDropbox.classList.toggle('active');
+                });
+
+                otrosArchivosInput?.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) seleccionarOtroArchivo(file);
+                });
+
+                otrosArchivosDropArea?.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    otrosArchivosDropArea.classList.add('drag-over');
+                });
+
+                otrosArchivosDropArea?.addEventListener('dragleave', () => {
+                    otrosArchivosDropArea.classList.remove('drag-over');
+                });
+
+                otrosArchivosDropArea?.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    otrosArchivosDropArea.classList.remove('drag-over');
+                    const file = e.dataTransfer.files[0];
+                    if (file) {
+                        seleccionarOtroArchivo(file);
+                        otrosArchivosInput.files = e.dataTransfer.files;
+                    }
+                });
+            }
+
+            renderArchivosViaje();
+        } catch (error) {
+            // Un fallo acá (ej. red, respuesta inesperada) no debe tirar abajo el resto del
+            // modal (factura, carta de porte): se deja la sección oculta y se loguea el error.
+            console.error('Error al inicializar la sección de Otros Archivos:', error);
+            otrosArchivosSection?.remove();
+            otrosArchivosDivider?.remove();
+        }
+    }
+
+    modal.classList.add('active');
+
+    // El botón "Subir" del modal es general a todas las secciones: se habilita si hay algo
+    // para subir (factura, carta de porte, u otro archivo) y sube todo junto al clickearlo.
+    const actualizarEstadoUploadBtn = () => {
+        uploadBtn.disabled = !(facturaFile || cartaPorteFiles.length > 0 || otroArchivoFile);
+    };
+
     // Handle file selection for factura
     facturaInput?.addEventListener('change', (e) => {
         facturaFile = e.target.files[0];
         if (facturaFile) {
             facturaUploadStatus.textContent = `Archivo seleccionado: ${facturaFile.name}`;
-            uploadBtn.disabled = !(facturaFile || cartaPorteFiles.length > 0);
         } else {
             facturaUploadStatus.textContent = '';
-            uploadBtn.disabled = true;
         }
+        actualizarEstadoUploadBtn();
     });
 
     // Handle file selection for carta de porte
@@ -139,11 +249,10 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
         cartaPorteFiles = Array.from(e.target.files);
         if (cartaPorteFiles.length > 0) {
             cartaPorteUploadStatus.textContent = `Archivos seleccionados: ${cartaPorteFiles.map(f => f.name).join(', ')}`;
-            uploadBtn.disabled = !(facturaFile || cartaPorteFiles.length > 0);
         } else {
             cartaPorteUploadStatus.textContent = '';
-            uploadBtn.disabled = !facturaFile;
         }
+        actualizarEstadoUploadBtn();
     });
 
     // Handle drag-and-drop for factura
@@ -162,12 +271,12 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
         facturaFile = e.dataTransfer.files[0];
         if (facturaFile && ['application/pdf', 'image/jpeg', 'image/png'].includes(facturaFile.type)) {
             facturaUploadStatus.textContent = `Archivo seleccionado: ${facturaFile.name}`;
-            uploadBtn.disabled = !(facturaFile || cartaPorteFiles.length > 0);
             facturaInput.files = e.dataTransfer.files;
         } else {
+            facturaFile = null;
             facturaUploadStatus.textContent = 'Por favor, selecciona un archivo PDF, JPG o PNG.';
-            uploadBtn.disabled = true;
         }
+        actualizarEstadoUploadBtn();
     });
 
     // Handle drag-and-drop for carta de porte
@@ -188,12 +297,11 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
         );
         if (cartaPorteFiles.length > 0) {
             cartaPorteUploadStatus.textContent = `Archivos seleccionados: ${cartaPorteFiles.map(f => f.name).join(', ')}`;
-            uploadBtn.disabled = !(facturaFile || cartaPorteFiles.length > 0);
             cartaPorteInput.files = e.dataTransfer.files;
         } else {
             cartaPorteUploadStatus.textContent = 'Por favor, selecciona archivos PDF, JPG o PNG.';
-            uploadBtn.disabled = !facturaFile;
         }
+        actualizarEstadoUploadBtn();
     });
 
     // Toggle factura dropbox
@@ -210,7 +318,13 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
 
     // Handle upload
     uploadBtn?.addEventListener('click', async () => {
-        if (!facturaFile && cartaPorteFiles.length === 0) return;
+        if (!facturaFile && cartaPorteFiles.length === 0 && !otroArchivoFile) return;
+
+        const otroArchivoDescripcion = otrosArchivosDescripcionInput?.value?.trim();
+        if (otroArchivoFile && !otroArchivoDescripcion) {
+            showConfirmModal('Ingrese una descripción para el archivo');
+            return;
+        }
 
         try {
             let facturaId = null;
@@ -236,6 +350,15 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
                     viaje[0].factura_id = facturaId; // Actualiza el viaje actual
                 }
             }
+
+            if (otroArchivoFile && uploadArchivoFuncActual && viaje.length > 0) {
+                const archivoResponse = await uploadArchivoFuncActual(viaje[0].comprobante, tableType === 'viajeCliente' ? clienteCuit : null, otroArchivoDescripcion, otroArchivoFile);
+                const archivoData = await archivoResponse.json();
+                if (!archivoResponse.ok) throw new Error(archivoData.message || archivoData.error || 'Error al subir el archivo');
+                viaje[0].archivos = [...(viaje[0].archivos || []), { id: archivoData.id, descripcion: otroArchivoDescripcion }];
+                renderArchivosViaje();
+            }
+
             showConfirmModal('Documentos subidos con éxito');
             selectedRows = [];
             closeModalFactura();
@@ -248,7 +371,6 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
     downloadFacturaBtn?.addEventListener('click', async () => {
         if (viaje.length > 0 && viaje[0].factura_id) {
             try {
-                console.log(viaje[0]);
                 const response = await getFactura(viaje[0].cuil, viaje[0].factura_id);
                 if (!response.ok) {
                     const err = await response.json();
@@ -268,14 +390,21 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
 
     // Handle delete factura
     deleteFacturaBtn?.addEventListener('click', async () => {
-        //console.log(viaje[0]);
         if (viaje.length > 0 && viaje[0].factura_id !== null) {
-            showConfirmModal(`¿Está seguro de que desea eliminar la factura del viaje con comprobante ${viaje[0].comprobante}?`, "delete", async () => {
-                await deleteFunc(viaje[0].factura_id);
-                toggleFacturaDropbox.style.display = 'inline';
-                facturaActions.style.display = 'none';
-                facturaDropArea.classList.toggle('active', true);
-            });
+            const ejecutarEliminacion = async () => {
+                let response = await deleteFunc(viaje[0].factura_id);
+                if (response) {
+                    toggleFacturaDropbox.style.display = 'inline';
+                    facturaActions.style.display = 'none';
+                    facturaDropArea.classList.toggle('active', true);
+                }
+            };
+
+            if (confirmarEliminarFactura) {
+                showConfirmModal(`¿Está seguro de que desea eliminar la factura del viaje con comprobante ${viaje[0].comprobante}?`, "delete", ejecutarEliminacion);
+            } else {
+                await ejecutarEliminacion();
+            }
         }
     });
 
@@ -325,6 +454,98 @@ export async function initializeFacturaUpload(changeDataFactura, cartaPorteFunc,
         await checkDocuments();
         modal.classList.add('active');
     };
+}
+
+// Descarga un "otro archivo" (p. ej. una Nota de Crédito/Débito) de la misma forma que
+// las facturas o cartas de porte.
+async function descargarArchivoViajeHandler(id) {
+    try {
+        const response = await getArchivoViaje(id);
+        if (!response.ok) throw new Error('No se pudo obtener el archivo');
+        const data = await response.blob();
+        const url = window.URL.createObjectURL(data);
+        generatedUrls.push(url);
+        window.open(url, '_blank');
+    } catch (error) {
+        console.log(error.message);
+        showConfirmModal("No se pudo obtener el archivo para descargar");
+    }
+}
+
+function eliminarArchivoViajeHandler(id) {
+    if (!deleteArchivoFuncActual) return;
+    showConfirmModal("¿Está seguro de que desea eliminar este archivo?", "delete", async () => {
+        const response = await deleteArchivoFuncActual(id);
+        if (!response?.ok) {
+            showConfirmModal("No se pudo eliminar el archivo");
+            return;
+        }
+        if (viaje.length > 0) {
+            viaje[0].archivos = (viaje[0].archivos || []).filter(a => a.id !== id);
+        }
+        renderArchivosViaje();
+    });
+}
+
+// Renderiza la sección "Otros Archivos" del viaje actual a partir de viaje[0].archivos.
+// Se exporta para poder refrescarla desde afuera (p. ej. al generar una nota de
+// crédito/débito mientras el modal de documentos sigue abierto).
+// El dropArea puede no existir (p. ej. vista de chofer, sin función de subida inyectada):
+// en ese caso solo se muestra la lista de archivos existentes, sin opción de agregar más.
+export function renderArchivosViaje() {
+    const section = document.getElementById('otrosArchivosSection');
+    const divider = document.getElementById('section-divider-otros');
+    const dropArea = document.getElementById('otrosArchivosDropArea');
+    const container = document.getElementById('otrosArchivosContainer');
+    if (!section || !container) return;
+
+    const archivos = viaje[0]?.archivos || [];
+    const esVistaAgrupada = Array.isArray(viaje[0]?.viaje_comprobantes) && viaje[0].viaje_comprobantes.length > 1;
+    const puedeAgregar = !!dropArea && !esVistaAgrupada;
+
+    // Si no hay archivos y tampoco se puede agregar uno nuevo (vista de solo lectura sin
+    // archivos, o factura agrupada sin archivos todavía), no hay nada que mostrar.
+    const mostrarSeccion = archivos.length > 0 || puedeAgregar;
+    section.classList.toggle('hidden', !mostrarSeccion);
+    divider?.classList.toggle('hidden', !mostrarSeccion);
+    if (!mostrarSeccion) return;
+
+    container.innerHTML = '';
+    dropArea?.classList.toggle('active', puedeAgregar);
+    container.classList.toggle('hidden', archivos.length === 0);
+
+    archivos.forEach(archivo => {
+        const box = document.createElement('div');
+        box.className = 'archivo-box';
+        box.innerHTML = `<i class="bi bi-file-earmark-text archivo-icon"></i>`;
+
+        const descripcionSpan = document.createElement('span');
+        descripcionSpan.className = 'archivo-descripcion';
+        descripcionSpan.title = archivo.descripcion;
+        descripcionSpan.textContent = archivo.descripcion;
+
+        const actions = document.createElement('div');
+        actions.className = 'archivo-actions';
+
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'btn-archivo-download';
+        downloadBtn.title = 'Descargar';
+        downloadBtn.innerHTML = '<i class="bi bi-download"></i>';
+        downloadBtn.onclick = () => descargarArchivoViajeHandler(archivo.id);
+        actions.append(downloadBtn);
+
+        if (deleteArchivoFuncActual) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn-archivo-delete';
+            deleteBtn.title = 'Eliminar';
+            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            deleteBtn.onclick = () => eliminarArchivoViajeHandler(archivo.id);
+            actions.append(deleteBtn);
+        }
+
+        box.append(descripcionSpan, actions);
+        container.appendChild(box);
+    });
 }
 
 function newHandleFacturaCheckbox(itemId, checked) {

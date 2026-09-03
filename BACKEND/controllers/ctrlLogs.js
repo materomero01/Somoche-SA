@@ -119,6 +119,31 @@ exports.getLogs = async (req, res) => {
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'UPDATE' AND COALESCE((main.before_data->>'pagada')::boolean, false) = false AND (main.after_data->>'pagada')::boolean = true THEN 'Marcar factura como pagada (cliente)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'UPDATE' THEN 'Editar factura (cliente)'
                     WHEN main.table_name = 'factura_arca' AND main.operation = 'DELETE' THEN 'Eliminar factura (cliente)'
+                    -- Archivos --
+                    -- El trigger de auditoría vive en "archivo" (el contenido), no en
+                    -- "archivo_viaje" (solo el vínculo con cada viaje) — así un archivo
+                    -- compartido por varios viajes genera un único log, no uno por viaje.
+                    -- cliente_cuit/chofer_cuil no están en "archivo", así que para distinguir
+                    -- cliente/chofer hay que mirar si algún vínculo en archivo_viaje tiene cliente.
+                    WHEN main.table_name = 'archivo' AND main.operation = 'INSERT' AND (main.after_data->>'descripcion')::text LIKE 'Nota de Crédito generada %' THEN 'Generar nota de crédito'
+                    WHEN main.table_name = 'archivo' AND main.operation = 'INSERT' AND (main.after_data->>'descripcion')::text LIKE 'Nota de Débito generada %' THEN 'Generar nota de débito'
+                    WHEN main.table_name = 'archivo' AND main.operation = 'INSERT' AND EXISTS (
+                        SELECT 1 FROM archivo_viaje av WHERE av.archivo_id = (main.after_data->>'id')::int AND av.cliente_cuit IS NOT NULL
+                    ) THEN 'Cargar archivo (cliente)'
+                    WHEN main.table_name = 'archivo' AND main.operation = 'INSERT' THEN 'Cargar archivo (chofer)'
+                    -- Eliminación de archivo (soft delete: valid true -> false)
+                    WHEN main.table_name = 'archivo' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false AND EXISTS (
+                        SELECT 1 FROM archivo_viaje av WHERE av.archivo_id = (main.after_data->>'id')::int AND av.cliente_cuit IS NOT NULL
+                    ) THEN 'Eliminar archivo (cliente)'
+                    WHEN main.table_name = 'archivo' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar archivo (chofer)'
+                    WHEN main.table_name = 'archivo' AND main.operation = 'UPDATE' AND EXISTS (
+                        SELECT 1 FROM archivo_viaje av WHERE av.archivo_id = (main.after_data->>'id')::int AND av.cliente_cuit IS NOT NULL
+                    ) THEN 'Editar archivo (cliente)'
+                    WHEN main.table_name = 'archivo' AND main.operation = 'UPDATE' THEN 'Editar archivo (chofer)'
+                    WHEN main.table_name = 'archivo' AND main.operation = 'DELETE' AND EXISTS (
+                        SELECT 1 FROM archivo_viaje av WHERE av.archivo_id = (main.before_data->>'id')::int AND av.cliente_cuit IS NOT NULL
+                    ) THEN 'Eliminar archivo (cliente)'
+                    WHEN main.table_name = 'archivo' AND main.operation = 'DELETE' THEN 'Eliminar archivo (chofer)'
                     -- Carta de porte (soft delete)
                     WHEN main.table_name = 'carta_porte' AND main.operation = 'UPDATE' AND (main.before_data->>'valid')::boolean = true AND (main.after_data->>'valid')::boolean = false THEN 'Eliminar carta de porte'
                     -- Carta de porte
@@ -231,6 +256,50 @@ exports.getLogs = async (req, res) => {
                     )
                     ELSE NULL
                 END AS related_viajes,
+                -- Agregar TODOS los viajes vinculados a un archivo (puede ser más de uno: una
+                -- nota de crédito/débito de una factura con varios viajes agrega una fila en
+                -- archivo_viaje por cada uno, todas apuntando al mismo archivo_id). Por cada
+                -- vínculo: viaje_cliente si tiene cliente_cuit, viaje (chofer) si no. Se consulta
+                -- el estado actual de esas tablas (no audit_logs) porque hace falta el dato del
+                -- viaje en sí, no su historial de cambios.
+                CASE
+                    WHEN main.table_name = 'archivo' THEN (
+                        SELECT COALESCE(jsonb_agg(
+                            CASE
+                                WHEN av.cliente_cuit IS NOT NULL THEN jsonb_build_object(
+                                    'origen', 'viaje_cliente',
+                                    'viaje_comprobante', vc.viaje_comprobante,
+                                    'cliente_cuit', vc.cliente_cuit,
+                                    'tarifa', vc.tarifa,
+                                    'variacion', vc.variacion,
+                                    'toneladas', vc.toneladas,
+                                    'factura_id', vc.factura_id,
+                                    'pagado', vc.pagado
+                                )
+                                ELSE jsonb_build_object(
+                                    'origen', 'viaje',
+                                    'comprobante', v.comprobante,
+                                    'chofer_cuil', v.chofer_cuil,
+                                    'fecha', v.fecha,
+                                    'campo', v.campo,
+                                    'producto', v.producto,
+                                    'kilometros', v.kilometros,
+                                    'tarifa', v.tarifa,
+                                    'variacion', v.variacion,
+                                    'toneladas', v.toneladas,
+                                    'cargado', v.cargado,
+                                    'descargado', v.descargado,
+                                    'factura_id', v.factura_id
+                                )
+                            END
+                        ), '[]'::jsonb)
+                        FROM archivo_viaje av
+                        LEFT JOIN viaje_cliente vc ON vc.viaje_comprobante = av.viaje_comprobante AND vc.cliente_cuit = av.cliente_cuit
+                        LEFT JOIN viaje v ON v.comprobante = av.viaje_comprobante AND av.cliente_cuit IS NULL
+                        WHERE av.archivo_id = COALESCE((main.after_data->>'id')::int, (main.before_data->>'id')::int)
+                    )
+                    ELSE NULL
+                END AS related_viaje_archivo,
                 -- Agregar datos del viaje relacionado para logs de carta_porte (mismos campos que factura)
                 CASE 
                     WHEN main.table_name = 'carta_porte' THEN (
@@ -341,7 +410,19 @@ exports.getLogs = async (req, res) => {
                     ELSE NULL
                 END AS related_resumen_data
             FROM audit_logs main
-            WHERE NOT (main.table_name = 'viaje_cliente' AND main.operation IN ('INSERT', 'UPDATE'))
+            -- Ocultar viaje_cliente INSERT/UPDATE solo cuando va a aparecer como relacionado de
+            -- un log de "viaje" con el mismo created_at (flujo chofer, ambas tablas cambian a la
+            -- vez). Si no hay un log de "viaje" en el mismo instante (p. ej. una edición desde el
+            -- lado del cliente que solo toca kilometros/tarifa/variacion/toneladas, que viven
+            -- únicamente en viaje_cliente), no se oculta: se muestra como entrada propia.
+            WHERE NOT (main.table_name = 'viaje_cliente' AND main.operation IN ('INSERT', 'UPDATE')
+                AND EXISTS (
+                    SELECT 1 FROM audit_logs v
+                    WHERE v.table_name = 'viaje'
+                      AND v.created_at = main.created_at
+                      AND v.operation = main.operation
+                )
+            )
               AND NOT (main.table_name = 'chofer' AND EXISTS (
                   SELECT 1 FROM audit_logs u 
                   WHERE u.table_name = 'usuario' 

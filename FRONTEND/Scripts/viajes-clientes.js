@@ -1,10 +1,10 @@
 import { cargarNombreChofer, deleteModal, cartaPorteFunc, deleteFactura, setupPaymentTypeSelector, validateInputs } from "./viajes-pagos.js";
 import { mockChoferes, mockProveedores, renderCurrentTable, setupSearchBar } from "./choferes-clientes.js";
-import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete, redondear, pagarFacturaCliente, getFacturasData, createActionModal } from "./api.js";
+import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete, redondear, pagarFacturaCliente, getFacturasData, createActionModal, generarNotaCredito, uploadArchivoViaje, eliminarArchivoViaje } from "./api.js";
 import { changeSpinnerText, createLoadingSpinner, showConfirmModal, toggleSpinnerVisible } from "./apiPublic.js";
 import { renderTables, originalEditingData, resetEditingState, stagedEditingData, editingRowId, enterEditMode, handleEdit } from "./tabla.js";
 import { columnasPagos, columnasViajes, formatFecha, parsePagos, parseViaje, parseImporte } from "./resumenes.js";
-import { viaje, initializeFacturaUpload, updateViajeStatus, closeModalFactura } from "./subir-factura.js";
+import { viaje, initializeFacturaUpload, updateViajeStatus, closeModalFactura, renderArchivosViaje } from "./subir-factura.js";
 
 let mainContent;
 
@@ -18,6 +18,7 @@ let viajesHistorialData = [];
 
 let ultimosPagosCliente = [];
 let pagosOpen = true;
+let viajesOpen = true;
 let vistaFacturas = false;
 
 let currentViajesClientesPage = 1;
@@ -37,6 +38,13 @@ let backFacturasBtn;
 let backHistorialBtn;
 let searchInput;
 let searchInputFacturas;
+
+let toggleViajesArea;
+let clientesViajesTabla;
+let clientesViajesSummaryBoxes;
+let clientesViajesPaginacion;
+let clientesViajesSearchBarEl;
+let viajesLabel;
 
 let esMonotributista = false;
 
@@ -72,8 +80,57 @@ const accionesViajes = [
             viaje.push(item);
             initializeFacturaUpload(changeDataFactura,
                 (cartaPorteFiles) => cartaPorteFunc(cartaPorteFiles, changeDataDocuments),
-                (facturaId) => deleteFactura(facturaId, changeDataDocuments, 'viajeCliente'),
-                "viajeCliente");
+                (facturaId) => {
+                    // subir-factura.js reutiliza este mismo deleteFunc para eliminar la carta
+                    // de porte, llamándolo como deleteFunc(null, tableType). En ese caso no
+                    // corresponde el modal de elegir entre eliminar factura o nota de crédito:
+                    // hay que borrar la carta de porte directamente.
+                    if (!facturaId) {
+                        deleteFactura(null, changeDataDocuments, 'viajeCliente');
+                        return;
+                    }
+
+                    const modal = createActionModal('documentGenerateModal', '¿Que acción desea realizar?', [
+                        { id: 'deleteFacturaBtn2',  class: 'btn-primary', label: 'Eliminar Factura Unicamente' },
+                        { id: 'makeCreditBtn',     class: 'btn-success', label: 'Anular Factura (Nota de Credito)' },
+                        { id: 'makeDebitBtn',      class: 'btn-yellow',  label: 'Generar Nota de Debito', hidden: true },
+                    ]);
+
+                    const deleteFacturaOnlyBtn = document.getElementById("deleteFacturaBtn2");
+                    const makeCreditBtn = document.getElementById("makeCreditBtn");
+                    const makeDebitBtn = document.getElementById("makeDebitBtn");
+                    const cancelBtn = document.getElementById("modalCancelBtn");
+
+                    deleteFacturaOnlyBtn.onclick = null;
+                    makeCreditBtn.onclick = null;
+                    makeDebitBtn.onclick = null;
+                    cancelBtn.onclick = null;
+
+                    deleteFacturaOnlyBtn.onclick = async () => {
+                        modal.remove();
+                        const response = await deleteFactura(facturaId, changeDataDocuments, 'viajeCliente');
+                        if (response) {
+                            closeModalFactura();
+                        }
+                    }
+
+                    makeCreditBtn.onclick = () => {
+                        modal.classList.remove("active");
+                        showConfirmModal("¿Estás seguro de anular esta factura? Esto generará una nota de crédito.", "confirm",
+                            async () => {
+                                modal.remove();
+                                await handleGenerarNotaCredito(facturaId, item);
+                            },
+                            () => {
+                                modal.classList.add("active");
+                            });
+                    }
+
+                    cancelBtn.onclick = () => {
+                        modal.remove();
+                    }
+                },
+                "viajeCliente", [], false, false, false, clienteData.cuit, uploadArchivoViaje, eliminarArchivoViaje);
         }
     },
     {
@@ -114,11 +171,119 @@ const accionesFacturas = [{
             viaje.push(item);
             initializeFacturaUpload(changeDataFactura,
                 null,
-                (facturaId) => deleteFactura(item.comprobante, changeDataDocuments, 'facturaCompleta'),
-                "viajeCliente", [], false, true);
+                (facturaId) => {
+                    const modal = createActionModal('documentGenerateModal', '¿Que acción desea realizar?', [
+                        { id: 'deleteFacturaBtn',  class: 'btn-primary', label: 'Eliminar Factura Unicamente' },
+                        { id: 'makeCreditBtn',     class: 'btn-success', label: 'Anular Factura (Nota de Credito)' },
+                        { id: 'makeDebitBtn',      class: 'btn-yellow',  label: 'Generar Nota de Debito', hidden: true },
+                    ]);
+
+                    const deleteFacturaOnlyBtn = document.getElementById("deleteFacturaBtn");
+                    const makeCreditBtn = document.getElementById("makeCreditBtn");
+                    const makeDebitBtn = document.getElementById("makeDebitBtn");
+                    const cancelBtn = document.getElementById("modalCancelBtn");
+
+                    deleteFacturaOnlyBtn.onclick = null;
+                    makeCreditBtn.onclick = null;
+                    makeDebitBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    deleteFacturaOnlyBtn.onclick = async () => {
+                        modal.remove();
+                        const response = await deleteFactura(facturaId, changeDataDocuments, 'facturaCompleta');
+                        if (response) {
+                            closeModalFactura();
+                        }
+                    }
+
+                    makeCreditBtn.onclick = () => {
+                        modal.classList.remove("active");
+                        showConfirmModal("¿Estás seguro de anular esta factura? Esto generará una nota de crédito.", "confirm",
+                            async () => {
+                                modal.remove();
+                                await handleGenerarNotaCredito(facturaId, item);
+                            },
+                            () => {
+                                modal.classList.add("active");
+                            });
+                    }
+
+                    cancelBtn.onclick = () => {
+                        modal.remove();
+                    }
+                },
+                "viajeCliente", [], false, true, false, clienteData.cuit, uploadArchivoViaje, eliminarArchivoViaje);
         }
     }]
 
+
+// Genera la nota de crédito para la factura indicada, la descarga, y actualiza localmente
+// el array de "archivos" del viaje actualmente abierto en el modal de documentos para que
+// la sección "Otros Archivos" la muestre sin necesidad de recargar.
+async function handleGenerarNotaCredito(facturaId, item) {
+    try {
+        const response = await generarNotaCredito({ facturaId, motivo: 3, cuit: clienteData.cuit });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || data.message || 'Error al generar la nota de crédito');
+        }
+
+        const archivosNotaHeader = response.headers.get('X-Archivos-Nota');
+        const archivosNota = archivosNotaHeader ? JSON.parse(archivosNotaHeader) : [];
+
+        const pdfBlob = await response.blob();
+        const url = window.URL.createObjectURL(pdfBlob);
+        window.open(url, '_blank');
+
+        if (viaje.length > 0) {
+            const comprobantesViajeActual = Array.isArray(viaje[0].viaje_comprobantes) && viaje[0].viaje_comprobantes.length > 0
+                ? viaje[0].viaje_comprobantes
+                : [viaje[0].comprobante];
+            const archivosDelViajeActual = archivosNota.filter(a => comprobantesViajeActual.includes(a.comprobante));
+            if (archivosDelViajeActual.length > 0) {
+                viaje[0].archivos = [...(viaje[0].archivos || []), ...archivosDelViajeActual.map(a => ({ id: a.id, descripcion: a.descripcion }))];
+                renderArchivosViaje();
+            }
+
+            // La nota de crédito anula la factura completa: si cubría más de un viaje, hay que
+            // reflejar la baja en TODOS ellos, no solo en el que abrió este modal.
+            // changeDataDocuments ya sabe actualizar varios viajes a la vez usando
+            // viaje[0].viaje_comprobantes (lo hace para la vista agrupada de facturas); acá se
+            // completa recién ahora, después de armar comprobantesViajeActual arriba, para no
+            // duplicar el archivo en la sección "Otros Archivos" del modal de este único viaje.
+            const comprobantesAfectados = archivosNota.map(a => a.comprobante);
+            if (comprobantesAfectados.length > 0) viaje[0].viaje_comprobantes = comprobantesAfectados;
+        }
+
+        // El backend resuelve "facturaId" a TODAS las filas de factura_arca que compartan el
+        // mismo nro_factura y anula factura_id en cada viaje_cliente afectado, sea que se haya
+        // disparado desde la vista de un solo viaje o desde la vista agrupada de facturas.
+        await deleteFactura(facturaId, changeDataDocuments, 'facturaCompleta', "Se generó la nota de crédito correctamente y se eliminó la factura previamente cargada.");
+        updateViajeStatus();
+    } catch (error) {
+        showConfirmModal(`Ocurrio un error al generar la nota de crédito: ${error.message}`);
+    }
+}
+
+// Colapsa/expande la tabla de viajes, igual que el toggle de pagos pero al revés: al
+// cerrarla se oculta también su buscador y se muestra en su lugar la etiqueta "Viajes".
+function setViajesAbierto(abierto) {
+    viajesOpen = abierto;
+    toggleViajesArea?.classList.toggle('active', abierto);
+    clientesViajesTabla?.classList.toggle('hidden', !abierto);
+    clientesViajesSearchBarEl?.classList.toggle('hidden', !abierto);
+    viajesLabel?.classList.toggle('hidden', abierto);
+    renderTables(ultimosPagosCliente, 1, optionsPagos);
+}
+
+// Habilita/deshabilita el toggle de viajes. Se deshabilita en las vistas donde la tabla de
+// viajes siempre debe mostrarse completa (pestaña "A Facturar" y la vista de facturas
+// agrupadas que se abre con facturasBtn), forzándola abierta si estaba colapsada.
+function habilitarToggleViajes(habilitado) {
+    toggleViajesArea?.classList.toggle('disabled', !habilitado);
+    if (!habilitado && !viajesOpen) {
+        setViajesAbierto(true);
+    }
+}
 
 const modifyCellEstado = (item, td) => {
     if (item.estado === "Pendiente") td.classList.add("yellow");
@@ -450,7 +615,7 @@ const optionsPagos = {
     containerId: 'pagos-table',
     paginacionContainerId: '',
     columnas: [columnasPagos],
-    itemsPorPagina: () => 3,
+    itemsPorPagina: () => viajesOpen ? 3 : 8,
     actions: accionesPagos,
     onEdit: null,
     tableType: 'pagos',
@@ -531,9 +696,17 @@ function changeDataDocuments() {
                 closeModalFactura();
             } else {
                 if (viajesFacturadosData.length > 0) {
+                    // Si la factura eliminada (p. ej. por una nota de crédito) cubría más de un
+                    // viaje, viaje[0].viaje_comprobantes trae todos los afectados; si no, solo el
+                    // propio. carta_porte es siempre exclusivo del viaje que abrió el modal.
+                    const comprobantesAfectados = Array.isArray(viaje[0].viaje_comprobantes) && viaje[0].viaje_comprobantes.length > 0
+                        ? viaje[0].viaje_comprobantes
+                        : [viaje[0].comprobante];
                     viajesFacturadosData = viajesFacturadosData.filter(v => {
                         if (v.comprobante === viaje[0].comprobante) {
                             v.carta_porte = viaje[0].carta_porte;
+                        }
+                        if (comprobantesAfectados.includes(v.comprobante)) {
                             v.factura_id = viaje[0].factura_id ? viaje[0].factura_id : null;
                             if (!v.factura_id) v.estado = "Sin Facturar";
                             if (!esMonotributista){
@@ -1038,6 +1211,7 @@ async function renderViajesClienteIVA(selectedTab){
                 facturasBtn.classList.add("hidden");
                 viajesFacturadosContent.classList.add('hidden');
                 document.getElementById("total-cobrar")?.classList.add("hidden");
+                habilitarToggleViajes(false);
                 const data = await response.json();
                 viajesAFacturarData = data.viajes.map(c => parseViaje(c, true, false));
                 paginacionContainer.classList.remove("hidden");
@@ -1055,6 +1229,7 @@ async function renderViajesClienteIVA(selectedTab){
                 paginacionContainer.classList.add("hidden");
                 viajesFacturadosContent.classList.remove('hidden');
                 document.getElementById("total-cobrar")?.classList.remove("hidden");
+                habilitarToggleViajes(true);
                 const data = await response.json();
                 viajesFacturadosData = data.viajes.map(c => parseViaje(c, true, false));
                 currentEditingTable = "viajesFacturados";
@@ -1109,6 +1284,13 @@ async function handleTabContentDisplay(selectedTab) {
     backHistorialBtn = document.getElementById("back-historialBtn");
     searchInput = document.getElementById('searchInput');
     searchInputFacturas = document.getElementById('searchInputFacturas');
+
+    toggleViajesArea = document.getElementById('toggleViajesArea');
+    clientesViajesTabla = document.getElementById('clientesViajes-table');
+    clientesViajesSummaryBoxes = document.getElementById('summaryBoxes');
+    clientesViajesPaginacion = document.getElementById('paginacion-viajes');
+    clientesViajesSearchBarEl = document.getElementById('clientesViajesSearchBar');
+    viajesLabel = document.getElementById('viajesLabel');
 
     if (searchInput) searchInput.value = '';
     if (searchInputFacturas) searchInputFacturas.value = '';
@@ -1169,6 +1351,7 @@ export async function inicializarModaCliente(data) {
     cargarNombreChofer(clienteData.nombre);
     esMonotributista = clienteData.categoria === "Monotributista";
     pagosOpen = true;
+    viajesOpen = true;
     closeButton = document.getElementById("closeBtnViaje");
 
     if (closeButton) {
@@ -1193,6 +1376,7 @@ export async function inicializarModaCliente(data) {
                 socket.off('actualizarFacturaCliente');
                 socket.off('deleteViaje');
                 socket.off('deleteFactura');
+                socket.off('actualizarArchivoViaje');
                 socket.off('payFactura');
                 socket.off('deleteCliente', manejarDeleteCliente);
                 socket.off('deleteCartaPorte');
@@ -1276,6 +1460,21 @@ export async function inicializarModaCliente(data) {
     socket.on('deleteCartaPorte', (cartaPorte) => {
         if (cartaPorte.cuit === clienteData.cuit) {
             setCartaPorte(cartaPorte, false);
+        }
+    });
+    
+    socket.on('actualizarArchivoViaje', (payload) => {
+        if (payload.cuit === clienteData.cuit && viaje.length > 0) {
+            // En la vista agrupada por facturas, viaje[0].viaje_comprobantes trae todos los
+            // comprobantes que se están viendo; en la vista de un solo viaje, solo está el propio.
+            const comprobantesVistaActual = Array.isArray(viaje[0].viaje_comprobantes) && viaje[0].viaje_comprobantes.length > 0
+                ? viaje[0].viaje_comprobantes
+                : [viaje[0].comprobante];
+            const afectaVistaActual = payload.comprobantes?.some(c => comprobantesVistaActual.includes(c));
+            if (afectaVistaActual) {
+                closeModalFactura();
+                showConfirmModal("Se actualizaron los archivos del viaje");
+            }
         }
     });
 
@@ -1457,6 +1656,14 @@ export async function inicializarModaCliente(data) {
         renderTables(getCurrentData(), 1, getCurrentOptions(), actualizarTotales);
     });
 
+    // Toggle viajes area (mismo mecanismo que el toggle de pagos, pero al revés). Se
+    // deshabilita en las vistas donde la tabla de viajes siempre debe mostrarse (ver
+    // habilitarToggleViajes).
+    document.getElementById('toggleViajesArea')?.addEventListener('click', () => {
+        if (toggleViajesArea?.classList.contains('disabled')) return;
+        setViajesAbierto(!viajesOpen);
+    });
+
 
     try {
         setupTabSelectorCliente();
@@ -1500,7 +1707,6 @@ export async function inicializarModaCliente(data) {
         const inputCantViajes = document.getElementById('inputSelectViaje');
 
         socket.on('actualizarFacturaCliente', async (factura) => {
-            console.log(factura);
             if (factura.cuit !== clienteData.cuit) return;
             closeModalFactura();
             closeModalGenerate();
@@ -1581,6 +1787,7 @@ export async function inicializarModaCliente(data) {
         })
 
         facturasBtn?.addEventListener("click", async () =>{
+            habilitarToggleViajes(false);
             vistaFacturas = true;
             changeSpinnerText(mainContent, "Cargando datos Cuenta Corriente...");
             toggleSpinnerVisible(mainContent);
@@ -1636,6 +1843,7 @@ export async function inicializarModaCliente(data) {
             document.getElementById('summaryBoxes')?.classList.remove("hidden");
             document.getElementById("clientesViajesSearchBar")?.classList.remove("hidden");
             document.getElementById("clientesFacturasSearchBar")?.classList.add("hidden");
+            habilitarToggleViajes(true);
             renderTables(getCurrentData(), 1, getCurrentOptions(), actualizarTotales);
         })
 
@@ -1643,6 +1851,7 @@ export async function inicializarModaCliente(data) {
             changeSpinnerText(mainContent, "Cargando historial...");
             toggleSpinnerVisible(mainContent);
             backFacturasBtn.click();
+            habilitarToggleViajes(false);
             facturasBtn.classList.add("hidden");
             summaryBoxes.classList.add("hidden");
             if (pagosOpen && currentEditingTable !== "historial") togglePagosArea.click();
@@ -1662,6 +1871,7 @@ export async function inicializarModaCliente(data) {
             headerModal.textContent = "Viajes";
             historialBtn.classList.remove("hidden");
             currentEditingTable = "viajesFacturados";
+            habilitarToggleViajes(true);
             renderTables(viajesFacturadosData, 1, esMonotributista? optionsViajesMonotributista : optionsViajesFacturados, actualizarTotales);
             summaryBoxes.classList.remove("hidden");
             facturasBtn.classList.remove("hidden");

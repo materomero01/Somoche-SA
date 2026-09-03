@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const os = require('os');
 const { execSync } = require('child_process');
 const { promisify } = require('util');
 const fetch = require('node-fetch');
@@ -9,6 +10,62 @@ const xml2js = require('xml2js');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const { Writable } = require('stream');
+
+// ---------------------------------------------------------------------------
+// Ambiente AFIP/ARCA: 'produccion' (default) u 'homologacion' (testing).
+// Se controla con la variable AFIP_ENV del .env — así se puede probar todo
+// el flujo (facturas, notas de crédito/débito) sin tocar producción.
+// ---------------------------------------------------------------------------
+const AFIP_ENV = (process.env.AFIP_ENV || 'produccion').toLowerCase();
+const IS_HOMOLOGACION = AFIP_ENV === 'homologacion' || AFIP_ENV === 'testing';
+
+const AFIP_URLS = {
+  // El .sh pega directo al SOAP endpoint del WSAA con curl (no necesita ?WSDL)
+  wsaaSoapProduccion: 'https://wsaa.afip.gov.ar/ws/services/LoginCms',
+  wsaaSoapHomologacion: 'https://wsaahomo.afip.gov.ar/ws/services/LoginCms',
+  // El .ps1 usa New-WebServiceProxy, que sí necesita el WSDL
+  wsaaWsdlProduccion: 'https://wsaa.afip.gov.ar/ws/services/LoginCms?WSDL',
+  wsaaWsdlHomologacion: 'https://wsaahomo.afip.gov.ar/ws/services/LoginCms?WSDL',
+  wsfeProduccion: 'https://servicios1.afip.gov.ar/wsfev1/service.asmx',
+  wsfeHomologacion: 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx',
+  padronA13Produccion: 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA13',
+  padronA13Homologacion: 'https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA13',
+  padronA5Homologacion: 'https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5'
+};
+
+function urlWsfe() {
+  return IS_HOMOLOGACION ? AFIP_URLS.wsfeHomologacion : AFIP_URLS.wsfeProduccion;
+}
+
+function urlPadronA13() {
+  return IS_HOMOLOGACION ? AFIP_URLS.padronA13Homologacion : AFIP_URLS.padronA13Produccion;
+}
+
+function soapAmbiente() {
+  return IS_HOMOLOGACION ? 'Testing' : 'Produccion';
+}
+
+function cuitRepresentada(){
+  return IS_HOMOLOGACION ? '20433059221' : '30714965006'; // CUIT de prueba de AFIP para homologación / CUIT de Somoche S.A.
+}
+
+// Homologación requiere un certificado propio, distinto al de producción
+// (AFIP no deja reutilizar el mismo). Los nombres de archivo se pueden pisar
+// por .env; si no, se usa esta convención dentro de certDir.
+function certYClave() {
+  if (IS_HOMOLOGACION) {
+    return {
+      cert: process.env.AFIP_CERT_HOMOLOGACION || 'certificado_homo.crt',
+      key: process.env.AFIP_KEY_HOMOLOGACION || 'MiClavePrivada_homo.key'
+    };
+  }
+  return {
+    cert: process.env.AFIP_CERT_PRODUCCION || 'certificado.crt',
+    key: process.env.AFIP_KEY_PRODUCCION || 'MiClavePrivada.key'
+  };
+}
+
+const IS_WINDOWS = os.platform() === 'win32';
 
 // Los servidores de AFIP/ARCA (servicios1.afip.gov.ar) usan una clave DH
 // "chica" para el handshake TLS, lo cual OpenSSL 3.x (Node 18+) rechaza por
@@ -51,9 +108,10 @@ function parseFechaAFIP(dateString) {
 }
 
 async function generarTA(servicioId) {
-  const cuitRepresentada = '30714965006';
+  const cuit = cuitRepresentada();
   const responseFileSuffix = `-loginTicketResponse_${servicioId}.xml`;
-  const scriptName = servicioId === 'wsfe' ? 'scriptFactura.sh' : 'scriptPadron.sh';
+  const baseScriptName = servicioId === 'wsfe' ? 'scriptFactura' : 'scriptPadron';
+  const scriptName = IS_WINDOWS ? `${baseScriptName}.ps1` : `${baseScriptName}.sh`;
   const files = fs.readdirSync(certDir).filter(f => f.endsWith(responseFileSuffix)).sort().reverse();
   const latestResponse = files[0];
 
@@ -62,11 +120,11 @@ async function generarTA(servicioId) {
     xmlContent = limpiarXML(xmlContent);
     const parsed = await parseString(xmlContent, { explicitArray: false });
     const credentials = parsed.loginTicketResponse.credentials;
-    console.log(`TA válido encontrado para ${servicioId}: ${latestResponse}`);
+    console.log(`TA válido encontrado para ${servicioId} (${AFIP_ENV}): ${latestResponse}`);
     return {
       token: credentials.token,
       sign: credentials.sign,
-      cuitRepresentada
+      cuitRepresentada: cuit
     };
   }
 
@@ -91,18 +149,25 @@ async function generarTA(servicioId) {
     });
   }
 
-  // CAMBIO PRINCIPAL: Ejecutar bash en lugar de PowerShell
   const scriptPath = path.join(certDir, scriptName);
+  const { cert, key } = certYClave();
 
-  // Dar permisos de ejecución al script (por si acaso)
-  try {
-    execSync(`chmod +x ${scriptPath}`, { cwd: certDir });
-  } catch (error) {
-    console.warn(`No se pudieron establecer permisos: ${error.message}`);
+  let command;
+  if (IS_WINDOWS) {
+    const wsaaWsdl = IS_HOMOLOGACION ? AFIP_URLS.wsaaWsdlHomologacion : AFIP_URLS.wsaaWsdlProduccion;
+    command = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -Certificado "${cert}" -ClavePrivada "${key}" -ServicioId "${servicioId}" -WsaaWsdl "${wsaaWsdl}"`;
+  } else {
+    // Dar permisos de ejecución al script (por si acaso)
+    try {
+      execSync(`chmod +x ${scriptPath}`, { cwd: certDir });
+    } catch (error) {
+      console.warn(`No se pudieron establecer permisos: ${error.message}`);
+    }
+    const wsaaSoap = IS_HOMOLOGACION ? AFIP_URLS.wsaaSoapHomologacion : AFIP_URLS.wsaaSoapProduccion;
+    command = `bash "${scriptPath}" "${cert}" "${key}" "${servicioId}" "${wsaaSoap}"`;
   }
 
-  // Ejecutar el script bash
-  const command = `bash ${scriptPath}`;
+  console.log(`Generando TA para ${servicioId} en ambiente ${AFIP_ENV} (${IS_WINDOWS ? 'Windows/PowerShell' : 'Linux/bash'})`);
 
   try {
     execSync(command, { stdio: 'inherit', cwd: certDir });
@@ -126,7 +191,7 @@ async function generarTA(servicioId) {
     return {
       token: credentials.token,
       sign: credentials.sign,
-      cuitRepresentada
+      cuitRepresentada: cuit
     };
   } catch (error) {
     throw new Error(`Error al generar TA para ${servicioId}: ${error.message}`);
@@ -153,7 +218,7 @@ async function getLastCbteNro(token, sign, cuit, ptoVta, cbteTipo) {
   <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:ar="http://ar.gov.afip.dif.FEV1/">
     <soap:Header>
       <ar:FEHeaderInfo>
-        <ambiente>Produccion</ambiente>
+        <ambiente>${soapAmbiente()}</ambiente>
         <fecha>${new Date().toISOString().replace('Z', '-03:00')}</fecha>
         <id>6.1.0.0</id>
       </ar:FEHeaderInfo>
@@ -172,7 +237,7 @@ async function getLastCbteNro(token, sign, cuit, ptoVta, cbteTipo) {
   </soap:Envelope>`;
 
   try {
-    const response = await fetch('https://servicios1.afip.gov.ar/wsfev1/service.asmx', {
+    const response = await fetch(urlWsfe(), {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
@@ -242,7 +307,7 @@ function generateFacturaAXML({ token, sign, cuit, ptoVta, cbteNro, docNro, servi
   <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:ar="http://ar.gov.afip.dif.FEV1/">
     <soap:Header>
       <ar:FEHeaderInfo>
-        <ambiente>Produccion</ambiente>
+        <ambiente>${soapAmbiente()}</ambiente>
         <fecha>${new Date().toISOString().replace('Z', '-03:00')}</fecha>
         <id>6.1.0.0</id>
       </ar:FEHeaderInfo>
@@ -305,7 +370,7 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [], fechaE
     console.log(xml);
 
     // Enviar solicitud SOAP
-    const response = await fetch('https://servicios1.afip.gov.ar/wsfev1/service.asmx', {
+    const response = await fetch(urlWsfe(), {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
@@ -345,13 +410,30 @@ async function emitirFacturaA({ ptoVta, docNro, servicios, tributos = [], fechaE
   }
 }
 
-async function consultarCUIT(cuit) {
-  const serviceUrl = 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA13';
-  try {
-    // ✅ serviceId correcto para A13
-    const authPadron = await generarTA('ws_sr_padron_a13');
-    
-    const soapRequest = `<?xml version="1.0" encoding="UTF-8"?>
+// Mapeo común de estado de IVA (idImpuesto 30 en datosRegimenGeneral) a texto,
+// compartido entre A13 y A5 porque ambos padrones devuelven el mismo formato para esto.
+function condicionIVADesdeRegimenGeneral(datosRegimenGeneral) {
+  if (!datosRegimenGeneral?.impuesto) return 'IVA Responsable Inscripto';
+  const impuesto = Array.isArray(datosRegimenGeneral.impuesto)
+    ? datosRegimenGeneral.impuesto
+    : [datosRegimenGeneral.impuesto];
+  const ivaImpuesto = impuesto.find(i => i.idImpuesto === '30');
+  if (!ivaImpuesto) return 'No Informado';
+  return {
+    'AC': 'IVA Responsable Inscripto',
+    'EX': 'Exento',
+    'NA': 'No Alcanzado',
+    'XN': 'No Inscripto',
+    'AN': 'No Responsable',
+    'NI': 'No Informado'
+  }[ivaImpuesto.estadoImpuesto] || 'No Informado';
+}
+
+async function consultarCUITA13(cuit) {
+  const serviceUrl = urlPadronA13();
+  const authPadron = await generarTA('ws_sr_padron_a13');
+
+  const soapRequest = `<?xml version="1.0" encoding="UTF-8"?>
 <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
   <soap-env:Body>
     <ns0:getPersona xmlns:ns0="http://a13.soap.ws.server.puc.sr/">
@@ -363,58 +445,117 @@ async function consultarCUIT(cuit) {
   </soap-env:Body>
 </soap-env:Envelope>`;
 
-    const response = await axios.post(serviceUrl, soapRequest, {
+  const response = await axios.post(serviceUrl, soapRequest, {
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      'SOAPAction': 'http://a13.soap.ws.server.puc.sr/getPersona'
+    }
+  });
+
+  const parsedResult = await parseString(response.data, { explicitArray: false });
+  console.log('Respuesta A13:', JSON.stringify(parsedResult, null, 2));
+
+  const body = parsedResult['soap:Envelope']['soap:Body'];
+  const personaReturn = body['ns2:getPersonaResponse']?.personaReturn;
+
+  if (!personaReturn) throw new Error('Respuesta vacía del padrón');
+
+  // La respuesta A13 trae los datos directamente en "persona", no en "datosGenerales"
+  const persona = personaReturn.persona;
+  if (!persona) throw new Error('CUIT no encontrado o inactivo');
+
+  if (persona.estadoClave && persona.estadoClave !== 'ACTIVO') {
+    throw new Error(`CUIT inactivo (estado: ${persona.estadoClave})`);
+  }
+
+  // domicilio puede venir como objeto único o array; preferimos el FISCAL si existe
+  let domicilios = persona.domicilio;
+  if (domicilios && !Array.isArray(domicilios)) domicilios = [domicilios];
+  const domicilioFiscal = (domicilios || []).find(d => d.tipoDomicilio === 'FISCAL') || (domicilios || [])[0] || {};
+
+  return {
+    cuitCliente: cuit,
+    razonSocialCliente: persona.razonSocial || `${persona.apellido || ''} ${persona.nombre || ''}`.trim(),
+    domicilioCliente: `${domicilioFiscal.direccion || ''}, ${domicilioFiscal.descripcionProvincia || ''} (${domicilioFiscal.codigoPostal || ''})`.trim(),
+    condicionIVACliente: condicionIVADesdeRegimenGeneral(personaReturn.datosRegimenGeneral)
+  };
+}
+
+// Padrón A5: en homologación es el único servicio que el certificado tiene autorizado
+// (el A13 requiere un alta de servicio en AFIP que todavía no se hizo). El shape de
+// respuesta es distinto al de A13 (los datos de la persona van en "datosGenerales", no
+// en "persona", y el domicilio fiscal viene como un único objeto, no como lista), así
+// que se normaliza al mismo objeto de salida que ya usa el resto del código.
+async function consultarCUITA5(cuit) {
+  const serviceUrl = AFIP_URLS.padronA5Homologacion;
+  const authPadron = await generarTA('ws_sr_padron_a5');
+  // A5 espera idPersona como un long sin guiones (a diferencia de A13, que sí lo acepta
+  // formateado); si viene como "30-98234123-1" el unmarshalling de AFIP lo rechaza.
+  const idPersona = cuit.replace(/\D/g, '');
+
+  const soapRequest = `<?xml version="1.0" encoding="UTF-8"?>
+<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap-env:Body>
+    <ns0:getPersona_v2 xmlns:ns0="http://a5.soap.ws.server.puc.sr/">
+      <token>${authPadron.token}</token>
+      <sign>${authPadron.sign}</sign>
+      <cuitRepresentada>${authPadron.cuitRepresentada}</cuitRepresentada>
+      <idPersona>${idPersona}</idPersona>
+    </ns0:getPersona_v2>
+  </soap-env:Body>
+</soap-env:Envelope>`;
+
+  let response;
+  try {
+    response = await axios.post(serviceUrl, soapRequest, {
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': 'http://a13.soap.ws.server.puc.sr/getPersona'
+        'SOAPAction': 'http://a5.soap.ws.server.puc.sr/getPersona_v2'
       }
     });
-
-    const parsedResult = await parseString(response.data, { explicitArray: false });
-    console.log('Respuesta A13:', JSON.stringify(parsedResult, null, 2));
-
-    const body = parsedResult['soap:Envelope']['soap:Body'];
-    const personaReturn = body['ns2:getPersonaResponse']?.personaReturn;
-    
-    if (!personaReturn) throw new Error('Respuesta vacía del padrón');
-
-    // La respuesta A13 trae los datos directamente en "persona", no en "datosGenerales"
-    const persona = personaReturn.persona;
-    if (!persona) throw new Error('CUIT no encontrado o inactivo');
-
-    if (persona.estadoClave && persona.estadoClave !== 'ACTIVO') {
-      throw new Error(`CUIT inactivo (estado: ${persona.estadoClave})`);
+  } catch (error) {
+    // Un 500 acá viene con el SOAP Fault de AFIP en el body, que dice la causa real
+    // (método/namespace incorrecto, parámetro mal formado, etc.) — sin esto solo se ve
+    // "Request failed with status code 500" y no hay forma de saber qué está mal.
+    if (error.response?.data) {
+      console.error('SOAP Fault de A5:', error.response.data);
     }
+    throw error;
+  }
 
-    let condicionIVA = 'No Informado';
-    const datosRegimenGeneral = personaReturn.datosRegimenGeneral;
-    if (datosRegimenGeneral?.impuesto) {
-      const impuesto = Array.isArray(datosRegimenGeneral.impuesto)
-        ? datosRegimenGeneral.impuesto
-        : [datosRegimenGeneral.impuesto];
-      const ivaImpuesto = impuesto.find(i => i.idImpuesto === '30');
-      condicionIVA = ivaImpuesto ? {
-        'AC': 'IVA Responsable Inscripto',
-        'EX': 'Exento',
-        'NA': 'No Alcanzado',
-        'XN': 'No Inscripto',
-        'AN': 'No Responsable',
-        'NI': 'No Informado'
-      }[ivaImpuesto.estadoImpuesto] || 'No Informado' : 'No Informado';
-    }
+  const parsedResult = await parseString(response.data, { explicitArray: false });
+  console.log('Respuesta A5:', JSON.stringify(parsedResult, null, 2));
 
-    // domicilio puede venir como objeto único o array; preferimos el FISCAL si existe
-    let domicilios = persona.domicilio;
-    if (domicilios && !Array.isArray(domicilios)) domicilios = [domicilios];
-    const domicilioFiscal = (domicilios || []).find(d => d.tipoDomicilio === 'FISCAL') || (domicilios || [])[0] || {};
+  const body = parsedResult['soap:Envelope']['soap:Body'];
+  // El prefijo del namespace de la respuesta (ns2, ns1, etc.) lo elige el toolkit SOAP
+  // de AFIP y no es fijo, así que se busca por sufijo en vez de hardcodear el prefijo.
+  const responseKey = Object.keys(body || {}).find(k => /getPersona(_v2)?Response$/.test(k));
+  const personaReturn = responseKey ? body[responseKey]?.personaReturn : null;
 
-    return {
-      cuitCliente: cuit,
-      razonSocialCliente: persona.razonSocial || `${persona.apellido || ''} ${persona.nombre || ''}`.trim(),
-      domicilioCliente: `${domicilioFiscal.direccion || ''}, ${domicilioFiscal.descripcionProvincia || ''} (${domicilioFiscal.codigoPostal || ''})`.trim(),
-      condicionIVACliente: condicionIVA
-    };
+  if (!personaReturn) throw new Error('Respuesta vacía del padrón');
 
+  const datosGenerales = personaReturn.datosGenerales;
+  if (!datosGenerales) throw new Error('CUIT no encontrado o inactivo');
+
+  if (datosGenerales.estadoClave && datosGenerales.estadoClave !== 'ACTIVO') {
+    throw new Error(`CUIT inactivo (estado: ${datosGenerales.estadoClave})`);
+  }
+
+  // En A5 el domicilio fiscal viene directo en datosGenerales.domicilioFiscal (objeto
+  // único), no como lista con varios tipos como en A13.
+  const domicilioFiscal = datosGenerales.domicilioFiscal || {};
+
+  return {
+    cuitCliente: cuit,
+    razonSocialCliente: datosGenerales.razonSocial || `${datosGenerales.apellido || ''} ${datosGenerales.nombre || ''}`.trim(),
+    domicilioCliente: `${domicilioFiscal.direccion || ''}, ${domicilioFiscal.descripcionProvincia || ''} (${domicilioFiscal.codPostal || domicilioFiscal.codigoPostal || ''})`.trim(),
+    condicionIVACliente: condicionIVADesdeRegimenGeneral(personaReturn.datosRegimenGeneral)
+  };
+}
+
+async function consultarCUIT(cuit) {
+  try {
+    return IS_HOMOLOGACION ? await consultarCUITA5(cuit) : await consultarCUITA13(cuit);
   } catch (error) {
     throw new Error(`Error al consultar CUIT: ${error.message}`);
   }
@@ -429,7 +570,7 @@ async function generarEnlaceQR(datos, impTotal) {
   const qrData = {
     ver: 1,
     fecha: fechaFormatted,
-    cuit: 30714965006,
+    cuit: parseInt(cuitRepresentada(), 10),
     ptoVta: parseInt(datos.ptoVta, 10),
     tipoCmp: 1,
     nroCmp: parseInt(datos.cbteNro, 10),
@@ -908,9 +1049,29 @@ async function generarFactura({ ptoVta, docNro, servicios, tributos = [], fechaE
       fechaVtoPago: parseFechaAFIP(datosFactura.fechaVtoPago), // o calcular como en el extractor
       nroFactura: `${String(datosFactura.ptoVta).padStart(5, "0")}-${String(datosFactura.cbteNro).padStart(8, "0")}`,
       importeTotal: parseFloat(impTotal),
+      impNeto: parseFloat(impNeto),
+      impIVA: parseFloat(impIVA),
       cae: datosFactura.cae
     }
   };
 }
 
-module.exports = { generarFactura, emitirFacturaA, consultarCUIT };
+module.exports = {
+  generarFactura,
+  emitirFacturaA,
+  consultarCUIT,
+  // Exportados para ser reutilizados por otros scripts (p.ej. NotaCredito_completo.js)
+  // sin duplicar la lógica de obtención de TA/certificados ni utilidades comunes.
+  generarTA,
+  getLastCbteNro,
+  afipHttpsAgent,
+  parser,
+  formatDate,
+  parseFechaAFIP,
+  certDir,
+  urlWsfe,
+  soapAmbiente,
+  cuitRepresentada,
+  AFIP_ENV,
+  IS_HOMOLOGACION
+};

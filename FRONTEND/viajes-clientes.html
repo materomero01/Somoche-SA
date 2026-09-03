@@ -34,13 +34,17 @@
     <div id="content-clientesViajes" class="hidden">
         <div class="table-section">
             <div class="table-header-with-button">
-                <div id="clientesViajesSearchBar" class="search-bar">
-                    <input type="text" class="search-input" id= "searchInput" placeholder="Buscar viaje ..." />
-                    <div class="search-icon"><i class="bi bi-search"></i></div>
-                </div>
-                <div id="clientesFacturasSearchBar" class="search-bar hidden">
-                    <input type="text" class="search-input" id= "searchInputFacturas" placeholder="Buscar facturas ..." />
-                    <div class="search-icon"><i class="bi bi-search"></i></div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <i class="bi bi-chevron-down toggle-dropbox active" id="toggleViajesArea"></i>
+                    <h3 id="viajesLabel" class="hidden">Viajes</h3>
+                    <div id="clientesViajesSearchBar" class="search-bar">
+                        <input type="text" class="search-input" id= "searchInput" placeholder="Buscar viaje ..." />
+                        <div class="search-icon"><i class="bi bi-search"></i></div>
+                    </div>
+                    <div id="clientesFacturasSearchBar" class="search-bar hidden">
+                        <input type="text" class="search-input" id= "searchInputFacturas" placeholder="Buscar facturas ..." />
+                        <div class="search-icon"><i class="bi bi-search"></i></div>
+                    </div>
                 </div>
                 <button class="btn btn-primary btn-circle hidden" id="facturas" title="Vista de los viajes por facturas">
                     <i class="bi bi-file-earmark-text"></i>
