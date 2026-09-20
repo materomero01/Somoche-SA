@@ -129,3 +129,46 @@
     font-size: 100%;
     padding: 7px 14px;
 }
+
+.imagen-btn{
+    width: 20px;
+    height:auto;
+    align-items: center;
+}
+
+.btn-search-doc {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  outline: none;
+}
+
+.btn-search-doc .icon-doc {
+  font-size: 1.1rem;
+}
+
+.btn-search-doc .icon-search {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 0.65rem;
+  background: #ffffff;
+  color: #0056b3;
+  padding: 2px;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Efectos Hover y Active */
+.btn-search-doc:hover {
+  background: linear-gradient(135deg, #1a88ff 0%, #004494 100%);
+}

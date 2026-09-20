@@ -1157,6 +1157,31 @@ export async function getFacturasData(facturasToGet, cuit) {
     }
 }
 
+export async function searchFilesTerm(searchTerm) {
+    try {
+        const token = getToken();
+        handleAuthorization();
+        const response = await fetch(`${apiURL}/facturas/buscar-archivos?termino=${encodeURIComponent(searchTerm)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        
+        if (response.status === 403) {
+            const data = await response.json();
+            handleAuthError(data);
+            return;
+        }
+        setToken(response.headers.get('X-New-Token'));
+
+        return response;
+    } catch (error) {
+        console.error('Error al buscar las tarifas en el backend:', error.message);
+        return [];
+    }
+}
+
 export async function generarFactura(payload) {
     try {
         const token = getToken();

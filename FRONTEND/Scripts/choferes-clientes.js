@@ -1,6 +1,6 @@
 import { renderTables, handleSaveEdit, handleEdit, enterEditMode, setupTableEventListeners, currentEditingTableType, resetEditingState, editingRowId, originalEditingData, hasChanges } from './tabla.js';
-import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchClientes, socket, loadTarifas, tarifasCatac, fetchProveedores, insertProveedor, updateProveedor, deleteProveedor } from './api.js';
-import { updateChofer, showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText } from './apiPublic.js';
+import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchClientes, socket, loadTarifas, tarifasCatac, fetchProveedores, insertProveedor, updateProveedor, deleteProveedor, searchFilesTerm } from './api.js';
+import { updateChofer, showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText, getArchivoViaje, getFactura } from './apiPublic.js';
 import { inicializarModal } from './viajes-pagos.js';
 import { parseImporte } from './resumenes.js';
 import { inicializarModaCliente, getClienteCuit } from './viajes-clientes.js';
@@ -45,6 +45,54 @@ const proveedoresColumns = [
     { key: 'telefono', label: 'Teléfono', class: [] },
     { key: 'balance', label: 'Saldo', class: ['text-right', 'bold'], modify: (content) => { return `$${parseImporte(content).toFixed(2)}`.replace('$-', '-$'); } }
 ];
+
+const filesColumns = [
+    { key: 'tipo', label: 'Tipo', class: [] },
+    { key: 'descripcion', label: 'Descripción Archivo', class: ['bold'] },
+    { key: 'fecha', label: 'Fecha', class: [],  modify: (content) => { return new Date(content).toLocaleDateString('es-AR'); } },
+    { key: 'asignado', label: 'Asignado a', class: [] },
+    { key: 'comprobantes', label: 'Viajes Asociados', class: [] },
+    { key: 'valid', label: 'Estado Archivo', class: ['text-right'], modify: (content) => { return content ? 'Cargado' : 'Eliminado'; } },
+];
+
+const filesActions = [
+    {
+        icon: "bi bi-download",
+        tooltip: "Descargar",
+        classList: ['navigate-btn'],
+        id: null,
+        handler: async (item) => {
+            try {
+                // El listado no trae el PDF (sería mucho tráfico de red para una búsqueda);
+                // se pide puntualmente acá con el mismo endpoint que usa el resto de la app.
+                // validos=false porque la búsqueda también puede traer archivos/facturas ya
+                // invalidados, que igual se tienen que poder seguir descargando.
+                const response = item.tipo === 'Archivo'
+                    ? await getArchivoViaje(item.id, false)
+                    : await getFactura(null, item.id, false);
+                if (response && response.ok) {
+                    const blob = await response.blob();
+                    window.open(window.URL.createObjectURL(blob), '_blank');
+                } else {
+                    showConfirmModal("No se pudo descargar el documento (puede haber sido eliminado).");
+                }
+            } catch (error) {
+                console.error("Error al descargar el documento:", error);
+                showConfirmModal("Ocurrió un error al descargar el documento.");
+            }
+        }
+    }
+];
+
+const optionsFiles = {
+    containerId: 'tabla-files',
+    columnas: [filesColumns],
+    itemsPorPagina: () => 10,
+    actions: filesActions,
+    tableType: 'files',
+    checkboxColumn: false,
+    useScrollable: true
+}
 
 // --- Acciones para las tablas ---
 const choferesActions = [
@@ -619,7 +667,6 @@ async function handleDelete(cuil, tableType, deleteFunc = () => { }) {
         const response = await deleteFunc(cuil);
         if (response) {
             const currentData = getCurrentData();
-            console.log(currentData);
             const index = currentData.findIndex(data => data.id === cuil);
             currentData.splice(index, 1);
             const totalItemsAfter = currentData.length;
@@ -637,7 +684,6 @@ async function handleDelete(cuil, tableType, deleteFunc = () => { }) {
                     showConfirmModal('Cliente eliminado exitosamente.');
                     break;
                 case 'proveedores':
-                    console.log(currentData);
                     if (currentProveedoresPage > maxPage) currentProveedoresPage = maxPage;
                     renderTables(mockProveedores, currentProveedoresPage, optionsProveedores);
                     showConfirmModal('Proveedor eliminado exitosamente.');
@@ -724,6 +770,79 @@ document.addEventListener('DOMContentLoaded', async function () {
     );
     setupAddButtons();
     seePassword("password-input");
+
+    let mockFiles = [];
+    const btnBrowseFiles = document.getElementById('btnBrowseFiles');
+    btnBrowseFiles.addEventListener('click', async () => {
+        let modal = document.getElementById('browseFilesModal');
+        if (modal) {
+            modal.classList.toggle('active');
+        } else {
+            try {
+                modal = document.createElement('div');
+                modal.id = 'browseFilesModal';
+                modal.className = 'modal';
+                modal.style.zIndex = '920';
+                const response = await fetch('browse-files.html');
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                const modalHtml = await response.text();
+                if (modalHtml) {
+                    modal.innerHTML = modalHtml;
+                    document.body.appendChild(modal);
+                } else
+                    return console.log("No se pudo cargar el modal de confirmacion");
+
+                renderTables(mockFiles, 1, optionsFiles);
+                modal.classList.add('active');
+            } catch (error) {
+                console.log(error.message);
+            }
+            const closeButton = document.getElementById("closeBtnFiles");
+
+            if (closeButton) {
+                closeButton.onclick = () => {
+                    modal.classList.remove('active');
+                    mockFiles = [];
+                    document.getElementById('filesSearchInput').value = '';
+                    renderTables([], 1, optionsFiles);
+                }
+            }
+
+            const searchInput = document.getElementById('filesSearchInput');
+            const searchButton = document.getElementById('filesSearchButton');
+            if (searchInput && searchButton) {
+                
+                const performSearch = async () => {
+                    const searchTerm = searchInput.value.toLowerCase();
+                    if (searchTerm.trim() === '') {
+                        return;
+                    }
+                    try {
+                        const response = await searchFilesTerm(searchTerm);
+                        if (response.ok) {
+                            const data = await response.json();
+                            mockFiles = data.files;
+                            if (mockFiles.length === 0) {
+                                showConfirmModal("No se encontraron archivos para el término de búsqueda ingresado.");
+                                return;
+                            }
+                            renderTables(mockFiles, 1, optionsFiles);
+                        } else {
+                            showConfirmModal("Ocurrió un error al buscar archivos.");
+                        }
+                    } catch (error) {
+                        console.error("Error al buscar archivos: ", error);
+                        showConfirmModal("Ocurrió un error al buscar archivos.");
+                    }
+                }
+
+                searchInput.addEventListener('change', performSearch);
+                searchButton.addEventListener('click', performSearch);
+            }
+        }
+    });
 
     toggleSpinnerVisible(principalContent);
 

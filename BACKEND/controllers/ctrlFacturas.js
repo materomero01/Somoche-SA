@@ -766,6 +766,95 @@ exports.getArchivosViaje = async (req, res) => {
     }
 };
 
+exports.buscarArchivosTermino = async (req, res) => {
+    if (req.user.role === 'chofer') {
+        return res.status(403).json({ message: 'No tienes autorización para realizar esta operación.' });
+    }
+
+    const { termino } = req.query;
+    if (!termino || termino.trim() === '') {
+        return res.status(400).json({ message: 'Se debe proporcionar un término de búsqueda' });
+    }
+
+    const like = `%${termino.trim()}%`;
+
+    try {
+        const query = `
+            WITH facturas_agrupadas AS (
+                -- Facturas viejas pueden tener varias filas de factura_arca compartiendo el
+                -- mismo nro_factura (una por viaje, de antes de que uploadFactura empezara a
+                -- deduplicar), así que hay que agruparlas para no repetir la misma factura
+                -- una vez por cada viaje que tenga asociado. Se agrupa por nro_factura Y
+                -- cliente_cuit: si el mismo nro_factura quedó repetido para clientes distintos
+                -- (pasa en datos viejos, no debería ser el mismo comprobante real), esas SÍ
+                -- tienen que quedar como entradas separadas.
+                SELECT
+                    nro_factura,
+                    cliente_cuit,
+                    MIN(id) AS id,
+                    ARRAY_AGG(id) AS ids,
+                    MIN(create_at) AS create_at,
+                    BOOL_OR(valid) AS valid
+                FROM factura_arca
+                WHERE nro_factura ILIKE $1
+                GROUP BY nro_factura, cliente_cuit
+            )
+
+            -- "Otros archivos": matchea por descripcion (incluye las notas de crédito/débito,
+            -- cuya descripcion ya trae "...generada de Factura Nro X").
+            SELECT
+                a.id,
+                a.descripcion,
+                a.create_at AS fecha,
+                (
+                    SELECT CASE
+                        WHEN av.cliente_cuit IS NOT NULL THEN 'Cliente (' || av.cliente_cuit || ')'
+                        WHEN av.chofer_cuil IS NOT NULL THEN 'Chofer (' || av.chofer_cuil || ')'
+                        ELSE NULL
+                    END
+                    FROM archivo_viaje av
+                    WHERE av.archivo_id = a.id AND av.valid = true
+                    LIMIT 1
+                ) AS asignado,
+                (
+                    SELECT STRING_AGG(av.viaje_comprobante, ', ' ORDER BY av.viaje_comprobante)
+                    FROM archivo_viaje av
+                    WHERE av.archivo_id = a.id AND av.valid = true
+                ) AS comprobantes,
+                a.valid,
+                'Archivo' AS tipo
+            FROM archivo a
+            WHERE a.descripcion ILIKE $1
+
+            UNION ALL
+
+            -- Facturas: matchea por nro_factura (no tienen columna de descripción propia),
+            -- ya agrupadas por factura real (ver facturas_agrupadas arriba).
+            SELECT
+                fg.id,
+                'Factura Nro. ' || fg.nro_factura AS descripcion,
+                fg.create_at AS fecha,
+                CASE WHEN fg.cliente_cuit IS NOT NULL THEN 'Cliente (' || fg.cliente_cuit || ')' ELSE NULL END AS asignado,
+                (
+                    SELECT STRING_AGG(vc.viaje_comprobante, ', ' ORDER BY vc.viaje_comprobante)
+                    FROM viaje_cliente vc
+                    WHERE vc.factura_id = ANY(fg.ids) AND vc.valid = true
+                ) AS comprobantes,
+                fg.valid,
+                'Factura' AS tipo
+            FROM facturas_agrupadas fg
+
+            ORDER BY fecha DESC
+        `;
+        const { rows } = await pool.query(query, [like]);
+
+        return res.status(200).json({ files: rows });
+    } catch (error) {
+        console.error('Error en buscarArchivosTermino:', error.message, error.stack);
+        return res.status(500).json({ error: `Error al buscar archivos: ${error.message}` });
+    }
+};
+
 exports.descargarArchivoViaje = async (req, res) => {
     const { id } = req.query;
     if (!id || id === "null" || id === "undefined") {

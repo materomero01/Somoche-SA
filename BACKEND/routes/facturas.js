@@ -6,6 +6,7 @@ const ctrlFacturas = require('../controllers/ctrlFacturas');
 router.get('/descargar-factura', ctrlFacturas.descargarFactura);
 router.get('/archivos-viaje', ctrlFacturas.getArchivosViaje);
 router.get('/descargar-archivo', ctrlFacturas.descargarArchivoViaje);
+router.get('/buscar-archivos', ctrlFacturas.buscarArchivosTermino);
 
 
 /* POSTs facturas */
