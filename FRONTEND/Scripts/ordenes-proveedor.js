@@ -1,10 +1,10 @@
 import { cargarNombreChofer, setupPaymentTypeSelector, deleteFactura } from "./viajes-pagos.js";
 import { createLoadingSpinner, toggleSpinnerVisible, showConfirmModal, changeSpinnerText } from "./apiPublic.js";
-import { mockClientes, setupSearchBar, renderCurrentTable } from "./choferes-clientes.js";
+import { mockClientes, renderCurrentTable } from "./choferes-clientes.js";
 import { renderTables } from "./tabla.js";
 import { initializeFacturaUpload, viaje, closeModalFactura, updateViajeStatus } from "./subir-factura.js";
 import { formatFecha, columnasPagos, parsePagos, parseImporte } from "./resumenes.js";
-import { deletePago, getPagosProveedor, getOrdenesProveedor, setupClienteAutocomplete, addPagos, pagarOrdenesProveedor, socket, redondear, deleteModal } from "./api.js";
+import { deletePago, getPagosProveedor, getOrdenesProveedor, setupClienteAutocomplete, addPagos, pagarOrdenesProveedor, socket, redondear, deleteModal, setupSearchBar } from "./api.js";
 
 let mainContent;
 

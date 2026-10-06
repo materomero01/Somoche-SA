@@ -184,6 +184,26 @@ export const setupTarifaAutocomplete = (inputId, dependentInputId) => {
     });
 };
 
+// --- Lógica de la barra de búsqueda ---
+export function setupSearchBar(searchBarId, filterFunc, renderFunc) {
+    const searchInput = document.querySelector(`#${searchBarId} .search-input`);
+    const searchIcon = document.querySelector(`#${searchBarId} .search-icon`);
+
+    if (searchInput && searchIcon) {
+        const performSearch = () => {
+            const searchTerm = searchInput.value.toLowerCase();
+            let filteredData = [];
+            filteredData = filterFunc(searchTerm);
+            renderFunc(filteredData);
+        }
+
+        searchIcon.addEventListener('click', performSearch);
+        searchInput.addEventListener('input', performSearch);
+    } else {
+        console.warn(`Elementos de la barra de búsqueda para '${searchBarId}' no encontrados.`);
+    }
+}
+
 export function redondear(valor){
     let valorReturn = valor;
     if (typeof valor === "string")

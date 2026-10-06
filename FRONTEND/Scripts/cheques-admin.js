@@ -1,6 +1,6 @@
 // /scripts/cheques-admin.js
 
-import { setChequesPagos, socket, setupChoferAutocomplete, fetchAllChoferes, fetchProveedores, updatePagos, fetchClientes, deleteModal, createActionModal } from './api.js';
+import { setChequesPagos, socket, setupChoferAutocomplete, fetchAllChoferes, fetchProveedores, updatePagos, fetchClientes, deleteModal, createActionModal, setupSearchBar } from './api.js';
 import { renderTables, setupTableEventListeners} from './tabla.js';
 import { createLoadingSpinner, getCheques, showConfirmModal, toggleSpinnerVisible } from './apiPublic.js';
 
@@ -861,6 +861,16 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     setupChequesTabSelector();
     setupTableEventListeners();
+
+    setupSearchBar("clientesChequesSearchBar", (searchTerm) => {
+                    currentChequesPage = 1;
+                    return clientes.filter(cliente =>
+                        cliente.nombre?.toLowerCase().includes(searchTerm) ||
+                        cliente.cuit?.includes(searchTerm) ||
+                        cliente.categoria?.toLowerCase().includes(searchTerm)
+                    );
+                },
+                (filteredData) => renderTables(filteredData, 1, optionsClientesTerceros));
 
     const tabSelectorEstado = document.getElementById('chequesSelector');
     const tabSelectorTipo = document.getElementById('chequesSelectorTerceros');

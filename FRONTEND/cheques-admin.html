@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="CSS/button.css">
   <link rel="stylesheet" href="CSS/tabla.css" />
   <link rel="stylesheet" href="CSS/filtro.css">
+  <link rel="stylesheet" href="CSS/searchbar.css">
   <link rel="stylesheet" href="CSS/modal.css">
   <link rel="stylesheet" href="CSS/factura-upload.css">
   <link rel="stylesheet" href="CSS/loading-spinner.css">
@@ -127,6 +128,10 @@
             <div style="display: flex; gap: 10px">
               <h2>Cheques de terceros</h2>
             </div>
+          </div>
+          <div id="clientesChequesSearchBar" class="search-bar" style="margin-bottom:10px">
+              <input type="text" class="search-input" id= "searchInput" placeholder="Buscar cliente ..." />
+              <div class="search-icon"><i class="bi bi-search"></i></div>
           </div>
           <div id="tabla-terceros" class="tabla-dinamica"></div>
           <div id="paginacion-terceros" class="pagination-controls"></div>

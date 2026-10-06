@@ -1,6 +1,6 @@
 import { cargarNombreChofer, cartaPorteFunc, deleteFactura, setupPaymentTypeSelector, validateInputs } from "./viajes-pagos.js";
-import { mockChoferes, mockProveedores, renderCurrentTable, setupSearchBar } from "./choferes-clientes.js";
-import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete, redondear, pagarFacturaCliente, getFacturasData, createActionModal, generarNotaCredito, uploadArchivoViaje, eliminarArchivoViaje, deleteModal } from "./api.js";
+import { mockChoferes, mockProveedores, renderCurrentTable } from "./choferes-clientes.js";
+import { generarFactura, getViajesCliente, deleteViaje, getPagosCliente, setupChoferAutocomplete, addPagos, deletePago, pagarViajeCliente, updateViaje, socket, getViajeComprobante, tarifasCatac, setupClienteAutocomplete, redondear, pagarFacturaCliente, getFacturasData, createActionModal, generarNotaCredito, uploadArchivoViaje, eliminarArchivoViaje, deleteModal, setupSearchBar } from "./api.js";
 import { changeSpinnerText, createLoadingSpinner, showConfirmModal, toggleSpinnerVisible } from "./apiPublic.js";
 import { renderTables, originalEditingData, resetEditingState, stagedEditingData, editingRowId, enterEditMode, handleEdit } from "./tabla.js";
 import { columnasPagos, columnasViajes, formatFecha, parsePagos, parseViaje, parseImporte } from "./resumenes.js";

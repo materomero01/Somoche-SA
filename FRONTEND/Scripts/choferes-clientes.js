@@ -1,5 +1,5 @@
 import { renderTables, handleSaveEdit, handleEdit, enterEditMode, setupTableEventListeners, currentEditingTableType, resetEditingState, editingRowId, originalEditingData, hasChanges } from './tabla.js';
-import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchClientes, socket, loadTarifas, tarifasCatac, fetchProveedores, insertProveedor, updateProveedor, deleteProveedor, searchFilesTerm } from './api.js';
+import { fetchAllDataChoferes, deleteChofer, deleteCliente, updateCliente, insertCliente, insertChofer, fetchClientes, socket, loadTarifas, tarifasCatac, fetchProveedores, insertProveedor, updateProveedor, deleteProveedor, searchFilesTerm, setupSearchBar } from './api.js';
 import { updateChofer, showConfirmModal, createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText, getArchivoViaje, getFactura } from './apiPublic.js';
 import { inicializarModal } from './viajes-pagos.js';
 import { parseImporte } from './resumenes.js';
@@ -456,26 +456,6 @@ async function handleTabContentDisplay(selectedTab) {
     }
     currentEditingTable = selectedTab;
     resetEditingState();
-}
-
-// --- Lógica de la barra de búsqueda ---
-export function setupSearchBar(searchBarId, filterFunc, renderFunc) {
-    const searchInput = document.querySelector(`#${searchBarId} .search-input`);
-    const searchIcon = document.querySelector(`#${searchBarId} .search-icon`);
-
-    if (searchInput && searchIcon) {
-        const performSearch = () => {
-            const searchTerm = searchInput.value.toLowerCase();
-            let filteredData = [];
-            filteredData = filterFunc(searchTerm);
-            renderFunc(filteredData);
-        }
-
-        searchIcon.addEventListener('click', performSearch);
-        searchInput.addEventListener('input', performSearch);
-    } else {
-        console.warn(`Elementos de la barra de búsqueda para '${searchBarId}' no encontrados.`);
-    }
 }
 
 // --- Lógica de los botones de añadir ---
