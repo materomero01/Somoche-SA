@@ -272,6 +272,7 @@ exports.getAllPagos = async (req, res) => {
 
 exports.getPagosCheque = async (req, res) => {
     const choferCuil = req.query.choferCuil !== 'null' ? req.query.choferCuil : null;
+    const clienteCuit = req.query.clienteCuit && req.query.clienteCuit !== 'null' ? req.query.clienteCuit : null;
     const tipo = req.query.tipo; // Nuevo: 'propio', 'tercero' o null para todos
     let pagado;
     const cantidad = parseInt(req.query.cantidad) || null;
@@ -331,6 +332,12 @@ exports.getPagosCheque = async (req, res) => {
             conditions.push(`cliente_cuit IS NOT NULL`);
         }
 
+        // 4. Filtro por cliente puntual (ver los cheques de un cliente específico)
+        if (clienteCuit) {
+            conditions.push(`cliente_cuit = $${params.length + 1}`);
+            params.push(clienteCuit);
+        }
+
         // Construcción de la WHERE clause
         if (conditions.length > 0) {
             // Ya no concatenamos "AND cliente_cuit IS NULL" al final de forma fija
@@ -341,7 +348,7 @@ exports.getPagosCheque = async (req, res) => {
         if (pagado) {
             query += ` ORDER BY fecha_cheque DESC, nro_cheque DESC `;
         } else {
-            query += ` ORDER BY fecha_cheque ASC, nro_cheque ASC `;
+            query += ` ORDER BY fecha_cheque DESC, nro_cheque ASC `;
         }
 
         // Límite (Lógica existente)

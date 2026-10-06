@@ -172,7 +172,7 @@ exports.getResumenCuil = async (req, res) => {
  
         // Verificar si el chofer existe
         const userExists = await client.query(
-            'SELECT cuil FROM usuario WHERE valid = true AND cuil = $1',
+            'SELECT cuil, tipo_trabajador FROM chofer WHERE valid = true AND cuil = $1',
             [cuil]
         );
  
@@ -181,7 +181,10 @@ exports.getResumenCuil = async (req, res) => {
             client.release();
             return res.status(404).json({ message: `El chofer con CUIL ${cuil} no está registrado.` });
         }
- 
+        
+        // Si el usuario autenticado es el propio chofer, solo ve pagos con destino = 'chofer'
+        const esChofer = userExists.rows[0].tipo_trabajador === 'chofer';
+
         // Obtener los últimos n grupos de viajes
         const viajesResult = await client.query(`
             SELECT group_r, viajes
@@ -199,9 +202,6 @@ exports.getResumenCuil = async (req, res) => {
             ORDER BY group_r DESC
             LIMIT $2
         `, [cuil, cantidad]);
- 
-        // Si el usuario autenticado es el propio chofer, solo ve pagos con destino = 'chofer'
-        const esChofer = req.user.role === 'chofer';
  
         const saldosResult = await client.query(`
             SELECT group_r, saldo, iva, destino

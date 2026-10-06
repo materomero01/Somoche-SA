@@ -13,6 +13,10 @@ exports.insertUser = async (req, res) => {
         // Validar datos de entrada
         const { errors, validatedData } = userSchema(req.body);
         const { admin } = req.query;
+        // admin=true por sí solo no prueba nada (es un query param, cualquiera lo puede mandar):
+        // solo se puede reactivar un usuario dado de baja si quien llama tiene un JWT válido de
+        // un rol administrativo real.
+        const esAdminAutenticado = !!req.user && req.user.role !== 'chofer';
         if (errors.length > 0) {
             return res.status(400).json({ message: `Los datos ingresados para ${errors.join(', ')} no son validos` });
         }
@@ -34,7 +38,7 @@ exports.insertUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(validatedData.password, salt);
         let usuarioRecuperado = false;
         if (userExists.rows.length > 0) {
-            if (!userExists.rows[0].valid && admin === "true") {
+            if (!userExists.rows[0].valid && admin === "true" && esAdminAutenticado) {
                 const responseRecuperar = await client.query('UPDATE usuario SET valid = true, nombre_apellido = $2, password = $3, telefono = $4, email = $5 WHERE valid = false AND cuil = $1', [validatedData.cuil, validatedData.nombre, hashedPassword, validatedData.telefono, validatedData.email]);
                 const responseRecuperarChofer = await client.query('UPDATE chofer SET valid = true, tipo_trabajador = $2, patente_chasis = $3, patente_acoplado = $4 WHERE valid = false AND cuil = $1', [validatedData.cuil, validatedData.trabajador, validatedData.patente_chasis, validatedData.patente_acoplado]);
                 if (responseRecuperar.rowCount > 0 && responseRecuperarChofer.rowCount > 0)
@@ -118,20 +122,24 @@ exports.loginUser = async (req, res) => {
         return res.status(400).json({ message: 'CUIL y contraseña son obligatorios.' });
     }
 
+    // Mismo mensaje genérico para "CUIL no existe" y "contraseña incorrecta": si difirieran,
+    // alguien podría usar el login para averiguar qué CUILs están registrados.
+    const credencialesInvalidas = () => res.status(401).json({ message: 'CUIL o contraseña incorrectos.' });
+
     try {
         const userResult = await pool.query(
             'SELECT cuil, nombre_apellido, password AS hashedPassword, role FROM usuario WHERE cuil = $1',
             [cuil]
         );
-        if (userResult.rows.length === 0) {
-            return res.status(401).json({ message: 'El CUIL proporcionado no se encuentra registrado.' });
-        }
 
+        // Si el CUIL no existe, igual corremos un bcrypt.compare contra un hash fijo: así el
+        // tiempo de respuesta no delata si el CUIL existe o no (bcrypt es lo que tarda acá).
+        const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8i8P8IuQ4X6oXO4x7Vp2GJ0z6r7QJK';
         const user = userResult.rows[0];
-        const passwordIsValid = await bcrypt.compare(password, user.hashedpassword);
+        const passwordIsValid = await bcrypt.compare(password, user ? user.hashedpassword : DUMMY_HASH);
 
-        if (!passwordIsValid) {
-            return res.status(401).json({ message: 'La contraseña no es correcta.' });
+        if (!user || !passwordIsValid) {
+            return credencialesInvalidas();
         }
 
         let choferTrabajador;
@@ -141,7 +149,7 @@ exports.loginUser = async (req, res) => {
                 [cuil]
             );
             if (choferResult.rows.length === 0) {
-                return res.status(401).json({ message: 'El CUIL proporcionado no se encuentra registrado como chofer.' });
+                return credencialesInvalidas();
             }
             choferTrabajador = choferResult.rows[0].tipo_trabajador;
         }
@@ -179,7 +187,12 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-const RESET_JWT_SECRET = process.env.RESET_JWT_SECRET || 'your_reset_jwt_secret';
+// Sin fallback: un secreto por defecto hardcodeado en el código dejaría a cualquiera forjar
+// tokens de reset de contraseña válidos para cualquier CUIL si esta variable no está seteada.
+const RESET_JWT_SECRET = process.env.RESET_JWT_SECRET;
+if (!RESET_JWT_SECRET) {
+    throw new Error('Falta configurar RESET_JWT_SECRET en el .env');
+}
 
 
 exports.getEmailByCuit = async (req, res) => {
@@ -188,17 +201,17 @@ exports.getEmailByCuit = async (req, res) => {
         return res.status(400).json({ message: 'CUIL/CUIT no obtenido' });
     }
 
+    // Mensaje genérico sin importar si el CUIL existe, si tiene email cargado, o si el envío
+    // se disparó: así no se puede usar este endpoint para averiguar qué CUILs están registrados.
+    const mensajeGenerico = { message: 'Si el CUIL está registrado y tiene un email asociado, se envió un enlace de restablecimiento.' };
+
     try {
         const result = await pool.query('SELECT email, nombre_apellido FROM usuario where cuil = $1',
             [cuil]);
 
-        if (result.rows.length === 0) {
-            return res.status(401).json({ message: 'El CUIL proporcionado no se encuentra registrado.' });
-        }
-
-        const email = result.rows[0].email;
-        if (email === null) {
-            return res.status(400).json({ message: 'El usuario no tiene E-mail' })
+        const email = result.rows[0]?.email;
+        if (!email) {
+            return res.json(mensajeGenerico);
         }
         const resetToken = jwt.sign(
             { cuil, scope: 'password_reset' },
@@ -221,7 +234,7 @@ exports.getEmailByCuit = async (req, res) => {
         };
 
         await transporter.sendMail(mailOptions);
-        res.json({ message: 'Enlace de restablecimiento enviado al correo asociado. Revise su correo.' });
+        res.json(mensajeGenerico);
     } catch (error) {
         console.error('Error en forgot-password:', error);
         res.status(500).json({ message: 'Error al procesar la solicitud' });

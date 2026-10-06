@@ -324,7 +324,7 @@ export async function setHistorial(chofer, cartaPorte = null, deleteFunc = null,
                 };
             }
         } else 
-            vistaActual = 'chofer';
+            vistaActual = esUsuarioChofer ? 'chofer' : 'general';
 
         renderizarTablasResumenes();
     } catch (error) {

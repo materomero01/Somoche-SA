@@ -197,13 +197,14 @@ export function logout() {
     window.location.href = "login.html";
 }
 
-export function createActionModal(id, title, buttons) {
+export function createActionModal(id, title, buttons, subtitle = null) {
     const modal = document.createElement('div');
     modal.id = id;
     modal.className = 'modal active';
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 400px;">
-            <h2 style="margin-top: 0">${title}</h2>
+            <h2 style="margin-top: 0; ${subtitle ? 'margin-bottom: 10px;' : ''}">${title}</h2>
+            ${subtitle ? `<div style="margin: 0 0 10px; padding: 10px 12px; background: #f8f9fa; border-radius: 6px; color: #444; font-size: 0.9rem; line-height: 1.6; word-break: break-word;">${subtitle}</div>` : ''}
             <div class="modal-actions-vertical">
                 ${buttons.map(b => `
                     <button id="${b.id}" class="btn ${b.class} ${b.hidden ? 'hidden' : ''}">
@@ -216,6 +217,23 @@ export function createActionModal(id, title, buttons) {
     `;
     document.body.appendChild(modal);
     return modal;
+}
+
+export function deleteModal(modalId, modalContentId, editingRowId, clearFunc = () => {}) {
+    const modal = document.getElementById(modalId);
+    if (editingRowId){
+        showConfirmModal("Guarda o cancela los cambios realizados antes de salir");
+        return;
+    }
+
+    if (modal) {
+        modal.classList.toggle("active");
+        document.body.classList.remove("no-scroll");
+        const modalContent = document.getElementById(modalContentId);
+        clearFunc();
+        if (modalContent) modalContent.remove();
+        window.onclick = null;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////

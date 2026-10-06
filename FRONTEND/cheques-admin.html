@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="CSS/tabla.css" />
   <link rel="stylesheet" href="CSS/filtro.css">
   <link rel="stylesheet" href="CSS/modal.css">
+  <link rel="stylesheet" href="CSS/factura-upload.css">
   <link rel="stylesheet" href="CSS/loading-spinner.css">
 </head>
 
@@ -65,63 +66,75 @@
           </div>
           <button id="apply-filter-btn" class="btn btn-success apply-button">Aplicar</button>
         </div>
-        <div class="tab-selector tab-selector--sm" id="chequesSelector">
-          <div class="tab-item active" data-tab="proximos">Próximos</div>
-          <div class="tab-item" data-tab="pagos">Pagos</div>
-          <div class="tab-indicator"></div>
-        </div>
-        <div id="content-proximos">
-          <div class="section-header">
-            <div style="display: flex; gap: 15px; align-items: center;">
-              <h2>Cheques próximos</h2>
-              <span id="total-cheques-proximos" class="total-cheques">Total: $0.00</span>
-            </div>
-            <div class="filter-buttons-container">
-              <button id="clear-filter-btn-proximos" class="btn btn-danger btn-sm ms-2 hidden"><i
-                  class="bi bi-x-lg"></i></button>
-              <button id="filter-btn-proximos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
-            </div>
+        <div id="contentChequesPropios">
+          <div class="tab-selector tab-selector--sm" id="chequesSelector">
+            <div class="tab-item active" data-tab="proximos">Próximos</div>
+            <div class="tab-item" data-tab="pagos">Pagos</div>
+            <div class="tab-indicator"></div>
           </div>
-          <div id="tabla-proximos" class="tabla-dinamica table-auto"></div>
+          <div id="content-proximos">
+            <div class="section-header">
+              <div style="display: flex; gap: 15px; align-items: center;">
+                <h2>Cheques próximos</h2>
+                <span id="total-cheques-proximos" class="total-cheques">Total: $0.00</span>
+              </div>
+              <div class="filter-buttons-container">
+                <button id="clear-filter-btn-proximos" class="btn btn-danger btn-sm ms-2 hidden"><i
+                    class="bi bi-x-lg"></i></button>
+                <button id="filter-btn-proximos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
+              </div>
+            </div>
+            <div id="tabla-proximos" class="tabla-dinamica table-auto"></div>
 
-          <div id="cheques-selection-controls" class="hidden">
-            <div class="cheques-selected-summary">
-              <span>Cheques seleccionados: <span id="selected-cheques-count">0</span></span>
-              <span>Total a pagar: $<span id="selected-cheques-total">0.00</span></span>
+            <div id="cheques-selection-controls" class="hidden">
+              <div class="cheques-selected-summary">
+                <span>Cheques seleccionados: <span id="selected-cheques-count">0</span></span>
+                <span>Total a pagar: $<span id="selected-cheques-total">0.00</span></span>
+              </div>
+              <div class="cheques-actions">
+                <button id="cancel-selection-btn" class="btn btn-danger">Cancelar</button>
+                <button id="pay-selected-btn" class="btn btn-success">Pagar</button>
+              </div>
             </div>
-            <div class="cheques-actions">
-              <button id="cancel-selection-btn" class="btn btn-danger">Cancelar</button>
-              <button id="pay-selected-btn" class="btn btn-success">Pagar</button>
-            </div>
+            <div id="paginacion-proximos" class="pagination-controls"></div>
           </div>
-          <div id="paginacion-proximos" class="pagination-controls"></div>
-        </div>
 
-        <div id="content-pagos" class="hidden">
+          <div id="content-pagos" class="hidden">
+            <div class="section-header">
+              <div style="display: flex; gap: 10px">
+                <h2>Cheques pagos</h2>
+                <select id="selectCheques" class="select-format" style="margin: auto;">
+                  <option value="10"> 10 </option>
+                  <option value="20"> 20 </option>
+                  <option value="30"> 30 </option>
+                  <option value="40"> 40 </option>
+                  <option value="Otro"> Otro</option>
+                </select>
+                <input type="number" class="select-format input-select hidden" id="inputSelectCheques" placeholder="?">
+              </div>
+              <div class="filter-buttons-container">
+                <button id="clear-filter-btn-pagos" class="btn btn-danger btn-sm ms-2 hidden"><i
+                    class="bi bi-x-lg"></i></button>
+                <button id="filter-btn-pagos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
+              </div>
+            </div>
+            <div id="tabla-pagos" class="tabla-dinamica"></div>
+            <div id="paginacion-pagos" class="pagination-controls"></div>
+          </div>
+        </div>
+        <div id="contentChequesTerceros" class="hidden">
           <div class="section-header">
             <div style="display: flex; gap: 10px">
-              <h2>Cheques pagos</h2>
-              <select id="selectCheques" class="select-format" style="margin: auto;">
-                <option value="10"> 10 </option>
-                <option value="20"> 20 </option>
-                <option value="30"> 30 </option>
-                <option value="40"> 40 </option>
-                <option value="Otro"> Otro</option>
-              </select>
-              <input type="number" class="select-format input-select hidden" id="inputSelectCheques" placeholder="?">
-            </div>
-            <div class="filter-buttons-container">
-              <button id="clear-filter-btn-pagos" class="btn btn-danger btn-sm ms-2 hidden"><i
-                  class="bi bi-x-lg"></i></button>
-              <button id="filter-btn-pagos" class="btn btn-success"><i class="bi bi-funnel"></i> Filtrar</button>
+              <h2>Cheques de terceros</h2>
             </div>
           </div>
-          <div id="tabla-pagos" class="tabla-dinamica"></div>
-          <div id="paginacion-pagos" class="pagination-controls"></div>
-        </div>
+          <div id="tabla-terceros" class="tabla-dinamica"></div>
+          <div id="paginacion-terceros" class="pagination-controls"></div>
       </section>
     </div>
   </main>
+
+  <div id="tercerosClientesModal" class="modal" style="z-index: 900;"></div>
 
   <script src="Scripts/header.js"></script>
   <script src="Scripts/sidebar.js"></script>

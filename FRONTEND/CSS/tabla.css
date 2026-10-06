@@ -54,6 +54,11 @@
     align-items: center;
     gap: 8px;
     position: relative;
+    /* Si comparte fila con .table-header-with-button (justify-content: space-between) y el
+       hermano de al lado se oculta (p. ej. #cheques-selection-controls con 0 seleccionados),
+       space-between ya no tiene nada contra qué "espaciar" y este quedaría pegado a la
+       izquierda. margin-left: auto lo mantiene a la derecha en ambos casos. */
+    margin-left: auto;
 }
 
 /* Botones de acción en modo edición */
@@ -306,7 +311,7 @@ td.orange {
     gap: 10px;
 }
 
-#cheques-selection-controls {
+#cheques-selection-controls, #cheques-cliente-selection-controls {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
     border-radius: 8px;

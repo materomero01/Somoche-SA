@@ -1,6 +1,18 @@
 import { createLoadingSpinner, toggleSpinnerVisible, changeSpinnerText, getFactura, getCartaPorte, getArchivoViaje, showConfirmModal } from "./apiPublic.js";
 import { fetchLogs } from "./api.js";
 
+// Escapa texto antes de insertarlo con innerHTML: estos logs muestran campos libres
+// cargados por cualquier usuario (nombre, razón social, detalle, etc.), así que nunca
+// hay que interpolarlos crudos en HTML.
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Función para parsear valores con formato de moneda ($376,529.16) a número
 // Formato: coma como separador de miles, punto como decimal
 const parseCurrency = (value) => {
@@ -37,7 +49,7 @@ function renderViajesVinculadosSection(viajes, { tituloEntidad, isDesvinculado, 
                 ${viajes.map((v, idx) => `
                     <li style="padding: 8px 12px; background: white; border-radius: 4px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
                         <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            <strong>Comprobante:</strong> ${getComprobante(v) || 'N/A'}
+                            <strong>Comprobante:</strong> ${escapeHtml(getComprobante(v)) || 'N/A'}
                         </span>
                         <button class="btn btn-primary btn-sm ${btnClass}" data-viaje-index="${idx}" style="padding: 4px 10px; font-size: 0.85em; flex-shrink: 0; margin-left: auto;">
                             Ver detalle
@@ -374,12 +386,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     row.innerHTML = `
-                        <td>${date}</td>
-                        <td>${user}</td>
-                        <td>${actionText}</td>
+                        <td>${escapeHtml(date)}</td>
+                        <td>${escapeHtml(user)}</td>
+                        <td>${escapeHtml(actionText)}</td>
                         <td>
                              <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span class="log-preview" style="color: #555; font-size: 0.9em; margin-right: 10px;">${previewText}</span>
+                                <span class="log-preview" style="color: #555; font-size: 0.9em; margin-right: 10px;">${escapeHtml(previewText)}</span>
                                 <button class="view-details-btn btn btn-primary btn-sm">Ver más</button>
                             </div>
                         </td>
@@ -993,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                             ${relatedClientes.map((vc, idx) => `
                                                 <li style="padding: 8px 12px; background: white; border-radius: 4px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
                                                     <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                                        <strong>Cliente CUIT:</strong> ${vc.cliente_cuit || 'N/A'}
+                                                        <strong>Cliente CUIT:</strong> ${escapeHtml(vc.cliente_cuit) || 'N/A'}
                                                     </span>
                                                     <button class="btn btn-primary btn-sm btn-view-related" data-index="${idx}" style="padding: 4px 10px; font-size: 0.85em; flex-shrink: 0; margin-left: auto;">
                                                         Ver detalle
@@ -1394,14 +1406,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             return '<p style="color: #999;">Sin datos</p>';
         }
         if (typeof data !== 'object') {
-            return `<span style="color: #d14;">"${String(data)}"</span>`;
+            return `<span style="color: #d14;">"${escapeHtml(data)}"</span>`;
         }
         let html = '<ul style="list-style: none; padding-left: 0; margin: 8px 0; text-align: left;">';
         Object.entries(data).forEach(([key, value]) => {
-            const niceKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const niceKey = escapeHtml(key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
             html += `<li style="margin-bottom: 8px;">
-                <strong style="color: #905;">${niceKey}:</strong> 
-                ${typeof value === 'object' ? formatDataToHTML(value) : `<span style="color: #d14;">${value}</span>`}
+                <strong style="color: #905;">${niceKey}:</strong>
+                ${typeof value === 'object' ? formatDataToHTML(value) : `<span style="color: #d14;">${escapeHtml(value)}</span>`}
             </li>`;
         });
         html += '</ul>';

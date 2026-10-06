@@ -1,6 +1,6 @@
 import { renderTables, enterEditMode, handleEdit, editingRowId, originalEditingData, stagedEditingData, resetEditingState, currentEditingTableType } from './tabla.js';
 import { getViajes, getPagosCuil, showConfirmModal, toggleSpinnerVisible, changeSpinnerText, createLoadingSpinner } from './apiPublic.js';
-import { addViaje, addPagos, updateViaje, setupTarifaAutocomplete, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje, socket, tarifasCatac, tarifasFetra, redondear, uploadArchivoViaje, eliminarArchivoViaje} from './api.js';
+import { addViaje, addPagos, updateViaje, setupTarifaAutocomplete, addResumen, uploadCartaPorte, deleteDocument, setupAutocomplete, setupClienteAutocomplete, deletePago, deleteViaje, socket, tarifasCatac, tarifasFetra, redondear, uploadArchivoViaje, eliminarArchivoViaje, deleteModal} from './api.js';
 import { mockClientes, mockProveedores } from './choferes-clientes.js';
 import { setHistorial, parsePagos, parseViaje, parseImporte, columnasViajes, columnasPagos} from './resumenes.js';
 import { viaje, initializeFacturaUpload, updateViajeStatus, closeModalFactura } from './subir-factura.js';
@@ -661,7 +661,7 @@ async function cargarPagos(){
     let dataPagos = await responsePagos.json();
     if (!responsePagos.ok) {
         showConfirmModal(dataPagos.message);
-        deleteModal("viajesPagosModal", "contentModalViajes", () => {
+        deleteModal("viajesPagosModal", "contentModalViajes", editingRowId, () => {
             choferData = null;
             pagosData = [];
             viajesData = [];
@@ -694,7 +694,7 @@ async function cargarTablas() {
             const data = await response.json();
             if (!response.ok) {
                 showConfirmModal(data.message);
-                deleteModal("viajesPagosModal", "contentModalViajes", () => {
+                deleteModal("viajesPagosModal", "contentModalViajes", editingRowId, () => {
                     choferData = null;
                     pagosData = [];
                     viajesData = [];
@@ -871,23 +871,6 @@ export function cargarNombreChofer(nombre) {
     }
 }
 
-export function deleteModal(modalId, modalContentId, clearFunc = () => {}) {
-    const modal = document.getElementById(modalId);
-    if (editingRowId){
-        showConfirmModal("Guarda o cancela los cambios realizados antes de salir");
-        return;
-    }
-
-    if (modal) {
-        modal.classList.toggle("active");
-        document.body.classList.remove("no-scroll");
-        const modalContent = document.getElementById(modalContentId);
-        clearFunc();
-        if (modalContent) modalContent.remove();
-        window.onclick = null;
-    }
-}
-
 // Inicializar
 export async function inicializarModal(data) {
     document.body.classList.add("no-scroll");
@@ -905,7 +888,7 @@ export async function inicializarModal(data) {
     if (closeButton) {
         closeButton.onclick = () => {
 
-            deleteModal("viajesPagosModal", "contentModalViajes", () => {
+            deleteModal("viajesPagosModal", "contentModalViajes", editingRowId, () => {
                 choferData = null;
                 pagosData = [];
                 viajesData = [];

@@ -1,10 +1,10 @@
-import { cargarNombreChofer, deleteModal, setupPaymentTypeSelector, deleteFactura } from "./viajes-pagos.js";
+import { cargarNombreChofer, setupPaymentTypeSelector, deleteFactura } from "./viajes-pagos.js";
 import { createLoadingSpinner, toggleSpinnerVisible, showConfirmModal, changeSpinnerText } from "./apiPublic.js";
 import { mockClientes, setupSearchBar, renderCurrentTable } from "./choferes-clientes.js";
 import { renderTables } from "./tabla.js";
 import { initializeFacturaUpload, viaje, closeModalFactura, updateViajeStatus } from "./subir-factura.js";
 import { formatFecha, columnasPagos, parsePagos, parseImporte } from "./resumenes.js";
-import { deletePago, getPagosProveedor, getOrdenesProveedor, setupClienteAutocomplete, addPagos, pagarOrdenesProveedor, socket, redondear } from "./api.js";
+import { deletePago, getPagosProveedor, getOrdenesProveedor, setupClienteAutocomplete, addPagos, pagarOrdenesProveedor, socket, redondear, deleteModal } from "./api.js";
 
 let mainContent;
 
@@ -458,7 +458,7 @@ async function cargarOrdenes() {
             const data = await response.json();
             if (!response.ok) {
                 showConfirmModal(data.message);
-                deleteModal("ordenesProveedoresModal","contentModalViajes", () => {
+                deleteModal("ordenesProveedoresModal","contentModalViajes", null, () => {
                     proveedorData = [];
                     ordenesProveedor = [];
                     ultimosPagosProveedor = [];
@@ -513,7 +513,7 @@ export async function inicializarModalProveedor(data) {
     if (closeButton) {
         closeButton.onclick = () => {
             
-            deleteModal("ordenesProveedoresModal","contentModalViajes", () => {
+            deleteModal("ordenesProveedoresModal","contentModalViajes", null, () => {
                 proveedorData = [];
                 ordenesProveedor = [];
                 ultimosPagosProveedor = [];

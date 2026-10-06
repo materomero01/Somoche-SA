@@ -213,7 +213,7 @@
         display: none;
     }
     
-    #viajesClientesModal .person-info {
+    #viajesClientesModal .person-info, #tercerosClientesModal .person-info {
         display: none;
     }
 
